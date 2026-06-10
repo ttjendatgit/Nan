@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0D131F;
+  --foreground: #FBFBFF;
+  --surface: #151C28;
+  --surface-high: #242A37;
+  --border: #2F3542;
+  --text-primary: #FBFBFF;
+  --text-secondary: #C3C7CD;
+  --text-muted: #8D9197;
+  --accent-blue: #C6E2FF;
+  --secondary-blue: #9ECBFB;
+  --deep-blue: #2A5A84;
+  --highlight-blue: #539AD3;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-eb-garamond), Georgia, serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.bg-grid-dots {
+  background-image: radial-gradient(rgba(198, 226, 255, 0.055) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.bg-grid-lines {
+  background-image:
+    linear-gradient(rgba(198, 226, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(198, 226, 255, 0.035) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
