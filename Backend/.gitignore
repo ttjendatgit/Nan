@@ -1,0 +1,46 @@
+## .NET
+bin/
+obj/
+out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*~
+
+## User secrets / env
+appsettings.*.local.json
+secrets.json
+.env
+.env.*
+
+## Uploads (keep folder structure)
+src/Vifan.PrintTech.API/wwwroot/uploads/**/*
+!src/Vifan.PrintTech.API/wwwroot/uploads/**/.gitkeep
+
+## EF
+*.db
+*.db-shm
+*.db-wal

@@ -1,0 +1,2 @@
+{"sessionId":"14050d","hypothesisId":"H1","location":"terminals/7.txt","message":"Build failed - DLL locked by Vifan.PrintTech.API","data":{"pid":20816,"errors":["MSB3027","MSB3021"]},"timestamp":1733456800000,"runId":"pre-fix"}
+{"sessionId":"14050d","hypothesisId":"H1","location":"post-fix-build","message":"Build succeeded after Stop-Process and Directory.Build.targets","data":{"exitCode":0},"timestamp":1733456801000,"runId":"post-fix"}

@@ -1,0 +1,9 @@
+<Project>
+  <!-- Stop a running API instance before build so DLL copy (MSB3027) does not fail -->
+  <Target Name="StopRunningApiBeforeBuild"
+          BeforeTargets="Build"
+          Condition="'$(MSBuildProjectName)' == 'Vifan.PrintTech.API' AND '$(OS)' == 'Windows_NT'">
+    <Exec Command="powershell -NoProfile -Command &quot;Get-Process -Name 'Vifan.PrintTech.API' -ErrorAction SilentlyContinue | Stop-Process -Force&quot;"
+          IgnoreExitCode="true" />
+  </Target>
+</Project>

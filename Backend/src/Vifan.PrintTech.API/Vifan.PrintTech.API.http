@@ -1,0 +1,6 @@
+@Vifan.PrintTech.API_HostAddress = http://localhost:5259
+
+GET {{Vifan.PrintTech.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
