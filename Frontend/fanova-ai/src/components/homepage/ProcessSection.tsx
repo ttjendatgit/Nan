@@ -9,82 +9,97 @@ export default function ProcessSection() {
   return (
     <section
       id="process"
-      className="relative overflow-hidden bg-[#0D131F] px-6 py-20 md:py-28"
+      className="relative overflow-hidden bg-[#FFFFFF] px-6 py-20 md:py-28"
     >
       {/* Grid */}
-      <div className="absolute inset-0 bg-grid-lines opacity-70" />
+      <div className="absolute inset-0 bg-grid-lines opacity-45" />
 
-      {/* Glow accents */}
-      <div className="absolute left-0 top-24 h-80 w-80 rounded-full bg-[#2A5A84]/12 blur-3xl" />
-      <div className="absolute bottom-24 right-0 h-80 w-80 rounded-full bg-[#539AD3]/8 blur-3xl" />
+      {/* Glows */}
+      <div className="pointer-events-none absolute left-0 top-24 h-72 w-72 rounded-full bg-[#DCEAF7]/20 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-24 right-0 h-72 w-72 rounded-full bg-[#DCEAF7]/15 blur-3xl" />
 
       <div className="relative mx-auto max-w-7xl">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[0.8fr_1.2fr]">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7 }}
-            className="lg:sticky lg:top-28 lg:h-fit"
-          >
-            <div className="mb-5 inline-flex rounded-full border border-[#2F3542] bg-[#151C28] px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#539AD3]">
-              How It Works
-            </div>
 
-            <h2 className="font-serif text-4xl font-semibold tracking-tight text-[#FBFBFF] md:text-6xl">
-              Từ ý tưởng{" "}
-              <span className="block bg-linear-to-r from-[#9ECBFB] via-[#C6E2FF] to-[#539AD3] bg-clip-text text-transparent">
-                đến chiếc quạt thật.
-              </span>
+        {/* Section header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.65 }}
+          className="mb-14"
+        >
+          <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.28em] text-[#08337D]">
+            04 / Quy trình
+          </p>
+
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+            <h2 className="font-serif text-4xl font-semibold tracking-tight text-[#081426] md:text-5xl lg:max-w-md">
+              Từ ý tưởng đến{" "}
+              <span className="text-[#08337D]">chiếc quạt hoàn thiện.</span>
             </h2>
-
-            <p className="mt-6 max-w-xl text-base leading-8 text-[#8D9197]">
-              Quy trình được thiết kế để khách hàng không cần hiểu kỹ thuật in
-              vẫn có thể tạo mẫu, xem trước và gửi yêu cầu báo giá dễ dàng.
-            </p>
-
-            <div className="mt-8">
-              <Button>
-                Bắt đầu thiết kế
-                <ArrowRight className="ml-2" size={15} />
-              </Button>
+            <div className="max-w-sm">
+              <p className="text-[0.9375rem] leading-7 text-[#4A74A7]">
+                Quy trình được thiết kế để ai cũng có thể tạo mẫu, xem trước
+                và gửi báo giá mà không cần hiểu kỹ thuật in.
+              </p>
+              <div className="mt-5">
+                <Button>
+                  Bắt đầu thiết kế
+                  <ArrowRight className="ml-2" size={14} />
+                </Button>
+              </div>
             </div>
-          </motion.div>
-
-          <div className="space-y-4">
-            {processSteps.map((item, index) => (
-              <motion.div
-                key={item.step}
-                initial={{ opacity: 0, y: 26 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.7, delay: index * 0.06 }}
-                className="group rounded-3xl border border-[#2F3542] bg-[#151C28] p-6 shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-[#539AD3]/35 hover:bg-[#19202C] hover:shadow-2xl hover:shadow-black/30 md:p-7"
-              >
-                <div className="flex flex-col gap-5 md:flex-row md:items-start">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#2F3542] bg-[#0D131F] font-mono text-sm font-bold text-[#539AD3] shadow-lg shadow-black/20">
-                    {item.step}
-                  </div>
-
-                  <div>
-                    <h3 className="font-serif text-xl font-semibold text-[#FBFBFF]">
-                      {item.title}
-                    </h3>
-
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8D9197] md:text-sm md:leading-7">
-                      {item.description}
-                    </p>
-                  </div>
-
-                  <ArrowRight
-                    className="ml-auto hidden text-[#2F3542] transition group-hover:translate-x-1 group-hover:text-[#539AD3] md:block"
-                    size={20}
-                  />
-                </div>
-              </motion.div>
-            ))}
           </div>
+
+          <div className="mt-10 h-px bg-gradient-to-r from-[rgba(8,51,125,0.14)] via-[rgba(8,51,125,0.08)] to-transparent" />
+        </motion.div>
+
+        {/* Process steps */}
+        <div className="space-y-3">
+          {processSteps.map((item, index) => (
+            <motion.div
+              key={item.step}
+              initial={{ opacity: 0, y: 22 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.65, delay: index * 0.07 }}
+              className="group relative overflow-hidden rounded-2xl border border-[rgba(8,51,125,0.09)] bg-[#FFFFFF] transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(8,51,125,0.20)] hover:bg-[#F7FAFF] hover:shadow-[0_8px_32px_rgba(8,51,125,0.10)]"
+            >
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(8,51,125,0.18)] to-transparent" />
+
+              <div className="flex flex-col gap-5 p-6 md:flex-row md:items-center md:p-7">
+                {/* Step number */}
+                <div className="flex shrink-0 flex-row items-center gap-4 md:flex-col md:items-start md:gap-1">
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[rgba(8,51,125,0.35)]">
+                    Step
+                  </span>
+                  <span className="font-mono text-[1.75rem] font-bold leading-none text-[#08337D] md:text-[2rem]">
+                    {item.step}
+                  </span>
+                </div>
+
+                {/* Divider */}
+                <div className="hidden h-12 w-px bg-[rgba(8,51,125,0.12)] md:block" />
+
+                {/* Content */}
+                <div className="flex-1">
+                  <h3 className="font-serif text-xl font-semibold text-[#081426]">
+                    {item.title}
+                  </h3>
+                  <p className="mt-2 max-w-2xl text-sm leading-7 text-[#4A74A7]">
+                    {item.description}
+                  </p>
+                </div>
+
+                <ArrowRight
+                  className="hidden shrink-0 text-[rgba(8,51,125,0.16)] transition-all duration-200 group-hover:translate-x-1 group-hover:text-[#08337D] md:block"
+                  size={18}
+                />
+              </div>
+            </motion.div>
+          ))}
         </div>
+
       </div>
     </section>
   );

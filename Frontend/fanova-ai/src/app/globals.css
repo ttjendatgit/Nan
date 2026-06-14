@@ -1,18 +1,66 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0D131F;
-  --foreground: #FBFBFF;
-  --surface: #151C28;
-  --surface-high: #242A37;
-  --border: #2F3542;
-  --text-primary: #FBFBFF;
-  --text-secondary: #C3C7CD;
-  --text-muted: #8D9197;
-  --accent-blue: #C6E2FF;
-  --secondary-blue: #9ECBFB;
-  --deep-blue: #2A5A84;
-  --highlight-blue: #539AD3;
+  /* ═══════════════════════════════════════════════════════
+     NAN DESIGN SYSTEM — Luxury Blue × Warm Ivory (v3)
+     Core philosophy: premium craftsmanship + modern editorial
+  ═══════════════════════════════════════════════════════ */
+
+  /* ── Core Blue Identity ── */
+  --bg-dark:          #081426;    /* Deepest bg: Hero, FanIntro, Footer base */
+  --bg-navy:          #0D1E36;    /* Secondary dark: Hero gradient, FinalCTA */
+  --bg-blue-mid:      #0D2A55;    /* Mid dark blue for gradients */
+  --brand-primary:    #08337D;    /* Primary brand: buttons, nav CTA, links */
+  --brand-secondary:  #114F99;    /* Royal blue: hover, gradient endpoint */
+  --soft-blue:        #4A74A7;    /* Muted accent: body text on dark, details */
+  --ice-blue:         #DCEAF7;    /* Light surface: cool section bg, badges */
+
+  /* ── Warm Neutrals ── */
+  --bg-ivory:         #F5F2EA;    /* Warm ivory: alternating section bg */
+  --bg-warm-white:    #FAFAF8;    /* Near-white: clean section bg */
+  --bg-cool-white:    #F0F6FC;    /* Cool light: airy section bg */
+  --surface-card:     #FFFFFF;
+  --surface-ice:      #EEF5FC;    /* Subtle blue-tinted surface */
+
+  /* ── Text ── */
+  --text-primary:     #081426;    /* Deep navy on light bg */
+  --text-navy:        #08337D;    /* Brand blue: labels, links */
+  --text-secondary:   #2D4A6E;    /* Mid navy: section subtitles */
+  --text-muted:       #4A74A7;    /* Muted blue-gray: body copy, captions */
+  --text-on-dark:     #E8F2FC;    /* Near-white on dark sections */
+  --text-soft-dark:   #8DAFC8;    /* Muted on dark sections */
+
+  /* ── Accent Gold — use sparingly: dots, dividers, focus rings ── */
+  --accent-gold:      #ECCA3E;
+
+  /* ── Borders ── */
+  --border-soft:      rgba(8, 51, 125, 0.10);
+  --border-med:       rgba(8, 51, 125, 0.17);
+  --border-strong:    rgba(8, 51, 125, 0.28);
+
+  /* ── Glows / Shadows ── */
+  --shadow-card:      rgba(8, 51, 125, 0.08);
+  --shadow-card-hover: rgba(8, 51, 125, 0.14);
+  --glow-royal:       rgba(17, 79, 153, 0.20);
+  --glow-ice:         rgba(74, 116, 167, 0.15);
+
+  /* ── Extended DTC palette ── */
+  --deep-navy:        #142A44;    /* Between abyss and royal */
+  --pearl:            #F7FAFF;    /* Lightest blue-tinted white */
+  --stone:            #D5D3C9;    /* Warm neutral for dividers */
+  --surface-card:     #FFFFFF;
+
+  /* ── Theme aliases (keep for downstream compatibility) ── */
+  --background:       #F7FAFF;
+  --foreground:       #081426;
+  --surface:          #FFFFFF;
+  --border:           rgba(8, 51, 125, 0.10);
+  --text-primary-c:   #081426;
+  --text-secondary-c: #08337D;
+  --text-muted-c:     rgba(8, 20, 38, 0.58);
+  --accent-blue:      #4A74A7;
+  --deep-blue:        #08337D;
+  --highlight-blue:   #DCEAF7;
 }
 
 @theme inline {
@@ -24,8 +72,8 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: #FAFAF8;
+  color: #081426;
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
@@ -39,14 +87,38 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Grid textures — calibrated for light backgrounds */
 .bg-grid-dots {
-  background-image: radial-gradient(rgba(198, 226, 255, 0.055) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(8, 51, 125, 0.065) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
 .bg-grid-lines {
   background-image:
-    linear-gradient(rgba(198, 226, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(198, 226, 255, 0.035) 1px, transparent 1px);
+    linear-gradient(rgba(8, 51, 125, 0.048) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(8, 51, 125, 0.048) 1px, transparent 1px);
   background-size: 40px 40px;
+}
+
+/* Grid for warm ivory sections */
+.bg-grid-dots-warm {
+  background-image: radial-gradient(rgba(8, 51, 125, 0.055) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Auth glass card — solid fallback when backdrop-filter is unavailable */
+@supports not (backdrop-filter: blur(1px)) {
+  .auth-glass-card {
+    background: rgba(8, 20, 48, 0.96) !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .auth-glass-card {
+    background: rgba(8, 20, 48, 0.96) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+  }
 }

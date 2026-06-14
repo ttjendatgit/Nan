@@ -57,6 +57,11 @@ public static class ServiceCollectionExtensions
             var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
             if (File.Exists(xmlPath))
                 options.IncludeXmlComments(xmlPath);
+
+            // Also load DTO/request XML docs from the Application layer
+            var appXmlPath = Path.Combine(AppContext.BaseDirectory, "Vifan.PrintTech.Application.xml");
+            if (File.Exists(appXmlPath))
+                options.IncludeXmlComments(appXmlPath);
         });
 
         var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()

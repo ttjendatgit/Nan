@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, EB_Garamond } from "next/font/google";
 import "./globals.css";
+import ClientProviders from "@/components/providers/ClientProviders";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,7 +20,7 @@ const ebGaramond = EB_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Nhã Phong — Di sản trong từng nếp quạt",
+  title: "Nan — Di sản trong từng nếp quạt",
   description:
     "Thiết kế quạt giấy cá nhân hóa, kết hợp tinh thần thủ công Việt Nam với trải nghiệm công nghệ hiện đại.",
 };
@@ -34,7 +35,9 @@ export default function RootLayout({
       lang="vi"
       className={`${geistSans.variable} ${geistMono.variable} ${ebGaramond.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#0D131F]">{children}</body>
+      <body className="min-h-full flex flex-col bg-[#0D131F] overflow-x-hidden">
+        <ClientProviders>{children}</ClientProviders>
+      </body>
     </html>
   );
 }

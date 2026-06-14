@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "gsap-skills": {
+      "type": "http",
+      "url": "https://skills.greensock.com/sse"
+    }
+  }
+}

@@ -15,18 +15,18 @@ export default function Button({
 }: ButtonProps) {
   const variants: Record<ButtonVariant, string> = {
     primary:
-      "bg-[#C6E2FF] text-[#0D131F] hover:bg-[#9ECBFB] shadow-lg shadow-black/30 font-semibold",
+      "bg-[#08337D] text-[#FFFFFF] hover:bg-[#114F99] shadow-lg shadow-[rgba(8,51,125,0.22)] font-semibold",
     secondary:
-      "bg-transparent text-[#C6E2FF] border border-[#2F3542] hover:border-[#539AD3] hover:bg-[#151C28]",
+      "bg-transparent text-[#08337D] border border-[rgba(8,51,125,0.22)] hover:border-[#08337D] hover:bg-[#DCEAF7]",
     ghost:
-      "bg-transparent text-[#C3C7CD] hover:bg-[#151C28] hover:text-[#FBFBFF]",
+      "bg-transparent text-[#081426] hover:bg-[#DCEAF7] hover:text-[#08337D]",
   };
 
   return (
     <button
       className={cn(
         "inline-flex items-center justify-center rounded-full px-6 py-3 text-sm transition-all duration-300",
-        "focus:outline-none focus:ring-2 focus:ring-[#539AD3] focus:ring-offset-2 focus:ring-offset-[#0D131F]",
+        "focus:outline-none focus:ring-2 focus:ring-[#4A74A7]/50 focus:ring-offset-2 focus:ring-offset-[#FFFFFF]",
         variants[variant],
         className
       )}

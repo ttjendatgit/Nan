@@ -1,112 +1,155 @@
 "use client";
 
+// CMS: comparisonRows, CellValue, and ComparisonRow types are sourced from
+// the central data file. Admin can add/remove rows or change true/partial/false
+// values via admin/comparison without touching component code.
+
 import { motion } from "motion/react";
-import { ArrowRight } from "lucide-react";
-import { useCases } from "@/data/homepageData";
+import { Check, X, Minus } from "lucide-react";
+import Button from "@/components/ui/Button";
+import { comparisonRows, type CellValue } from "@/data/homepageData";
+
+function Cell({ value }: { value: CellValue }) {
+  if (value === true)
+    return (
+      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[rgba(220,234,247,0.15)] text-[#DCEAF7]">
+        <Check size={14} strokeWidth={2.5} />
+      </span>
+    );
+  if (value === "partial")
+    return (
+      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[rgba(255,255,255,0.07)] text-[rgba(220,234,247,0.40)]">
+        <Minus size={14} strokeWidth={2} />
+      </span>
+    );
+  return (
+    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[rgba(255,255,255,0.05)] text-[rgba(220,234,247,0.22)]">
+      <X size={13} strokeWidth={2} />
+    </span>
+  );
+}
 
 export default function UseCaseSection() {
   return (
-    <section className="relative overflow-hidden bg-[#0D131F] px-6 py-20 md:py-28">
-      {/* Grid */}
-      <div className="absolute inset-0 bg-grid-lines opacity-70" />
+    <section
+      className="relative overflow-hidden px-6 py-20 md:py-28"
+      style={{ background: "linear-gradient(180deg, #081426 0%, #0A1B38 100%)" }}
+    >
+      {/* Grid texture */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.04]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
+        }}
+      />
 
-      {/* Glow accents */}
-      <div className="absolute left-0 top-20 h-80 w-80 rounded-full bg-[#2A5A84]/12 blur-3xl" />
-      <div className="absolute bottom-20 right-0 h-80 w-80 rounded-full bg-[#539AD3]/8 blur-3xl" />
+      {/* Glows */}
+      <div className="pointer-events-none absolute left-1/4 top-0 h-96 w-96 rounded-full bg-[#08337D]/15 blur-[80px]" />
+      <div className="pointer-events-none absolute bottom-0 right-1/4 h-72 w-72 rounded-full bg-[#114F99]/10 blur-[60px]" />
 
-      <div className="relative mx-auto max-w-7xl">
+      <div className="relative mx-auto max-w-5xl">
+
+        {/* Section header */}
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.7 }}
-          className="mx-auto max-w-3xl text-center"
+          transition={{ duration: 0.65 }}
+          className="mb-14 text-center"
         >
-          <div className="mb-5 inline-flex rounded-full border border-[#2F3542] bg-[#151C28] px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#539AD3]">
-            Use Case Gallery
-          </div>
-
-          <h2 className="font-serif text-4xl font-semibold tracking-tight text-[#FBFBFF] md:text-6xl">
-            Không chỉ là quạt.{" "}
-            <span className="block bg-linear-to-r from-[#9ECBFB] via-[#C6E2FF] to-[#539AD3] bg-clip-text text-transparent">
-              Đó là một điểm chạm thương hiệu.
-            </span>
+          <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.28em] text-[rgba(220,234,247,0.45)]">
+            05 / So sánh
+          </p>
+          <h2 className="font-serif text-4xl font-semibold tracking-tight text-[#FFFFFF] md:text-5xl">
+            Tự thiết kế hay{" "}
+            <span className="text-[#DCEAF7]">đặt in truyền thống?</span>
           </h2>
-
-          <p className="mt-6 text-base leading-8 text-[#8D9197]">
-            Mỗi chiếc quạt có thể trở thành một phần của sự kiện, tiệc cưới,
-            kỳ nghỉ, nhà hàng hoặc chiến dịch thương hiệu.
+          <p className="mx-auto mt-5 max-w-lg text-[0.9375rem] leading-7 text-[rgba(220,234,247,0.50)]">
+            Nan được xây dựng để loại bỏ những điểm bất tiện của quy trình đặt in truyền thống
+            và trao quyền kiểm soát lại cho bạn.
           </p>
         </motion.div>
 
-        <div className="mt-16 grid grid-cols-1 gap-5 md:grid-cols-2">
-          {useCases.map((item, index) => (
-            <motion.div
-              key={item.title}
-              initial={{ opacity: 0, y: 28 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7, delay: index * 0.08 }}
-              className="group relative min-h-105 overflow-hidden rounded-3xl border border-[#2F3542] bg-[#151C28] shadow-xl shadow-black/30 transition hover:-translate-y-2 hover:border-[#539AD3]/35 hover:shadow-2xl hover:shadow-black/40"
+        {/* Comparison table — CMS: rows sourced from comparisonRows[] */}
+        <motion.div
+          initial={{ opacity: 0, y: 28 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.7 }}
+          className="overflow-hidden rounded-2xl border border-[rgba(220,234,247,0.10)]"
+        >
+          {/* Table header */}
+          <div
+            className="grid grid-cols-[1fr_120px_120px] gap-0 border-b border-[rgba(220,234,247,0.10)]"
+            style={{ background: "rgba(255,255,255,0.04)" }}
+          >
+            <div className="px-7 py-5">
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[rgba(220,234,247,0.35)]">
+                Tính năng
+              </span>
+            </div>
+            <div className="flex flex-col items-center justify-center border-l border-[rgba(220,234,247,0.08)] px-4 py-5">
+              <span className="font-serif text-base font-semibold text-[#FFFFFF]">Nan</span>
+              <span className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.14em] text-[rgba(220,234,247,0.40)]">
+                AI Platform
+              </span>
+            </div>
+            <div className="flex flex-col items-center justify-center border-l border-[rgba(220,234,247,0.08)] px-4 py-5">
+              <span className="font-serif text-base font-semibold text-[rgba(220,234,247,0.55)]">Truyền thống</span>
+              <span className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.14em] text-[rgba(220,234,247,0.28)]">
+                Print shop
+              </span>
+            </div>
+          </div>
+
+          {/* Data rows */}
+          {comparisonRows.map((row, index) => (
+            <div
+              key={row.feature}
+              className={`grid grid-cols-[1fr_120px_120px] gap-0 border-b border-[rgba(220,234,247,0.06)] transition-colors hover:bg-[rgba(255,255,255,0.025)] ${
+                index === comparisonRows.length - 1 ? "border-b-0" : ""
+              }`}
             >
-              {/* Tinted gradient */}
-              <div
-                className={`absolute inset-0 bg-linear-to-br ${item.gradient}`}
-              />
-
-              {/* Glass shimmer */}
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_15%,rgba(198,226,255,0.06),transparent_50%)]" />
-
-              <div className="relative z-10 flex h-full min-h-105 flex-col justify-between p-8">
-                <div>
-                  <div className="mb-5 inline-flex rounded-full border border-[#2F3542] bg-[#0D131F]/70 px-4 py-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-[#539AD3] backdrop-blur">
-                    {item.tag}
-                  </div>
-
-                  <h3 className="max-w-md font-serif text-3xl font-semibold tracking-tight text-[#FBFBFF]">
-                    {item.title}
-                  </h3>
-
-                  <p className="mt-4 max-w-md text-base font-medium text-[#C3C7CD]">
-                    {item.subtitle}
-                  </p>
-
-                  <p className="mt-4 max-w-md text-sm leading-6 text-[#8D9197]">
-                    {item.description}
-                  </p>
-                </div>
-
-                <div className="flex items-end justify-between">
-                  <button className="inline-flex items-center text-xs font-semibold text-[#9ECBFB] transition group-hover:translate-x-1">
-                    Khám phá ứng dụng
-                    <ArrowRight className="ml-2" size={14} />
-                  </button>
-
-                  <motion.div
-                    animate={{ rotate: [0, 2, -2, 0] }}
-                    transition={{
-                      duration: 6,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                    className="relative hidden h-36 w-36 items-center justify-center rounded-full border border-[#2F3542] bg-[#0D131F]/60 shadow-2xl backdrop-blur md:flex"
-                  >
-                    <div className="absolute inset-3 rounded-full bg-[radial-gradient(circle_at_35%_30%,rgba(255,255,255,0.12),rgba(21,28,40,0.5)_100%)]" />
-
-                    <div className="absolute h-[80%] w-px bg-[#2F3542]" />
-                    <div className="absolute h-[80%] w-px rotate-30 bg-[#2F3542]" />
-                    <div className="absolute h-[80%] w-px -rotate-30 bg-[#2F3542]" />
-                    <div className="absolute h-[80%] w-px rotate-60 bg-[#2F3542]" />
-                    <div className="absolute h-[80%] w-px -rotate-60 bg-[#2F3542]" />
-
-                    <div className="relative z-10 h-14 w-14 rounded-full bg-linear-to-br from-[#2A5A84] to-[#539AD3] shadow-lg shadow-[#539AD3]/30" />
-                    <div className="absolute -bottom-12 left-1/2 h-18 w-4 -translate-x-1/2 rounded-full bg-[#242A37] shadow-lg" />
-                  </motion.div>
-                </div>
+              <div className="px-7 py-5">
+                <span className="text-sm text-[rgba(220,234,247,0.70)]">{row.feature}</span>
               </div>
-            </motion.div>
+              <div className="flex items-center justify-center border-l border-[rgba(220,234,247,0.06)] px-4 py-5">
+                <Cell value={row.nan} />
+              </div>
+              <div className="flex items-center justify-center border-l border-[rgba(220,234,247,0.06)] px-4 py-5">
+                <Cell value={row.trad} />
+              </div>
+            </div>
           ))}
-        </div>
+        </motion.div>
+
+        {/* Legend + CTA */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="mt-6 flex flex-wrap items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-5">
+            {[
+              { icon: <Check size={11} />, label: "Có" },
+              { icon: <Minus size={11} />, label: "Một phần" },
+              { icon: <X size={11} />, label: "Không có" },
+            ].map(({ icon, label }) => (
+              <div key={label} className="flex items-center gap-2">
+                <span className="text-[rgba(220,234,247,0.45)]">{icon}</span>
+                <span className="font-mono text-[10px] text-[rgba(220,234,247,0.38)]">{label}</span>
+              </div>
+            ))}
+          </div>
+          <Button className="bg-[#FFFFFF] text-[#08337D] hover:bg-[#DCEAF7] shadow-lg shadow-black/20">
+            Thử Nan miễn phí
+          </Button>
+        </motion.div>
+
       </div>
     </section>
   );

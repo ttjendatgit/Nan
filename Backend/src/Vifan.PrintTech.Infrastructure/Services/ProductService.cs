@@ -111,6 +111,9 @@ public class ProductService : IProductService
             id,
             cancellationToken);
 
+        // TODO (admin CMS — publicId phase): when request.ImageUrl differs from product.ImageUrl,
+        // delete the old Cloudinary asset via IMediaUploadService.DeleteAsync(oldPublicId).
+        // Requires adding an ImagePublicId column to the Products table (nullable migration, safe to add).
         product.CategoryId = request.CategoryId;
         product.Name = request.Name.Trim();
         product.Slug = slug;
