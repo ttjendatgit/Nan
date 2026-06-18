@@ -4,6 +4,7 @@ import type {
   PagedResult,
   PaginationParams,
   Product,
+  ProductOption,
   UpdateProductInput,
 } from "@/types/catalog";
 import { apiFetch, getAuthHeaders } from "./client";
@@ -44,6 +45,14 @@ export async function getProductsByCategory(
     productsUrl(`/by-category/${categoryId}`, params as Record<string, string | number | boolean | undefined>),
   );
   return res.data;
+}
+
+/** GET /api/Products/{productId}/options — customization options for a product (public). */
+export async function getProductOptions(productId: string): Promise<ProductOption[]> {
+  const res = await apiFetch<CatalogApiResponse<ProductOption[]>>(
+    productsUrl(`/${productId}/options`),
+  );
+  return Array.isArray(res.data) ? res.data : [];
 }
 
 /**

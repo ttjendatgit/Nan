@@ -6,6 +6,7 @@
 // alongside or instead of HeroCanvas.
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useRef, useEffect, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
@@ -282,17 +283,21 @@ export default function HeroSection() {
             {/* CTA buttons — CMS: heroConfig.primaryCta / secondaryCta */}
             <div className="mt-10 flex flex-wrap gap-4">
               <span data-ha="cta" style={{ opacity: 0 }}>
-                <Button className="bg-[#FFFFFF] text-[#08337D] hover:bg-[#DCEAF7] shadow-[0_4px_22px_rgba(0,0,0,0.22),0_2px_8px_rgba(8,51,125,0.14)] ring-1 ring-inset ring-[rgba(8,51,125,0.10)] hover:shadow-[0_6px_28px_rgba(0,0,0,0.18),0_2px_12px_rgba(8,51,125,0.18)]">
-                  {heroConfig.primaryCta}
-                </Button>
+                <a href="#ai-designer">
+                  <Button className="bg-[#FFFFFF] text-[#08337D] hover:bg-[#DCEAF7] shadow-[0_4px_22px_rgba(0,0,0,0.22),0_2px_8px_rgba(8,51,125,0.14)] ring-1 ring-inset ring-[rgba(8,51,125,0.10)] hover:shadow-[0_6px_28px_rgba(0,0,0,0.18),0_2px_12px_rgba(8,51,125,0.18)]">
+                    {heroConfig.primaryCta}
+                  </Button>
+                </a>
               </span>
               <span data-ha="cta" style={{ opacity: 0 }}>
-                <Button
-                  variant="secondary"
-                  className="border-white/22 text-white/80 hover:border-white/52 hover:text-white hover:bg-white/10"
-                >
-                  {heroConfig.secondaryCta}
-                </Button>
+                <Link href="/products">
+                  <Button
+                    variant="secondary"
+                    className="border-white/22 text-white/80 hover:border-white/52 hover:text-white hover:bg-white/10"
+                  >
+                    {heroConfig.secondaryCta}
+                  </Button>
+                </Link>
               </span>
             </div>
 

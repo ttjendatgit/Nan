@@ -82,3 +82,15 @@ export interface PaginationParams {
   pageNumber?: number;
   pageSize?: number;
 }
+
+// ─── Product Option ───────────────────────────────────────────────────────────
+
+export interface ProductOption {
+  id: string;
+  productId: string;
+  name: string;
+  type?: string;
+  values: string[];
+  isRequired?: boolean;
+  sortOrder?: number;
+}

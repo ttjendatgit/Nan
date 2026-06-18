@@ -48,7 +48,7 @@ export const announcementBar = {
 export const navConfig = {
   ctaText: "Bắt đầu thiết kế",
   links: [
-    { label: "Collections", href: "#products" },
+    { label: "Collections", href: "/products" },
     { label: "AI Designer", href: "#ai-designer" },
     { label: "Materials",   href: "#materials" },
     { label: "Process",     href: "#process" },

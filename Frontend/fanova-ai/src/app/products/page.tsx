@@ -1,189 +1,214 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Package, RefreshCw } from "lucide-react";
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
-import { getProducts } from "@/lib/api/products";
+import { getProducts, getProductsByCategory } from "@/lib/api/products";
 import { getCategories } from "@/lib/api/categories";
 import type { Product, ProductCategory } from "@/types/catalog";
 
-const PLACEHOLDER_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%231B1C4A'/%3E%3Cpath d='M150 180l40-40 30 30 20-20 40 40H150z' fill='%23273481' opacity='.6'/%3E%3Ccircle cx='260' cy='130' r='20' fill='%23273481' opacity='.4'/%3E%3C/svg%3E";
-
+// Wrap the page in Suspense so useSearchParams works correctly with Next.js SSR
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  return (
+    <Suspense>
+      <ProductsPageContent />
+    </Suspense>
+  );
+}
+
+function ProductsPageContent() {
+  const searchParams = useSearchParams();
+  const urlCategoryId = searchParams.get("categoryId");
+  const urlCategoryIdRef = useRef(urlCategoryId);
+
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(urlCategoryId);
   const [loading, setLoading] = useState(true);
+  const [filterLoading, setFilterLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const [productsResult, categoriesResult] = await Promise.all([
-          getProducts({ pageSize: 100, activeOnly: true }),
-          getCategories({ pageSize: 100, activeOnly: true }),
-        ]);
-        setProducts(productsResult.items);
-        setCategories(categoriesResult.items);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Không thể tải dữ liệu");
-      } finally {
-        setLoading(false);
+  const loadInitial = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [productsResult, categoriesResult] = await Promise.all([
+        getProducts({ pageSize: 100, activeOnly: true }),
+        getCategories({ pageSize: 100, activeOnly: true }),
+      ]);
+      const allProds = productsResult.items;
+      setAllProducts(allProds);
+      setCategories(categoriesResult.items);
+
+      // Apply initial category filter from URL param (?categoryId=...)
+      const catId = urlCategoryIdRef.current;
+      if (catId) {
+        try {
+          const catResult = await getProductsByCategory(catId, { pageSize: 100 });
+          setDisplayedProducts(catResult.items);
+        } catch {
+          setDisplayedProducts(allProds.filter((p) => p.categoryId === catId));
+        }
+        setSelectedCategory(catId);
+      } else {
+        setDisplayedProducts(allProds);
       }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Không thể tải dữ liệu sản phẩm"
+      );
+    } finally {
+      setLoading(false);
     }
-    load();
   }, []);
 
-  const filteredProducts = selectedCategory
-    ? products.filter((p) => p.categoryId === selectedCategory)
-    : products;
+  useEffect(() => {
+    loadInitial();
+  }, [loadInitial]);
+
+  async function handleCategorySelect(categoryId: string | null) {
+    setSelectedCategory(categoryId);
+    if (categoryId === null) {
+      setDisplayedProducts(allProducts);
+      return;
+    }
+    setFilterLoading(true);
+    try {
+      const result = await getProductsByCategory(categoryId, { pageSize: 100 });
+      setDisplayedProducts(result.items);
+    } catch {
+      // graceful fallback to client-side filter from already-loaded products
+      setDisplayedProducts(
+        allProducts.filter((p) => p.categoryId === categoryId)
+      );
+    } finally {
+      setFilterLoading(false);
+    }
+  }
+
+  const selectedCategoryName = selectedCategory
+    ? (categories.find((c) => c.id === selectedCategory)?.name ?? "Sản phẩm")
+    : null;
 
   return (
-    <div className="min-h-screen bg-[#0D131F] text-white flex flex-col">
+    <div className="min-h-[100dvh] bg-[#0D131F] text-white flex flex-col">
       <Navbar />
 
-      <main className="flex-1 pt-20">
-        {/* Hero */}
-        <section className="px-6 py-16 text-center border-b border-[#1B1C4A]">
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#B6D6F2]/60 mb-4">
-            Bộ sưu tập
-          </p>
-          <h1 className="text-4xl md:text-5xl font-semibold text-white mb-4">
+      <main className="flex-1 pt-24">
+        {/* Page header */}
+        <section className="px-6 py-14 text-center border-b border-[#1B1C4A]/60">
+          <h1 className="text-4xl md:text-5xl font-semibold text-white tracking-tight mb-3">
             Sản phẩm của Nan
           </h1>
-          <p className="text-[#B6D6F2]/70 max-w-xl mx-auto text-sm md:text-base">
-            Quạt giấy thủ công in logo, thiết kế theo yêu cầu — đậm bản sắc Việt
+          <p className="text-[#B6D6F2]/55 text-sm md:text-base max-w-md mx-auto">
+            Quạt giấy thủ công in logo, thiết kế theo yêu cầu
           </p>
         </section>
 
-        {loading && (
-          <div className="flex justify-center py-24">
-            <Loader2 className="h-8 w-8 animate-spin text-[#B6D6F2]" />
-          </div>
+        {/* Category filter pills */}
+        {!loading && !error && categories.length > 0 && (
+          <section className="px-6 py-5 border-b border-[#1B1C4A]/60 bg-[#0D131F]">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                <button
+                  onClick={() => handleCategorySelect(null)}
+                  className={`flex-shrink-0 rounded-full px-5 py-2 text-xs font-medium transition-all duration-200 ${
+                    selectedCategory === null
+                      ? "bg-[#273481] text-white"
+                      : "border border-[#1B1C4A] text-[#B6D6F2]/55 hover:border-[#273481]/60 hover:text-[#B6D6F2]"
+                  }`}
+                >
+                  Tất cả
+                </button>
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleCategorySelect(cat.id)}
+                    className={`flex-shrink-0 rounded-full px-5 py-2 text-xs font-medium transition-all duration-200 ${
+                      selectedCategory === cat.id
+                        ? "bg-[#273481] text-white"
+                        : "border border-[#1B1C4A] text-[#B6D6F2]/55 hover:border-[#273481]/60 hover:text-[#B6D6F2]"
+                    }`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
         )}
 
-        {error && (
-          <div className="max-w-lg mx-auto px-6 py-12 text-center">
-            <p className="text-red-400 text-sm">{error}</p>
-          </div>
-        )}
+        {/* Content area */}
+        <section className="max-w-7xl mx-auto px-6 py-10">
+          {/* Initial loading skeleton */}
+          {loading && <SkeletonGrid />}
 
-        {!loading && !error && (
-          <>
-            {/* Category filter */}
-            {categories.length > 0 && (
-              <section className="px-6 py-8 border-b border-[#1B1C4A]">
-                <div className="max-w-7xl mx-auto">
-                  <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                    <button
-                      onClick={() => setSelectedCategory(null)}
-                      className={`flex-shrink-0 rounded-full px-5 py-2 text-sm font-medium transition-colors ${
-                        selectedCategory === null
-                          ? "bg-[#273481] text-white"
-                          : "bg-[#111335] border border-[#1B1C4A] text-[#B6D6F2]/70 hover:border-[#273481] hover:text-white"
-                      }`}
-                    >
-                      Tất cả
-                    </button>
-                    {categories.map((cat) => (
-                      <button
-                        key={cat.id}
-                        onClick={() =>
-                          setSelectedCategory(
-                            selectedCategory === cat.id ? null : cat.id
-                          )
-                        }
-                        className={`flex-shrink-0 rounded-full px-5 py-2 text-sm font-medium transition-colors ${
-                          selectedCategory === cat.id
-                            ? "bg-[#273481] text-white"
-                            : "bg-[#111335] border border-[#1B1C4A] text-[#B6D6F2]/70 hover:border-[#273481] hover:text-white"
-                        }`}
-                      >
-                        {cat.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            )}
+          {/* Error state */}
+          {!loading && error && (
+            <div className="flex flex-col items-center py-20 text-center gap-5">
+              <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                <AlertCircle className="h-5 w-5 text-red-400" />
+              </div>
+              <div>
+                <p className="text-white font-medium mb-1.5">
+                  Không thể tải sản phẩm
+                </p>
+                <p className="text-[#B6D6F2]/40 text-sm max-w-xs">{error}</p>
+              </div>
+              <button
+                onClick={loadInitial}
+                className="flex items-center gap-2 rounded-full border border-[#273481]/50 px-5 py-2.5 text-sm text-[#B6D6F2] hover:border-[#273481] hover:text-white transition-all"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Thử lại
+              </button>
+            </div>
+          )}
 
-            {/* Categories showcase (when no filter) */}
-            {selectedCategory === null && categories.length > 0 && (
-              <section className="px-6 py-12">
-                <div className="max-w-7xl mx-auto">
-                  <h2 className="text-xl font-semibold text-white mb-6">
-                    Danh mục
-                  </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {categories.map((cat) => (
-                      <button
-                        key={cat.id}
-                        onClick={() => setSelectedCategory(cat.id)}
-                        className="group text-left rounded-2xl overflow-hidden bg-[#111335] border border-[#1B1C4A] hover:border-[#273481] transition-colors"
-                      >
-                        <div className="relative aspect-square overflow-hidden bg-[#1B1C4A]">
-                          <Image
-                            src={cat.imageUrl || PLACEHOLDER_IMAGE}
-                            alt={cat.name}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-300"
-                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                          />
-                        </div>
-                        <div className="p-3">
-                          <p className="font-medium text-white text-sm truncate">
-                            {cat.name}
-                          </p>
-                          {cat.description && (
-                            <p className="text-xs text-[#B6D6F2]/50 truncate mt-0.5">
-                              {cat.description}
-                            </p>
-                          )}
-                          <span className="mt-2 inline-block text-xs text-[#B6D6F2] hover:text-white transition-colors">
-                            Xem sản phẩm →
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* Products grid */}
-            <section className="px-6 py-12">
-              <div className="max-w-7xl mx-auto">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-white">
-                    {selectedCategory
-                      ? categories.find((c) => c.id === selectedCategory)?.name ?? "Sản phẩm"
-                      : "Tất cả sản phẩm"}
-                    <span className="ml-2 text-sm font-normal text-[#B6D6F2]/50">
-                      ({filteredProducts.length})
-                    </span>
-                  </h2>
-                </div>
-
-                {filteredProducts.length === 0 && (
-                  <p className="text-[#B6D6F2]/40 text-sm py-12 text-center">
-                    Chưa có sản phẩm nào.
+          {/* Products */}
+          {!loading && !error && (
+            <>
+              {/* Section label + count */}
+              <div className="flex items-center justify-between mb-7">
+                <div>
+                  <p className="text-sm font-medium text-white">
+                    {selectedCategoryName ?? "Tất cả sản phẩm"}
                   </p>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {filteredProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
+                  {!filterLoading && (
+                    <p className="text-xs text-[#B6D6F2]/35 mt-0.5">
+                      {displayedProducts.length} sản phẩm
+                    </p>
+                  )}
                 </div>
               </div>
-            </section>
-          </>
-        )}
+
+              {/* Grid with filter-loading overlay */}
+              <div
+                className={`transition-opacity duration-200 ${
+                  filterLoading ? "opacity-50 pointer-events-none" : ""
+                }`}
+              >
+                {!filterLoading && displayedProducts.length === 0 ? (
+                  <EmptyState
+                    categorySelected={!!selectedCategory}
+                    onClearFilter={() => handleCategorySelect(null)}
+                  />
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                    {displayedProducts.map((product) => (
+                      <ProductCard key={product.id} product={product} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </section>
       </main>
 
       <Footer />
@@ -191,27 +216,42 @@ export default function ProductsPage() {
   );
 }
 
+// ─── Product Card ─────────────────────────────────────────────────────────────
+
 function ProductCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="group flex flex-col rounded-2xl overflow-hidden bg-[#111335] border border-[#1B1C4A] hover:border-[#273481] transition-colors"
+      className="group flex flex-col rounded-2xl overflow-hidden bg-[#111335] border border-[#1B1C4A] hover:border-[#273481]/50 transition-all duration-300 hover:shadow-[0_8px_32px_rgba(39,52,129,0.18)]"
     >
+      {/* Image */}
       <div className="relative aspect-[4/3] overflow-hidden bg-[#1B1C4A]">
-        <Image
-          src={product.imageUrl || PLACEHOLDER_IMAGE}
-          alt={product.name}
-          fill
-          className="object-cover group-hover:scale-105 transition-transform duration-300"
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-        />
+        {product.imageUrl ? (
+          <Image
+            src={product.imageUrl}
+            alt={product.name}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#1B1C4A] to-[#111335]">
+            <span className="font-serif text-3xl text-[#273481]/25">Nan</span>
+          </div>
+        )}
+        {product.isCustomizable && (
+          <div className="absolute top-2.5 right-2.5 rounded-full bg-[#273481]/80 backdrop-blur-sm px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.14em] text-[#B6D6F2]">
+            Tùy chỉnh
+          </div>
+        )}
       </div>
 
+      {/* Info */}
       <div className="flex flex-col flex-1 p-4 gap-2">
         {product.categoryName && (
-          <p className="text-xs font-mono text-[#B6D6F2]/50 uppercase tracking-wider">
+          <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-[#B6D6F2]/45">
             {product.categoryName}
-          </p>
+          </span>
         )}
 
         <h3 className="font-semibold text-white text-sm leading-snug line-clamp-2">
@@ -219,23 +259,85 @@ function ProductCard({ product }: { product: Product }) {
         </h3>
 
         {product.description && (
-          <p className="text-xs text-[#B6D6F2]/60 line-clamp-2 flex-1">
+          <p className="text-xs text-[#B6D6F2]/45 line-clamp-2 flex-1 leading-relaxed">
             {product.description}
           </p>
         )}
 
-        <div className="mt-auto pt-2 flex items-center justify-between">
+        <div className="mt-auto pt-3 border-t border-[#1B1C4A] flex items-center justify-between">
           <span className="text-sm font-semibold text-white">
             {product.basePrice > 0
               ? `${product.basePrice.toLocaleString("vi-VN")} ₫`
               : "Báo giá theo yêu cầu"}
           </span>
+          <span className="text-xs text-[#B6D6F2]/45 group-hover:text-[#B6D6F2] transition-colors">
+            Xem &rarr;
+          </span>
         </div>
-
-        <span className="mt-2 block w-full rounded-lg bg-[#273481] py-2 text-center text-xs font-medium text-white group-hover:opacity-90 transition-opacity">
-          Xem chi tiết
-        </span>
       </div>
     </Link>
+  );
+}
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div
+          key={i}
+          className="rounded-2xl overflow-hidden bg-[#111335] border border-[#1B1C4A] animate-pulse"
+        >
+          <div className="aspect-[4/3] bg-[#1B1C4A]" />
+          <div className="p-4 space-y-2.5">
+            <div className="h-2 w-14 bg-[#1B1C4A] rounded" />
+            <div className="h-4 w-4/5 bg-[#1B1C4A] rounded" />
+            <div className="h-3 w-full bg-[#1B1C4A] rounded" />
+            <div className="h-3 w-2/3 bg-[#1B1C4A] rounded" />
+            <div className="pt-2 border-t border-[#1B1C4A] flex justify-between items-center">
+              <div className="h-4 w-20 bg-[#1B1C4A] rounded" />
+              <div className="h-3 w-8 bg-[#1B1C4A] rounded" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Empty state ──────────────────────────────────────────────────────────────
+
+function EmptyState({
+  categorySelected,
+  onClearFilter,
+}: {
+  categorySelected: boolean;
+  onClearFilter: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center py-20 text-center gap-5">
+      <div className="w-14 h-14 rounded-full border border-[#1B1C4A] flex items-center justify-center">
+        <Package className="h-6 w-6 text-[#273481]/60" />
+      </div>
+      <div>
+        <p className="text-white font-medium mb-1.5">
+          {categorySelected
+            ? "Chưa có sản phẩm trong danh mục này"
+            : "Chưa có sản phẩm nào"}
+        </p>
+        <p className="text-[#B6D6F2]/35 text-sm">
+          Sản phẩm sẽ sớm được cập nhật
+        </p>
+      </div>
+      {categorySelected && (
+        <button
+          onClick={onClearFilter}
+          className="text-sm text-[#B6D6F2]/55 hover:text-white transition-colors underline underline-offset-4"
+        >
+          Xem tất cả sản phẩm
+        </button>
+      )}
+    </div>
   );
 }
