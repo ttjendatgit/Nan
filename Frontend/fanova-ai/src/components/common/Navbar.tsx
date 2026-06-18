@@ -1,20 +1,18 @@
 "use client";
 
-// CMS: announcementBar and navConfig are sourced from the central data file.
-// Future: replace the static import with an API call in a server component or
-// via React Query / SWR so admins can toggle the bar or edit links without
-// a code deploy.
-
-import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Menu, X, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import { announcementBar, navConfig } from "@/data/homepageData";
 import { useAuth } from "@/contexts/AuthContext";
+import { getCategories } from "@/lib/api/categories";
+import type { ProductCategory } from "@/types/catalog";
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const router = useRouter();
 
@@ -24,13 +22,17 @@ export default function Navbar() {
     router.push("/");
   }
 
-  // Display name: prefer fullName, fall back to email prefix
   const displayName = user?.fullName ?? user?.email?.split("@")[0] ?? "";
+
+  useEffect(() => {
+    getCategories({ pageSize: 20, activeOnly: true })
+      .then((res) => setCategories(res.items))
+      .catch(() => setCategories([]));
+  }, []);
 
   return (
     <header className="fixed left-0 top-0 z-[999] w-full">
       {/* ── Announcement bar ── */}
-      {/* CMS: toggle announcementBar.visible or edit .text via admin/settings */}
       {announcementBar.visible && (
         <div
           className="flex items-center justify-center px-4 py-2.5"
@@ -52,17 +54,21 @@ export default function Navbar() {
         style={{ boxShadow: "0 1px 0 rgba(8,51,125,0.06), 0 4px 20px rgba(8,20,38,0.04)" }}
       >
         <div className="mx-auto flex h-14 max-w-7xl items-center px-6">
-          {/* Left: nav links — CMS: edit navConfig.links via admin/settings */}
+          {/* Left: nav links */}
           <nav className="hidden flex-1 items-center gap-7 md:flex">
-            {navConfig.links.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                className="font-mono text-[10px] uppercase tracking-[0.18em] text-[rgba(8,20,38,0.45)] transition-colors duration-200 hover:text-[#08337D]"
-              >
-                {link.label}
-              </a>
-            ))}
+            {navConfig.links.map((link) =>
+              link.label === "Collections" ? (
+                <CollectionsDesktopItem key={link.label} categories={categories} />
+              ) : (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className="font-mono text-[10px] uppercase tracking-[0.18em] text-[rgba(8,20,38,0.45)] transition-colors duration-200 hover:text-[#08337D]"
+                >
+                  {link.label}
+                </a>
+              )
+            )}
           </nav>
 
           {/* Center: brand */}
@@ -79,7 +85,6 @@ export default function Navbar() {
 
           {/* Right: auth-aware CTA */}
           <div className="flex flex-1 items-center justify-end gap-2">
-            {/* Desktop auth controls — render only after hydration to avoid flash */}
             {!isLoading && (
               <div className="hidden md:flex items-center gap-2">
                 {isAuthenticated ? (
@@ -127,16 +132,24 @@ export default function Navbar() {
         {mobileOpen && (
           <div className="border-t border-[rgba(8,51,125,0.10)] bg-[#FAFAF8]/97 px-6 py-5 md:hidden">
             <nav className="flex flex-col gap-5">
-              {navConfig.links.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="font-mono text-[10px] uppercase tracking-[0.18em] text-[rgba(8,20,38,0.48)] transition hover:text-[#08337D]"
-                >
-                  {link.label}
-                </a>
-              ))}
+              {navConfig.links.map((link) =>
+                link.label === "Collections" ? (
+                  <CollectionsMobileItem
+                    key={link.label}
+                    categories={categories}
+                    onClose={() => setMobileOpen(false)}
+                  />
+                ) : (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="font-mono text-[10px] uppercase tracking-[0.18em] text-[rgba(8,20,38,0.48)] transition hover:text-[#08337D]"
+                  >
+                    {link.label}
+                  </a>
+                )
+              )}
 
               {/* Mobile auth controls */}
               {!isLoading && (
@@ -173,5 +186,147 @@ export default function Navbar() {
         )}
       </div>
     </header>
+  );
+}
+
+// ─── Collections Desktop Dropdown ─────────────────────────────────────────────
+
+function CollectionsDesktopItem({ categories }: { categories: ProductCategory[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [open]);
+
+  return (
+    <div
+      ref={ref}
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <a
+        href="/products"
+        className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[rgba(8,20,38,0.45)] transition-colors duration-200 hover:text-[#08337D]"
+      >
+        Collections
+        <ChevronDown
+          size={10}
+          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </a>
+
+      {open && (
+        <div className="absolute left-0 top-full z-[100] pt-3">
+          <div
+            className="w-64 overflow-hidden rounded-xl border border-[#1B1C4A] bg-[#0D131F] py-2"
+            style={{
+              boxShadow: "0 16px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(27,28,74,0.35)",
+            }}
+          >
+            {categories.length === 0 ? (
+              <div className="px-4 py-3">
+                <Link
+                  href="/products"
+                  className="text-xs text-[#B6D6F2]/50 hover:text-white transition-colors"
+                  onClick={() => setOpen(false)}
+                >
+                  Xem tất cả sản phẩm
+                </Link>
+              </div>
+            ) : (
+              <>
+                {categories.map((cat) => (
+                  <Link
+                    key={cat.id}
+                    href={`/products?categoryId=${cat.id}`}
+                    onClick={() => setOpen(false)}
+                    className="group flex flex-col px-4 py-2.5 transition-colors hover:bg-[#1B1C4A]"
+                  >
+                    <span className="text-[11px] font-medium text-[#B6D6F2] transition-colors group-hover:text-white">
+                      {cat.name}
+                    </span>
+                    {cat.description && (
+                      <span className="mt-0.5 line-clamp-1 text-[10px] text-[#B6D6F2]/35 transition-colors group-hover:text-[#B6D6F2]/55">
+                        {cat.description}
+                      </span>
+                    )}
+                  </Link>
+                ))}
+                <div className="mx-4 my-1.5 h-px bg-[#1B1C4A]" />
+                <Link
+                  href="/products"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] text-[#B6D6F2]/40 transition-colors hover:text-[#B6D6F2]"
+                >
+                  Tất cả dòng quạt
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Collections Mobile Item ──────────────────────────────────────────────────
+
+function CollectionsMobileItem({
+  categories,
+  onClose,
+}: {
+  categories: ProductCategory[];
+  onClose: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <a
+          href="/products"
+          onClick={onClose}
+          className="font-mono text-[10px] uppercase tracking-[0.18em] text-[rgba(8,20,38,0.48)] transition hover:text-[#08337D]"
+        >
+          Collections
+        </a>
+        {categories.length > 0 && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            aria-label="Toggle categories"
+            className="p-1 text-[rgba(8,20,38,0.35)] transition-colors hover:text-[#08337D]"
+          >
+            <ChevronDown
+              size={12}
+              className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+            />
+          </button>
+        )}
+      </div>
+
+      {expanded && categories.length > 0 && (
+        <div className="ml-2 mt-2.5 flex flex-col gap-0.5 border-l border-[rgba(8,51,125,0.12)] pl-4">
+          {categories.map((cat) => (
+            <Link
+              key={cat.id}
+              href={`/products?categoryId=${cat.id}`}
+              onClick={onClose}
+              className="py-1.5 text-[10px] font-medium text-[rgba(8,20,38,0.55)] transition-colors hover:text-[#08337D]"
+            >
+              {cat.name}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

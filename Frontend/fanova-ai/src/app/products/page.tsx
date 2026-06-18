@@ -1,17 +1,16 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback, useRef } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { AlertCircle, Package, RefreshCw } from "lucide-react";
+import { AlertCircle, Package, RefreshCw, ArrowRight } from "lucide-react";
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
-import { getProducts, getProductsByCategory } from "@/lib/api/products";
+import { getProductsByCategory } from "@/lib/api/products";
 import { getCategories } from "@/lib/api/categories";
 import type { Product, ProductCategory } from "@/types/catalog";
 
-// Wrap the page in Suspense so useSearchParams works correctly with Next.js SSR
 export default function ProductsPage() {
   return (
     <Suspense>
@@ -22,196 +21,385 @@ export default function ProductsPage() {
 
 function ProductsPageContent() {
   const searchParams = useSearchParams();
-  const urlCategoryId = searchParams.get("categoryId");
-  const urlCategoryIdRef = useRef(urlCategoryId);
-
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<ProductCategory[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(urlCategoryId);
-  const [loading, setLoading] = useState(true);
-  const [filterLoading, setFilterLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadInitial = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [productsResult, categoriesResult] = await Promise.all([
-        getProducts({ pageSize: 100, activeOnly: true }),
-        getCategories({ pageSize: 100, activeOnly: true }),
-      ]);
-      const allProds = productsResult.items;
-      setAllProducts(allProds);
-      setCategories(categoriesResult.items);
-
-      // Apply initial category filter from URL param (?categoryId=...)
-      const catId = urlCategoryIdRef.current;
-      if (catId) {
-        try {
-          const catResult = await getProductsByCategory(catId, { pageSize: 100 });
-          setDisplayedProducts(catResult.items);
-        } catch {
-          setDisplayedProducts(allProds.filter((p) => p.categoryId === catId));
-        }
-        setSelectedCategory(catId);
-      } else {
-        setDisplayedProducts(allProds);
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Không thể tải dữ liệu sản phẩm"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadInitial();
-  }, [loadInitial]);
-
-  async function handleCategorySelect(categoryId: string | null) {
-    setSelectedCategory(categoryId);
-    if (categoryId === null) {
-      setDisplayedProducts(allProducts);
-      return;
-    }
-    setFilterLoading(true);
-    try {
-      const result = await getProductsByCategory(categoryId, { pageSize: 100 });
-      setDisplayedProducts(result.items);
-    } catch {
-      // graceful fallback to client-side filter from already-loaded products
-      setDisplayedProducts(
-        allProducts.filter((p) => p.categoryId === categoryId)
-      );
-    } finally {
-      setFilterLoading(false);
-    }
-  }
-
-  const selectedCategoryName = selectedCategory
-    ? (categories.find((c) => c.id === selectedCategory)?.name ?? "Sản phẩm")
-    : null;
+  const categoryId = searchParams.get("categoryId");
 
   return (
     <div className="min-h-[100dvh] bg-[#0D131F] text-white flex flex-col">
       <Navbar />
-
       <main className="flex-1 pt-24">
-        {/* Page header */}
-        <section className="px-6 py-14 text-center border-b border-[#1B1C4A]/60">
-          <h1 className="text-4xl md:text-5xl font-semibold text-white tracking-tight mb-3">
-            Sản phẩm của Nan
-          </h1>
-          <p className="text-[#B6D6F2]/55 text-sm md:text-base max-w-md mx-auto">
-            Quạt giấy thủ công in logo, thiết kế theo yêu cầu
-          </p>
-        </section>
+        {categoryId ? (
+          <CategoryProductsView categoryId={categoryId} />
+        ) : (
+          <CategorySelectionView />
+        )}
+      </main>
+      <Footer />
+    </div>
+  );
+}
 
-        {/* Category filter pills */}
-        {!loading && !error && categories.length > 0 && (
-          <section className="px-6 py-5 border-b border-[#1B1C4A]/60 bg-[#0D131F]">
-            <div className="max-w-7xl mx-auto">
-              <div className="flex items-center gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                <button
-                  onClick={() => handleCategorySelect(null)}
-                  className={`flex-shrink-0 rounded-full px-5 py-2 text-xs font-medium transition-all duration-200 ${
-                    selectedCategory === null
-                      ? "bg-[#273481] text-white"
-                      : "border border-[#1B1C4A] text-[#B6D6F2]/55 hover:border-[#273481]/60 hover:text-[#B6D6F2]"
-                  }`}
-                >
-                  Tất cả
-                </button>
-                {categories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => handleCategorySelect(cat.id)}
-                    className={`flex-shrink-0 rounded-full px-5 py-2 text-xs font-medium transition-all duration-200 ${
-                      selectedCategory === cat.id
-                        ? "bg-[#273481] text-white"
-                        : "border border-[#1B1C4A] text-[#B6D6F2]/55 hover:border-[#273481]/60 hover:text-[#B6D6F2]"
-                    }`}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
-              </div>
+// ─── Category Selection View (/products — no categoryId) ──────────────────────
+
+function CategorySelectionView() {
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    getCategories({ pageSize: 50, activeOnly: true })
+      .then((res) => {
+        if (!cancelled) setCategories(res.items);
+      })
+      .catch((err) => {
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : "Không thể tải danh mục");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [retryKey]);
+
+  return (
+    <div>
+      {/* Hero */}
+      <section className="border-b border-[#1B1C4A]/60 px-6 py-12 md:py-16">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-4xl md:text-5xl font-semibold text-white tracking-tight leading-tight max-w-[22ch]">
+            Chọn dòng sản phẩm phù hợp
+          </h1>
+          <p className="mt-4 text-[#B6D6F2]/55 text-sm md:text-base leading-relaxed max-w-[52ch]">
+            Mỗi chất liệu và cấu trúc quạt tạo nên trải nghiệm thị giác riêng biệt. Chọn dòng quạt phù hợp với không gian và thương hiệu của bạn.
+          </p>
+        </div>
+      </section>
+
+      {/* Category grid */}
+      <section className="max-w-7xl mx-auto px-6 py-10 pb-20">
+        {loading && <CategorySkeletonGrid />}
+
+        {!loading && error && (
+          <div className="flex flex-col items-center py-20 text-center gap-5">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+              <AlertCircle className="h-5 w-5 text-red-400" />
             </div>
-          </section>
+            <div>
+              <p className="text-white font-medium mb-1.5">Không thể tải danh mục</p>
+              <p className="text-[#B6D6F2]/40 text-sm max-w-xs">{error}</p>
+            </div>
+            <button
+              onClick={() => setRetryKey((k) => k + 1)}
+              className="flex items-center gap-2 rounded-full border border-[#273481]/50 px-5 py-2.5 text-sm text-[#B6D6F2] transition-all hover:border-[#273481] hover:text-white"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Thử lại
+            </button>
+          </div>
         )}
 
-        {/* Content area */}
-        <section className="max-w-7xl mx-auto px-6 py-10">
-          {/* Initial loading skeleton */}
-          {loading && <SkeletonGrid />}
-
-          {/* Error state */}
-          {!loading && error && (
-            <div className="flex flex-col items-center py-20 text-center gap-5">
-              <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-                <AlertCircle className="h-5 w-5 text-red-400" />
-              </div>
-              <div>
-                <p className="text-white font-medium mb-1.5">
-                  Không thể tải sản phẩm
-                </p>
-                <p className="text-[#B6D6F2]/40 text-sm max-w-xs">{error}</p>
-              </div>
-              <button
-                onClick={loadInitial}
-                className="flex items-center gap-2 rounded-full border border-[#273481]/50 px-5 py-2.5 text-sm text-[#B6D6F2] hover:border-[#273481] hover:text-white transition-all"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Thử lại
-              </button>
+        {!loading && !error && categories.length === 0 && (
+          <div className="flex flex-col items-center py-20 text-center gap-5">
+            <div className="w-14 h-14 rounded-full border border-[#1B1C4A] flex items-center justify-center">
+              <Package className="h-6 w-6 text-[#273481]/60" />
             </div>
-          )}
+            <div>
+              <p className="text-white font-medium mb-1.5">Chưa có danh mục sản phẩm</p>
+              <p className="text-[#B6D6F2]/35 text-sm">Sản phẩm sẽ sớm được cập nhật</p>
+            </div>
+          </div>
+        )}
 
-          {/* Products */}
-          {!loading && !error && (
+        {!loading && !error && categories.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {categories.map((cat, index) => (
+              <CategoryDiscoveryCard key={cat.id} category={cat} index={index} />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// ─── Category Products View (/products?categoryId=...) ────────────────────────
+
+function CategoryProductsView({ categoryId }: { categoryId: string }) {
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setProducts([]);
+
+    Promise.all([
+      getCategories({ pageSize: 50, activeOnly: true }),
+      getProductsByCategory(categoryId, { pageSize: 100 }),
+    ])
+      .then(([catsRes, prodsRes]) => {
+        if (cancelled) return;
+        setCategories(catsRes.items);
+        setProducts(prodsRes.items);
+      })
+      .catch((err) => {
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : "Không thể tải dữ liệu");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [categoryId, retryKey]);
+
+  return (
+    <div>
+      {/* Category header */}
+      <section className="border-b border-[#1B1C4A]/60 px-6 py-10">
+        <div className="max-w-7xl mx-auto">
+          <Link
+            href="/products"
+            className="mb-6 inline-flex items-center gap-1.5 text-xs text-[#B6D6F2]/45 transition-colors hover:text-[#B6D6F2]"
+          >
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" className="h-3 w-3">
+              <path
+                d="M10 3L5 8l5 5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Tất cả dòng quạt
+          </Link>
+
+          {loading ? (
+            <div className="animate-pulse space-y-3">
+              <div className="h-8 w-52 rounded bg-[#1B1C4A]" />
+              <div className="h-4 w-80 rounded bg-[#1B1C4A]" />
+            </div>
+          ) : selectedCategory ? (
             <>
-              {/* Section label + count */}
-              <div className="flex items-center justify-between mb-7">
-                <div>
-                  <p className="text-sm font-medium text-white">
-                    {selectedCategoryName ?? "Tất cả sản phẩm"}
-                  </p>
-                  {!filterLoading && (
-                    <p className="text-xs text-[#B6D6F2]/35 mt-0.5">
-                      {displayedProducts.length} sản phẩm
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Grid with filter-loading overlay */}
-              <div
-                className={`transition-opacity duration-200 ${
-                  filterLoading ? "opacity-50 pointer-events-none" : ""
-                }`}
-              >
-                {!filterLoading && displayedProducts.length === 0 ? (
-                  <EmptyState
-                    categorySelected={!!selectedCategory}
-                    onClearFilter={() => handleCategorySelect(null)}
-                  />
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                    {displayedProducts.map((product) => (
-                      <ProductCard key={product.id} product={product} />
-                    ))}
-                  </div>
-                )}
-              </div>
+              <h1 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
+                {selectedCategory.name}
+              </h1>
+              {selectedCategory.description && (
+                <p className="mt-3 max-w-[56ch] text-sm leading-relaxed text-[#B6D6F2]/55">
+                  {selectedCategory.description}
+                </p>
+              )}
             </>
-          )}
-        </section>
-      </main>
+          ) : !error ? (
+            <h1 className="text-3xl font-semibold text-white">Sản phẩm</h1>
+          ) : null}
+        </div>
+      </section>
 
-      <Footer />
+      {/* Category switcher pills */}
+      {!loading && !error && categories.length > 0 && (
+        <section className="border-b border-[#1B1C4A]/60 px-6 py-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <Link
+                href="/products"
+                className="flex-shrink-0 rounded-full border border-[#1B1C4A] px-4 py-1.5 text-xs font-medium text-[#B6D6F2]/50 transition-all duration-200 hover:border-[#273481]/60 hover:text-[#B6D6F2]"
+              >
+                Tất cả dòng quạt
+              </Link>
+              {categories.map((cat) => (
+                <Link
+                  key={cat.id}
+                  href={`/products?categoryId=${cat.id}`}
+                  className={`flex-shrink-0 rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-200 ${
+                    cat.id === categoryId
+                      ? "bg-[#273481] text-white"
+                      : "border border-[#1B1C4A] text-[#B6D6F2]/50 hover:border-[#273481]/60 hover:text-[#B6D6F2]"
+                  }`}
+                >
+                  {cat.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Product grid */}
+      <section className="max-w-7xl mx-auto px-6 py-10 pb-20">
+        {loading && <SkeletonProductGrid />}
+
+        {!loading && error && (
+          <div className="flex flex-col items-center py-20 text-center gap-5">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+              <AlertCircle className="h-5 w-5 text-red-400" />
+            </div>
+            <div>
+              <p className="text-white font-medium mb-1.5">Không thể tải sản phẩm</p>
+              <p className="text-[#B6D6F2]/40 text-sm max-w-xs">{error}</p>
+            </div>
+            <button
+              onClick={() => setRetryKey((k) => k + 1)}
+              className="flex items-center gap-2 rounded-full border border-[#273481]/50 px-5 py-2.5 text-sm text-[#B6D6F2] transition-all hover:border-[#273481] hover:text-white"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Thử lại
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && products.length === 0 && (
+          <div className="flex flex-col items-center py-20 text-center gap-5">
+            <div className="w-14 h-14 rounded-full border border-[#1B1C4A] flex items-center justify-center">
+              <Package className="h-6 w-6 text-[#273481]/60" />
+            </div>
+            <div>
+              <p className="text-white font-medium mb-1.5">
+                Hiện chưa có sản phẩm trong dòng này
+              </p>
+              <p className="text-[#B6D6F2]/35 text-sm">Sản phẩm sẽ sớm được cập nhật</p>
+            </div>
+            <Link
+              href="/products"
+              className="rounded-full border border-[#273481]/50 px-5 py-2.5 text-sm text-[#B6D6F2] transition-all hover:border-[#273481] hover:text-white"
+            >
+              Chọn dòng khác
+            </Link>
+          </div>
+        )}
+
+        {!loading && !error && products.length > 0 && (
+          <>
+            <p className="mb-6 text-xs text-[#B6D6F2]/35">
+              {products.length} sản phẩm
+            </p>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// ─── Category Discovery Card ──────────────────────────────────────────────────
+
+function CategoryDiscoveryCard({
+  category,
+  index,
+}: {
+  category: ProductCategory;
+  index: number;
+}) {
+  return (
+    <Link
+      href={`/products?categoryId=${category.id}`}
+      className="group flex flex-col overflow-hidden rounded-2xl border border-[#1B1C4A] bg-[#111335] transition-all duration-300 hover:-translate-y-1 hover:border-[#273481]/50 hover:shadow-[0_8px_32px_rgba(39,52,129,0.20)]"
+    >
+      {/* Image */}
+      <div className="relative aspect-[4/3] overflow-hidden bg-[#1B1C4A]">
+        {category.imageUrl ? (
+          <Image
+            src={category.imageUrl}
+            alt={category.name}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            priority={index < 3}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#1B1C4A] to-[#111335]">
+            <NanFanFallback />
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex flex-1 flex-col gap-2 p-5">
+        <h3 className="text-base font-semibold leading-snug text-white">
+          {category.name}
+        </h3>
+
+        {category.description && (
+          <p className="line-clamp-2 flex-1 text-xs leading-relaxed text-[#B6D6F2]/50">
+            {category.description}
+          </p>
+        )}
+
+        <div className="mt-auto flex items-center gap-1.5 pt-3 text-[11px] font-medium text-[#B6D6F2]/55 transition-colors group-hover:text-[#B6D6F2]">
+          Xem mẫu quạt
+          <ArrowRight
+            size={11}
+            className="transition-transform duration-200 group-hover:translate-x-0.5"
+          />
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// ─── Nan fan fallback visual ──────────────────────────────────────────────────
+
+function NanFanFallback() {
+  return (
+    <div className="flex select-none flex-col items-center justify-center gap-2">
+      <svg
+        viewBox="0 0 80 80"
+        fill="none"
+        aria-hidden="true"
+        className="h-16 w-16 opacity-[0.18]"
+      >
+        <line x1="40" y1="70" x2="40" y2="10" stroke="#B6D6F2" strokeWidth="1" strokeLinecap="round" />
+        <line x1="40" y1="70" x2="12" y2="28" stroke="#B6D6F2" strokeWidth="1" strokeLinecap="round" />
+        <line x1="40" y1="70" x2="68" y2="28" stroke="#B6D6F2" strokeWidth="1" strokeLinecap="round" />
+        <line x1="40" y1="70" x2="23" y2="13" stroke="#B6D6F2" strokeWidth="0.7" strokeLinecap="round" />
+        <line x1="40" y1="70" x2="57" y2="13" stroke="#B6D6F2" strokeWidth="0.7" strokeLinecap="round" />
+        <path d="M12,28 A32,32 0 0,1 68,28" stroke="#B6D6F2" strokeWidth="0.8" fill="none" />
+        <path d="M20,14 A28,28 0 0,1 60,14" stroke="#B6D6F2" strokeWidth="0.5" fill="none" />
+        <circle cx="40" cy="70" r="3" stroke="#ECCA3E" strokeWidth="0.8" fill="none" opacity="0.55" />
+      </svg>
+      <span className="font-serif text-xl text-[#273481]/25">Nan</span>
+    </div>
+  );
+}
+
+// ─── Category skeleton grid ───────────────────────────────────────────────────
+
+function CategorySkeletonGrid() {
+  return (
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="animate-pulse overflow-hidden rounded-2xl border border-[#1B1C4A] bg-[#111335]"
+        >
+          <div className="aspect-[4/3] bg-[#1B1C4A]" />
+          <div className="space-y-2.5 p-5">
+            <div className="h-4 w-3/5 rounded bg-[#1B1C4A]" />
+            <div className="h-3 w-full rounded bg-[#1B1C4A]" />
+            <div className="h-3 w-4/5 rounded bg-[#1B1C4A]" />
+            <div className="h-3 w-20 rounded bg-[#1B1C4A] pt-1" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -222,7 +410,7 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="group flex flex-col rounded-2xl overflow-hidden bg-[#111335] border border-[#1B1C4A] hover:border-[#273481]/50 transition-all duration-300 hover:shadow-[0_8px_32px_rgba(39,52,129,0.18)]"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-[#1B1C4A] bg-[#111335] transition-all duration-300 hover:border-[#273481]/50 hover:shadow-[0_8px_32px_rgba(39,52,129,0.18)]"
     >
       {/* Image */}
       <div className="relative aspect-[4/3] overflow-hidden bg-[#1B1C4A]">
@@ -231,7 +419,7 @@ function ProductCard({ product }: { product: Product }) {
             src={product.imageUrl}
             alt={product.name}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
           />
         ) : (
@@ -240,37 +428,37 @@ function ProductCard({ product }: { product: Product }) {
           </div>
         )}
         {product.isCustomizable && (
-          <div className="absolute top-2.5 right-2.5 rounded-full bg-[#273481]/80 backdrop-blur-sm px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.14em] text-[#B6D6F2]">
+          <div className="absolute right-2.5 top-2.5 rounded-full bg-[#273481]/80 px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.14em] text-[#B6D6F2] backdrop-blur-sm">
             Tùy chỉnh
           </div>
         )}
       </div>
 
       {/* Info */}
-      <div className="flex flex-col flex-1 p-4 gap-2">
+      <div className="flex flex-1 flex-col gap-2 p-4">
         {product.categoryName && (
-          <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-[#B6D6F2]/45">
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#B6D6F2]/45">
             {product.categoryName}
           </span>
         )}
 
-        <h3 className="font-semibold text-white text-sm leading-snug line-clamp-2">
+        <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-white">
           {product.name}
         </h3>
 
         {product.description && (
-          <p className="text-xs text-[#B6D6F2]/45 line-clamp-2 flex-1 leading-relaxed">
+          <p className="line-clamp-2 flex-1 text-xs leading-relaxed text-[#B6D6F2]/45">
             {product.description}
           </p>
         )}
 
-        <div className="mt-auto pt-3 border-t border-[#1B1C4A] flex items-center justify-between">
+        <div className="mt-auto flex items-center justify-between border-t border-[#1B1C4A] pt-3">
           <span className="text-sm font-semibold text-white">
             {product.basePrice > 0
               ? `${product.basePrice.toLocaleString("vi-VN")} ₫`
               : "Báo giá theo yêu cầu"}
           </span>
-          <span className="text-xs text-[#B6D6F2]/45 group-hover:text-[#B6D6F2] transition-colors">
+          <span className="text-xs text-[#B6D6F2]/45 transition-colors group-hover:text-[#B6D6F2]">
             Xem &rarr;
           </span>
         </div>
@@ -279,65 +467,29 @@ function ProductCard({ product }: { product: Product }) {
   );
 }
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
+// ─── Skeleton product grid ────────────────────────────────────────────────────
 
-function SkeletonGrid() {
+function SkeletonProductGrid() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
       {Array.from({ length: 8 }).map((_, i) => (
         <div
           key={i}
-          className="rounded-2xl overflow-hidden bg-[#111335] border border-[#1B1C4A] animate-pulse"
+          className="animate-pulse overflow-hidden rounded-2xl border border-[#1B1C4A] bg-[#111335]"
         >
           <div className="aspect-[4/3] bg-[#1B1C4A]" />
-          <div className="p-4 space-y-2.5">
-            <div className="h-2 w-14 bg-[#1B1C4A] rounded" />
-            <div className="h-4 w-4/5 bg-[#1B1C4A] rounded" />
-            <div className="h-3 w-full bg-[#1B1C4A] rounded" />
-            <div className="h-3 w-2/3 bg-[#1B1C4A] rounded" />
-            <div className="pt-2 border-t border-[#1B1C4A] flex justify-between items-center">
-              <div className="h-4 w-20 bg-[#1B1C4A] rounded" />
-              <div className="h-3 w-8 bg-[#1B1C4A] rounded" />
+          <div className="space-y-2.5 p-4">
+            <div className="h-2 w-14 rounded bg-[#1B1C4A]" />
+            <div className="h-4 w-4/5 rounded bg-[#1B1C4A]" />
+            <div className="h-3 w-full rounded bg-[#1B1C4A]" />
+            <div className="h-3 w-2/3 rounded bg-[#1B1C4A]" />
+            <div className="flex items-center justify-between border-t border-[#1B1C4A] pt-2">
+              <div className="h-4 w-20 rounded bg-[#1B1C4A]" />
+              <div className="h-3 w-8 rounded bg-[#1B1C4A]" />
             </div>
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-// ─── Empty state ──────────────────────────────────────────────────────────────
-
-function EmptyState({
-  categorySelected,
-  onClearFilter,
-}: {
-  categorySelected: boolean;
-  onClearFilter: () => void;
-}) {
-  return (
-    <div className="flex flex-col items-center py-20 text-center gap-5">
-      <div className="w-14 h-14 rounded-full border border-[#1B1C4A] flex items-center justify-center">
-        <Package className="h-6 w-6 text-[#273481]/60" />
-      </div>
-      <div>
-        <p className="text-white font-medium mb-1.5">
-          {categorySelected
-            ? "Chưa có sản phẩm trong danh mục này"
-            : "Chưa có sản phẩm nào"}
-        </p>
-        <p className="text-[#B6D6F2]/35 text-sm">
-          Sản phẩm sẽ sớm được cập nhật
-        </p>
-      </div>
-      {categorySelected && (
-        <button
-          onClick={onClearFilter}
-          className="text-sm text-[#B6D6F2]/55 hover:text-white transition-colors underline underline-offset-4"
-        >
-          Xem tất cả sản phẩm
-        </button>
-      )}
     </div>
   );
 }

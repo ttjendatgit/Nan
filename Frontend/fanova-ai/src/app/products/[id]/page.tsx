@@ -159,6 +159,17 @@ export default function ProductDetailPage({
                 >
                   Sản phẩm
                 </Link>
+                {product.categoryId && product.categoryName && (
+                  <>
+                    <span className="text-[#B6D6F2]/20">/</span>
+                    <Link
+                      href={`/products?categoryId=${product.categoryId}`}
+                      className="hover:text-white transition-colors"
+                    >
+                      {product.categoryName}
+                    </Link>
+                  </>
+                )}
                 <span className="text-[#B6D6F2]/20">/</span>
                 <span className="text-[#B6D6F2]/70 truncate max-w-[200px]">
                   {product.name}
@@ -408,10 +419,10 @@ export default function ProductDetailPage({
                       Sản phẩm liên quan
                     </h2>
                     <Link
-                      href="/products"
+                      href={product.categoryId ? `/products?categoryId=${product.categoryId}` : "/products"}
                       className="text-xs text-[#B6D6F2]/40 hover:text-[#B6D6F2] transition-colors"
                     >
-                      Xem tất cả &rarr;
+                      Xem thêm &rarr;
                     </Link>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
