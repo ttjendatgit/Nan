@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
   Clock,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
+import QuoteRequestForm from "@/components/quote/QuoteRequestForm";
 import {
   getProduct,
   getProductOptions,
@@ -31,6 +33,8 @@ export default function ProductDetailPage({
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showQuoteForm, setShowQuoteForm] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (!id) return;
@@ -85,6 +89,21 @@ export default function ProductDetailPage({
       cancelled = true;
     };
   }, [id]);
+
+  // Body scroll lock + ESC to close the quote form modal
+  useEffect(() => {
+    if (!showQuoteForm) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowQuoteForm(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [showQuoteForm]);
 
   return (
     <div className="min-h-[100dvh] bg-[#0D131F] text-white flex flex-col">
@@ -279,7 +298,10 @@ export default function ProductDetailPage({
                       <Paintbrush className="h-4 w-4" />
                       Bắt đầu thiết kế
                     </Link>
-                    <button className="rounded-xl border border-[#273481]/45 py-3.5 text-sm font-medium text-[#B6D6F2] hover:border-[#273481] hover:text-white transition-colors">
+                    <button
+                      onClick={() => setShowQuoteForm(true)}
+                      className="rounded-xl border border-[#273481]/45 py-3.5 text-sm font-medium text-[#B6D6F2] hover:border-[#273481] hover:text-white transition-all active:scale-[0.98]"
+                    >
                       Gửi yêu cầu báo giá
                     </button>
                   </div>
@@ -438,6 +460,44 @@ export default function ProductDetailPage({
       </main>
 
       <Footer />
+
+      {/* ── Quote request modal ──────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showQuoteForm && product && (
+          <motion.div
+            key="quote-modal"
+            className="fixed inset-0 z-[1000] flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.18 }}
+          >
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/72 backdrop-blur-sm"
+              onClick={() => setShowQuoteForm(false)}
+            />
+            {/* Panel */}
+            <motion.div
+              className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-[#1B1C4A] bg-[#0D131F] shadow-[0_24px_80px_rgba(0,0,0,0.85)]"
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 14, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={prefersReducedMotion ? undefined : { opacity: 0, y: 8, scale: 0.99 }}
+              transition={{ duration: prefersReducedMotion ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <QuoteRequestForm
+                productId={product.id}
+                productName={product.name}
+                categoryName={product.categoryName}
+                minQuantity={product.minQuantity}
+                onSuccess={() => setShowQuoteForm(false)}
+                onCancel={() => setShowQuoteForm(false)}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
