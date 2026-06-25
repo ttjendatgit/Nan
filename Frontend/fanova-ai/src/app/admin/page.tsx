@@ -32,7 +32,7 @@ const MODULES: Module[] = [
     description: "Xem và xử lý các yêu cầu báo giá từ khách hàng theo trạng thái.",
     href: "/admin/quote-requests",
     icon: FileText,
-    available: false,
+    available: true,
   },
   {
     label: "Pricing Rules",
