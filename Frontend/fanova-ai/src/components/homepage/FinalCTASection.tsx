@@ -6,6 +6,7 @@
 
 import { motion } from "motion/react";
 import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 import Button from "@/components/ui/Button";
 import { finalCta } from "@/data/homepageData";
 
@@ -104,19 +105,23 @@ export default function FinalCTASection() {
               ))}
             </div>
 
-            {/* CTAs — CMS: finalCta.primaryButton / secondaryButton */}
+            {/* CTAs — primary goes to /products to browse and submit quote */}
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Button className="bg-[#FFFFFF] text-[#08337D] hover:bg-[#DCEAF7] shadow-lg shadow-black/22">
-                {finalCta.primaryButton}
-                <ArrowRight className="ml-2" size={15} />
-              </Button>
+              <Link href="/products">
+                <Button className="bg-[#FFFFFF] text-[#08337D] hover:bg-[#DCEAF7] shadow-lg shadow-black/22">
+                  {finalCta.primaryButton}
+                  <ArrowRight className="ml-2" size={15} />
+                </Button>
+              </Link>
 
-              <Button
-                variant="secondary"
-                className="border-white/25 text-white/80 hover:border-white/50 hover:text-white hover:bg-white/10"
-              >
-                {finalCta.secondaryButton}
-              </Button>
+              <Link href="/products">
+                <Button
+                  variant="secondary"
+                  className="border-white/25 text-white/80 hover:border-white/50 hover:text-white hover:bg-white/10"
+                >
+                  {finalCta.secondaryButton}
+                </Button>
+              </Link>
             </div>
           </div>
         </motion.div>

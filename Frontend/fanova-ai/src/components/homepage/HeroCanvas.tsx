@@ -161,6 +161,7 @@ export default function HeroCanvas() {
     <CanvasErrorBoundary>
       <Canvas
         camera={{ position: [-0.4, 0.6, 6.0], fov: 49 }}
+        style={{ background: "transparent" }}
         gl={{
           antialias: true,
           alpha: true,

@@ -10,13 +10,12 @@ import Link from "next/link";
 import { useRef, useEffect, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { ChevronDown } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { hasSeenIntro } from "@/hooks/useIntroComplete";
 import { heroConfig } from "@/data/homepageData";
 
-/* ─── HeroCanvas is WebGL-only; skip SSR ─── */
-const HeroCanvas = dynamic(() => import("./HeroCanvas"), {
+/* ─── HeroVisualStage is WebGL-only; skip SSR ─── */
+const HeroVisualStage = dynamic(() => import("./HeroVisualStage"), {
   ssr: false,
   loading: () => null,
 });
@@ -116,9 +115,9 @@ export default function HeroSection() {
       );
 
       gsap.fromTo(
-        "[data-ha='scroll']",
-        { opacity: 0 },
-        { opacity: 1, duration: 0.65, ease: "power1.out", delay: 2.0 }
+        "[data-ha='visual']",
+        { opacity: 0, scale: 0.96 },
+        { opacity: 1, scale: 1, duration: 0.9, ease: "power2.out", delay: 0.5, clearProps: "transform" }
       );
     },
     { scope: containerRef, dependencies: [animReady] }
@@ -226,12 +225,12 @@ export default function HeroSection() {
         }}
       />
 
-      {/* ── Mobile-only: canvas as a dim background layer ── */}
+      {/* ── Mobile-only: visual stage as a dim background layer ── */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 z-0 opacity-[0.20] md:hidden"
       >
-        <HeroCanvas />
+        <HeroVisualStage />
       </div>
 
       {/* ── Main layout ── */}
@@ -283,7 +282,7 @@ export default function HeroSection() {
             {/* CTA buttons — CMS: heroConfig.primaryCta / secondaryCta */}
             <div className="mt-10 flex flex-wrap gap-4">
               <span data-ha="cta" style={{ opacity: 0 }}>
-                <a href="#ai-designer">
+                <a href="#quote">
                   <Button className="bg-[#FFFFFF] text-[#08337D] hover:bg-[#DCEAF7] shadow-[0_4px_22px_rgba(0,0,0,0.22),0_2px_8px_rgba(8,51,125,0.14)] ring-1 ring-inset ring-[rgba(8,51,125,0.10)] hover:shadow-[0_6px_28px_rgba(0,0,0,0.18),0_2px_12px_rgba(8,51,125,0.18)]">
                     {heroConfig.primaryCta}
                   </Button>
@@ -320,33 +319,18 @@ export default function HeroSection() {
               ))}
             </div>
 
-            {/* Scroll indicator */}
-            <div
-              data-ha="scroll"
-              style={{ opacity: 0 }}
-              className="mt-14 hidden flex-col items-start gap-2 md:flex lg:mt-16"
-            >
-              <span className="font-mono text-[9px] uppercase tracking-[0.28em] text-[rgba(232,242,252,0.28)]">
-                Cuộn xuống
-              </span>
-              <div className="flex items-center gap-2">
-                <div className="h-px w-8 bg-[rgba(232,242,252,0.18)]" />
-                <ChevronDown
-                  className="h-3.5 w-3.5 animate-bounce text-[#DCEAF7]/60"
-                  strokeWidth={1.5}
-                />
-              </div>
-            </div>
 
           </div>
         </div>
 
-        {/* Right — 3D canvas (desktop only) */}
+        {/* Right — Visual stage (desktop only); future slot for 3D fan model */}
         <div
+          data-ha="visual"
           aria-hidden="true"
+          style={{ opacity: 0 }}
           className="hidden h-[88vh] w-[50%] md:block lg:w-[52%]"
         >
-          <HeroCanvas />
+          <HeroVisualStage />
         </div>
 
       </div>

@@ -84,15 +84,13 @@ export const heroConfig = {
   badge: "Vietnamese Heritage Fan Design",
   headline: "Di sản trong từng nếp quạt.",
   subheadline:
-    "Thiết kế quạt giấy cá nhân hóa cho sự kiện, resort, nhà hàng và chiến dịch thương hiệu — xem mockup trực tiếp trước khi đặt in.",
-  primaryCta:   "Bắt đầu thiết kế",
-  secondaryCta: "Khám phá bộ sưu tập",
+    "Quạt thủ công cá nhân hóa cho sự kiện, thương hiệu và quà tặng cao cấp.",
+  primaryCta:   "Gửi yêu cầu báo giá",
+  secondaryCta: "Khám phá dòng quạt",
   proofPoints: [
-    "Thiết kế cá nhân hóa",
-    "Xem mockup trực tiếp",
-    "Chất liệu cao cấp",
-    "Báo giá minh bạch",
-    "In theo yêu cầu",
+    "Thiết kế theo yêu cầu",
+    "Sản xuất theo số lượng",
+    "Tư vấn chất liệu & hoàn thiện",
   ],
 };
 
@@ -323,34 +321,34 @@ export const materials: Material[] = [
 
 export const processSteps = [
   {
-    step: "001",
+    step: "01",
     title: "Chọn kiểu quạt",
     description:
       "Bắt đầu với kiểu quạt phù hợp: quạt tròn, quạt gấp, quạt cán nhựa, quạt wedding hoặc quạt sự kiện.",
   },
   {
-    step: "002",
-    title: "Upload logo hoặc nhập ý tưởng",
-    description:
-      "Tải hình ảnh từ máy hoặc mô tả concept bạn muốn để hệ thống gợi ý hướng thiết kế phù hợp.",
-  },
-  {
-    step: "003",
-    title: "Xem mockup trực quan",
-    description:
-      "Kéo thả, phóng to, thu nhỏ và chọn màu nền để xem thiết kế của bạn hiển thị trên quạt.",
-  },
-  {
-    step: "004",
+    step: "02",
     title: "Gửi yêu cầu báo giá",
     description:
-      "Chọn chất liệu, số lượng, thời gian sản xuất và gửi yêu cầu để nhận báo giá chi tiết.",
+      "Điền thông tin về số lượng, chất liệu và thời gian cần thiết. Chúng tôi phản hồi trong 24 giờ làm việc.",
   },
   {
-    step: "005",
-    title: "Sản xuất & giao hàng",
+    step: "03",
+    title: "Tư vấn thiết kế",
     description:
-      "Sau khi file được kiểm tra và xác nhận, đơn hàng sẽ được sản xuất, kiểm tra chất lượng và giao đến bạn.",
+      "Đội ngũ tư vấn giúp bạn lựa chọn chất liệu, kiểu in và hoàn thiện phù hợp với ngữ cảnh sử dụng.",
+  },
+  {
+    step: "04",
+    title: "Sản xuất",
+    description:
+      "Sau khi xác nhận file thiết kế, đơn hàng được sản xuất theo tiêu chuẩn in ấn chuyên nghiệp.",
+  },
+  {
+    step: "05",
+    title: "Giao hàng",
+    description:
+      "Kiểm tra chất lượng toàn bộ trước khi đóng gói và giao đến địa chỉ của bạn đúng tiến độ.",
   },
 ];
 
@@ -383,8 +381,8 @@ export const finalCta = {
   title: "Biến mỗi chiếc quạt thành một điểm chạm thương hiệu.",
   description:
     "Bắt đầu từ một ý tưởng, một logo hoặc một câu chuyện thương hiệu. Hệ thống sẽ giúp bạn xem trước mẫu quạt, tùy chỉnh thiết kế và gửi yêu cầu báo giá nhanh chóng.",
-  primaryButton:   "Bắt đầu thiết kế",
-  secondaryButton: "Gửi yêu cầu báo giá",
+  primaryButton:   "Gửi yêu cầu báo giá",
+  secondaryButton: "Khám phá sản phẩm",
   /**
    * CMS: background image layered behind the gradient in the CTA card.
    * Keep src empty to use the pure-gradient look; set src for a photo overlay.
@@ -425,5 +423,114 @@ export const faqItems = [
   {
     q: "Có nhận số lượng ít không?",
     a: "Có. Nan nhận đơn từ số lượng nhỏ cho đến sản xuất đại trà. Báo giá được tính theo số lượng và chất liệu, minh bạch và rõ ràng.",
+  },
+];
+
+// ─── Brand Statement ──────────────────────────────────────────────────────────
+// CMS path: admin/brand-statement
+
+export const brandStatement = {
+  headlineA: "Nan không chỉ sản xuất quạt.",
+  headlineB: "Nan biến một vật dụng cầm tay thành điểm chạm thương hiệu cao cấp.",
+  body: "Được tạo ra từ nghề thủ công Việt Nam, Nan kết hợp tay nghề tinh xảo với quy trình thiết kế hiện đại. Mỗi chiếc quạt là một câu chuyện đáng được kể.",
+};
+
+// ─── Problem Section ──────────────────────────────────────────────────────────
+// CMS path: admin/problem
+
+export const problemSection = {
+  headline: "Quà tặng đại trà không kể được câu chuyện của bạn.",
+  body: "Sản phẩm in sẵn, thiếu cá tính, dễ bị quên lãng sau sự kiện. Không kết nối với thương hiệu, không tạo được ấn tượng.",
+  points: [
+    "Thiết kế không phản ánh nhận diện thương hiệu",
+    "Chất liệu không phù hợp với ngữ cảnh sử dụng",
+    "Quy trình đặt hàng phức tạp, thiếu minh bạch",
+  ],
+};
+
+// ─── Solution Section ─────────────────────────────────────────────────────────
+// CMS path: admin/solution
+
+export const solutionSection = {
+  headline: "Nan được xây dựng khác đi.",
+  pillars: [
+    {
+      title: "Thiết kế theo ngữ cảnh",
+      description:
+        "Mỗi mẫu được thiết kế riêng cho từng thương hiệu, sự kiện hoặc kênh phân phối. Không có mẫu chung.",
+      icon: "Palette",
+    },
+    {
+      title: "Chất liệu theo mục đích",
+      description:
+        "Giấy couche, mỹ thuật, cán mờ, ép kim. Được lựa chọn dựa trên nhu cầu thực tế, không phải chi phí thấp nhất.",
+      icon: "Layers",
+    },
+    {
+      title: "Sản xuất linh hoạt",
+      description:
+        "Từ số lượng nhỏ cho sự kiện đến đại trà cho chiến dịch thương hiệu. Quy mô phù hợp với ngân sách của bạn.",
+      icon: "Package",
+    },
+    {
+      title: "Báo giá trước sản xuất",
+      description:
+        "Gửi yêu cầu, nhận báo giá chi tiết, xác nhận trước khi bắt đầu. Không phát sinh chi phí bất ngờ.",
+      icon: "FileText",
+    },
+  ],
+};
+
+// ─── Use Cases ────────────────────────────────────────────────────────────────
+// CMS path: admin/use-cases
+
+export type UseCase = {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  examples: string[];
+};
+
+export const useCases: UseCase[] = [
+  {
+    id: "events",
+    title: "Sự kiện",
+    description:
+      "Quạt nhẹ, đẹp, dễ phân phát tại lễ khai trương, hội thảo, tiệc ngoài trời và các sự kiện thương hiệu.",
+    icon: "Sparkles",
+    examples: ["Khai trương", "Hội nghị", "Tiệc cưới"],
+  },
+  {
+    id: "resort",
+    title: "Resort & Khách sạn",
+    description:
+      "Vật phẩm trải nghiệm cao cấp cho resort, beach club và không gian nghỉ dưỡng phong cách.",
+    icon: "Sun",
+    examples: ["Beach club", "Spa resort", "Boutique hotel"],
+  },
+  {
+    id: "restaurant",
+    title: "Nhà hàng & Quán cà phê",
+    description:
+      "Branded touchpoint tinh tế cho không gian ẩm thực mùa hè, outdoor seating và rooftop bar.",
+    icon: "Coffee",
+    examples: ["Rooftop bar", "Garden café", "Fine dining"],
+  },
+  {
+    id: "corporate",
+    title: "Quà tặng doanh nghiệp",
+    description:
+      "Quà tặng mang dấu ấn thương hiệu cho đối tác chiến lược, khách VIP và bộ sưu tập giới hạn.",
+    icon: "Briefcase",
+    examples: ["Đối tác chiến lược", "Khách VIP", "Limited edition"],
+  },
+  {
+    id: "brand",
+    title: "Brand Activation",
+    description:
+      "Kết nối thương hiệu với khách hàng qua booth activation, sampling campaign và pop-up event.",
+    icon: "Megaphone",
+    examples: ["Sampling campaign", "Pop-up booth", "Trade show"],
   },
 ];

@@ -28,27 +28,21 @@ export default function ProcessSection() {
           transition={{ duration: 0.65 }}
           className="mb-14"
         >
-          <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.28em] text-[#08337D]">
-            04 / Quy trình
+          <h2 className="font-serif text-4xl font-semibold tracking-tight text-[#081426] md:text-5xl lg:max-w-xl">
+            Từ ý tưởng đến{" "}
+            <span className="text-[#08337D]">chiếc quạt hoàn thiện.</span>
+          </h2>
+          <p className="mt-5 max-w-lg text-[0.9375rem] leading-7 text-[#4A74A7]">
+            Quy trình được thiết kế để bạn có thể yêu cầu báo giá, tư vấn thiết kế
+            và nhận hàng mà không cần hiểu kỹ thuật in ấn.
           </p>
-
-          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-            <h2 className="font-serif text-4xl font-semibold tracking-tight text-[#081426] md:text-5xl lg:max-w-md">
-              Từ ý tưởng đến{" "}
-              <span className="text-[#08337D]">chiếc quạt hoàn thiện.</span>
-            </h2>
-            <div className="max-w-sm">
-              <p className="text-[0.9375rem] leading-7 text-[#4A74A7]">
-                Quy trình được thiết kế để ai cũng có thể tạo mẫu, xem trước
-                và gửi báo giá mà không cần hiểu kỹ thuật in.
-              </p>
-              <div className="mt-5">
-                <Button>
-                  Bắt đầu thiết kế
-                  <ArrowRight className="ml-2" size={14} />
-                </Button>
-              </div>
-            </div>
+          <div className="mt-7">
+            <a href="#quote">
+              <Button>
+                Gửi yêu cầu báo giá
+                <ArrowRight className="ml-2" size={14} />
+              </Button>
+            </a>
           </div>
 
           <div className="mt-10 h-px bg-gradient-to-r from-[rgba(8,51,125,0.14)] via-[rgba(8,51,125,0.08)] to-transparent" />
