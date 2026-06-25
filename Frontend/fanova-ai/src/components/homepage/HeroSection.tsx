@@ -10,6 +10,9 @@ import Link from "next/link";
 import { useRef, useEffect, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 import Button from "@/components/ui/Button";
 import { hasSeenIntro } from "@/hooks/useIntroComplete";
 import { heroConfig } from "@/data/homepageData";
@@ -123,6 +126,34 @@ export default function HeroSection() {
       );
     },
     { scope: containerRef, dependencies: [animReady] }
+  );
+
+  /* ── Hero scroll-out depth: visual stage gently recedes as user scrolls past.
+     Runs once on mount (dependencies: []). The load-in animation (above) sets
+     [data-ha='visual'] to opacity:1, scale:1 first; this scrubbed ScrollTrigger
+     then eases it out as the hero exits viewport. ── */
+  useGSAP(
+    () => {
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduced || !containerRef.current) return;
+
+      const visual = containerRef.current.querySelector<HTMLElement>("[data-ha='visual']");
+      if (!visual) return;
+
+      gsap.to(visual, {
+        opacity: 0.25,
+        scale: 0.94,
+        ease: "none",
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "center top",      // starts when hero center reaches viewport top
+          end: "bottom top",        // ends when hero bottom leaves viewport top
+          scrub: 0.8,
+          invalidateOnRefresh: true,
+        },
+      });
+    },
+    { scope: containerRef, dependencies: [] }
   );
 
   return (

@@ -12,6 +12,7 @@ import ProcessSection from "@/components/homepage/ProcessSection";
 import FAQSection from "@/components/homepage/FAQSection";
 import FinalCTASection from "@/components/homepage/FinalCTASection";
 import Footer from "@/components/common/Footer";
+import HomepageNarrativeMotif from "@/components/homepage/HomepageNarrativeMotif";
 
 export default function Home() {
   return (
@@ -22,35 +23,45 @@ export default function Home() {
       {/* 1. Hero — what Nan is, primary CTA */}
       <HeroSection />
 
-      {/* 2. Brand Statement — manifesto, why Nan exists */}
-      <BrandStatementSection />
+      {/* Page-level narrative motif: fan thread draws as user scrolls the brand journey.
+          Mounted outside the narrative wrapper so it can be fixed-position independently. */}
+      <HomepageNarrativeMotif />
 
-      {/* 3. Choose Fan Type — real category discovery */}
-      <ProductTypeSection />
+      {/* Narrative wrapper: BrandStatement → FinalCTA.
+          id="homepage-narrative" is the GSAP ScrollTrigger anchor for the motif thread. */}
+      <div id="homepage-narrative">
 
-      {/* 4. Problem — why generic brand gifts fail */}
-      <ProblemSection />
+        {/* 2. Brand Statement — manifesto, why Nan exists */}
+        <BrandStatementSection />
 
-      {/* 5. Solution — how Nan solves it */}
-      <SolutionSection />
+        {/* 3. Choose Fan Type — real category discovery */}
+        <ProductTypeSection />
 
-      {/* 6. AI Designer — try mockup now (preserved) */}
-      <AIDesignerSection />
+        {/* 4. Problem — why generic brand gifts fail */}
+        <ProblemSection />
 
-      {/* 7. Materials & Craft — paper, fabric, finishes */}
-      <MaterialSection />
+        {/* 5. Solution — how Nan solves it */}
+        <SolutionSection />
 
-      {/* 8. Use Cases — events, resorts, restaurants, corporate, brand */}
-      <UseCaseSection />
+        {/* 6. AI Designer — try mockup now (preserved) */}
+        <AIDesignerSection />
 
-      {/* 9. Process — quote-first workflow */}
-      <ProcessSection />
+        {/* 7. Materials & Craft — paper, fabric, finishes */}
+        <MaterialSection />
 
-      {/* 10. FAQ */}
-      <FAQSection />
+        {/* 8. Use Cases — events, resorts, restaurants, corporate, brand */}
+        <UseCaseSection />
 
-      {/* 11. Final Quote CTA */}
-      <FinalCTASection />
+        {/* 9. Process — quote-first workflow */}
+        <ProcessSection />
+
+        {/* 10. FAQ */}
+        <FAQSection />
+
+        {/* 11. Final Quote CTA */}
+        <FinalCTASection />
+
+      </div>
 
       <Footer />
     </main>

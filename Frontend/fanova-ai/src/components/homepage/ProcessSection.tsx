@@ -60,7 +60,30 @@ export default function ProcessSection() {
               transition={{ duration: 0.72, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
               className="group relative overflow-hidden rounded-2xl border border-[rgba(8,51,125,0.09)] bg-[#FFFFFF] transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(8,51,125,0.20)] hover:bg-[#F7FAFF] hover:shadow-[0_8px_32px_rgba(8,51,125,0.10)]"
             >
+              {/* Top accent line */}
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(8,51,125,0.18)] to-transparent" />
+
+              {/* Left connector accent: draws in after the card appears,
+                  communicating sequential step progression. */}
+              {!reduce && (
+                <motion.div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-0 top-0 h-full w-0.5"
+                  style={{
+                    originY: 0,
+                    background:
+                      "linear-gradient(to bottom, rgba(8,51,125,0.22), rgba(8,51,125,0.10) 70%, transparent)",
+                  }}
+                  initial={{ scaleY: 0 }}
+                  whileInView={{ scaleY: 1 }}
+                  viewport={{ once: true, amount: 0.4 }}
+                  transition={{
+                    duration: 0.9,
+                    delay: index * 0.1 + 0.18,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                />
+              )}
 
               <div className="flex flex-col gap-5 p-6 md:flex-row md:items-center md:p-7">
                 {/* Step number */}
