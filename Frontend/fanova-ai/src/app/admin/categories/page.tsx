@@ -8,7 +8,6 @@ import {
   X,
   Pencil,
   Trash2,
-  LogOut,
 } from "lucide-react";
 import { login } from "@/lib/api/auth";
 import {
@@ -80,6 +79,7 @@ export default function AdminCategoriesPage() {
       const res = await login(email, password);
       setToken(res.accessToken);
       sessionStorage.setItem("nan_admin_token", res.accessToken);
+      window.location.reload();
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -258,32 +258,10 @@ export default function AdminCategoriesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0D131F] text-white">
-      <header className="bg-[#111335] border-b border-[#1B1C4A] px-6 py-4 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <h1 className="text-base font-semibold">Admin</h1>
-          <span className="text-[#273481]">/</span>
-          <span className="text-sm text-[#B6D6F2]">Categories</span>
-          <a
-            href="/admin/products"
-            className="ml-4 text-xs text-[#B6D6F2]/60 hover:text-[#B6D6F2] transition-colors"
-          >
-            → Products
-          </a>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 text-sm text-[#B6D6F2]/60 hover:text-white transition-colors"
-        >
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </button>
-      </header>
-
-      <div className="max-w-6xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-5 gap-8">
+    <div className="max-w-6xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Form panel */}
         <div className="lg:col-span-2">
-          <div className="bg-[#111335] rounded-2xl border border-[#1B1C4A] p-6 space-y-5 sticky top-20">
+          <div className="bg-[#111335] rounded-2xl border border-[#1B1C4A] p-6 space-y-5 sticky top-6">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-white">
                 {editing ? "Edit Category" : "New Category"}
@@ -570,6 +548,5 @@ export default function AdminCategoriesPage() {
           </div>
         </div>
       </div>
-    </div>
   );
 }
