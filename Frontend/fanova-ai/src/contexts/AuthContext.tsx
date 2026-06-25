@@ -23,7 +23,7 @@ interface AuthContextValue {
   user: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ roles: string[] }>;
   register: (email: string, password: string, fullName?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -38,6 +38,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const clearAuth = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_KEY);
+    // Also clear the admin compatibility bridge token so the admin shell
+    // does not stay open after a public logout.
+    sessionStorage.removeItem("nan_admin_token");
     setUser(null);
   }, []);
 
@@ -83,6 +86,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(TOKEN_KEY, authData.accessToken);
       localStorage.setItem(REFRESH_KEY, authData.refreshToken);
       await hydrateUser(authData.accessToken);
+      // Return roles from the login response so callers can make routing
+      // decisions without waiting for a React state-update cycle.
+      return { roles: authData.roles };
     },
     [hydrateUser],
   );

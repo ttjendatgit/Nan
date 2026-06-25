@@ -30,8 +30,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   function handleLogout() {
     sessionStorage.removeItem("nan_admin_token");
+    // Also clear the public auth tokens so the Navbar reflects the logged-out state.
+    localStorage.removeItem("nan_access_token");
+    localStorage.removeItem("nan_refresh_token");
     setToken(null);
-    window.location.reload();
+    window.location.replace("/");
   }
 
   // Avoid hydration flash — render nothing until mounted

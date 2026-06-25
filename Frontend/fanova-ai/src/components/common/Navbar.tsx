@@ -10,6 +10,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getCategories } from "@/lib/api/categories";
 import type { ProductCategory } from "@/types/catalog";
 
+/** True for Manager or Staff — case-insensitive. */
+function isAdminUser(roles?: string[]): boolean {
+  if (!roles) return false;
+  return roles.some((r) => ["manager", "staff"].includes(r.toLowerCase()));
+}
+
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
@@ -89,6 +95,13 @@ export default function Navbar() {
               <div className="hidden md:flex items-center gap-2">
                 {isAuthenticated ? (
                   <>
+                    {isAdminUser(user?.roles) && (
+                      <Link href="/admin">
+                        <Button variant="ghost" className="px-4 py-2 text-[11px]">
+                          Dashboard
+                        </Button>
+                      </Link>
+                    )}
                     <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[rgba(8,20,38,0.48)] max-w-[140px] truncate">
                       {displayName}
                     </span>
@@ -158,6 +171,13 @@ export default function Navbar() {
                     <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[rgba(8,20,38,0.40)] pt-1">
                       {displayName}
                     </span>
+                    {isAdminUser(user?.roles) && (
+                      <Link href="/admin" onClick={() => setMobileOpen(false)}>
+                        <Button variant="ghost" className="w-full py-2.5 text-xs">
+                          Dashboard
+                        </Button>
+                      </Link>
+                    )}
                     <Button
                       variant="ghost"
                       onClick={handleLogout}

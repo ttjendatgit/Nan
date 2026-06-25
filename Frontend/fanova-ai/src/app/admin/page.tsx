@@ -144,7 +144,7 @@ export default function AdminDashboardPage() {
       <div className="mt-10 pt-6 border-t border-[#1B1C4A]/60">
         <Link
           href="/"
-          className="text-xs text-[#B6D6F2]/35 hover:text-[#B6D6F2]/65 transition-colors"
+          className="text-xs text-[#B6D6F2]/60 hover:text-[#B6D6F2] transition-colors"
         >
           &larr; Về trang chủ Nan
         </Link>

@@ -119,14 +119,31 @@ function FieldError({ message }: { message?: string }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+/** True for Manager or Staff — case-insensitive, defensive. */
+function isAdminRole(roles: string[]): boolean {
+  return roles.some((r) => ["manager", "staff"].includes(r.toLowerCase()));
+}
+
+/** Write the public access token into the admin session bridge and notify the admin shell. */
+function bridgeAdminToken() {
+  const token = localStorage.getItem("nan_access_token");
+  if (token) {
+    sessionStorage.setItem("nan_admin_token", token);
+    window.dispatchEvent(new Event("nan-admin-auth-change"));
+  }
+}
+
 export default function LoginPage() {
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { login, isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
   const shouldReduce = useReducedMotion();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Prevents the already-authenticated useEffect from double-redirecting
+  // after the form submit already issued a programmatic navigation.
+  const loginCompletedRef = useRef(false);
 
   const {
     register,
@@ -142,15 +159,30 @@ export default function LoginPage() {
     }
   }, []);
 
+  // Already-authenticated guard: redirect away from the login page.
+  // All users land on "/" — Manager/Staff also get the admin token bridged
+  // so the Dashboard button in the Navbar works immediately.
+  // Guarded by loginCompletedRef to avoid double-navigating after form submit.
   useEffect(() => {
-    if (!isLoading && isAuthenticated) router.replace("/");
-  }, [isAuthenticated, isLoading, router]);
+    if (!isLoading && isAuthenticated && user && !loginCompletedRef.current) {
+      if (isAdminRole(user.roles ?? [])) {
+        bridgeAdminToken();
+      }
+      router.replace("/");
+    }
+  }, [isAuthenticated, isLoading, user, router]);
 
   async function onSubmit(data: FormData) {
     setServerError(null);
     setIsSubmitting(true);
     try {
-      await login(data.email, data.password);
+      const { roles } = await login(data.email, data.password);
+      loginCompletedRef.current = true; // suppress already-authenticated useEffect
+      if (isAdminRole(roles)) {
+        bridgeAdminToken(); // copy localStorage token → sessionStorage for admin shell
+      }
+      // All users — including Manager/Staff — land on the public homepage.
+      // Manager/Staff reach /admin via the Dashboard button in the Navbar.
       router.push("/");
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Đăng nhập thất bại. Vui lòng thử lại.");

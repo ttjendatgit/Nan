@@ -11,6 +11,7 @@ import {
   Palette,
   Users,
   LogOut,
+  ArrowLeft,
 } from "lucide-react";
 
 interface NavItem {
@@ -104,8 +105,15 @@ export default function AdminSidebar({ onLogout }: AdminSidebarProps) {
         })}
       </nav>
 
-      {/* Logout */}
-      <div className="border-t border-[#1B1C4A] px-2.5 py-3">
+      {/* Footer: return to public site + logout */}
+      <div className="border-t border-[#1B1C4A] px-2.5 py-3 space-y-0.5">
+        <Link
+          href="/"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[#B6D6F2]/55 transition-all duration-150 hover:bg-[#1B1C4A] hover:text-[#B6D6F2]"
+        >
+          <ArrowLeft className="h-4 w-4 flex-shrink-0" />
+          <span className="text-[12.5px]">Về trang chủ</span>
+        </Link>
         <button
           onClick={onLogout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[#B6D6F2]/40 transition-all duration-150 hover:bg-[#1B1C4A] hover:text-[#B6D6F2]"
