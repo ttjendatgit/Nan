@@ -21,6 +21,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Cart> Carts => Set<Cart>();
     public DbSet<CartItem> CartItems => Set<CartItem>();
     public DbSet<DesignFile> DesignFiles => Set<DesignFile>();
+    public DbSet<QuoteRequest> QuoteRequests => Set<QuoteRequest>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

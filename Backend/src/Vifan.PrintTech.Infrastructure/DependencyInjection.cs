@@ -95,6 +95,8 @@ public static class DependencyInjection
         services.AddScoped<ICartRepository, CartRepository>();
         services.AddScoped<ICartItemRepository, CartItemRepository>();
         services.AddScoped<IDesignFileRepository, DesignFileRepository>();
+        services.AddScoped<IQuoteRequestRepository, QuoteRequestRepository>();
+        services.AddScoped<IQuoteRequestService, QuoteRequestService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;
