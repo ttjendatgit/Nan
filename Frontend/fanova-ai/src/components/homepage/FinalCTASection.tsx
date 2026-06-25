@@ -4,13 +4,15 @@
 // Future: when finalCta.backgroundImage.src is set by admin upload, render
 // the image as a low-opacity overlay behind the gradient card.
 
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import { finalCta } from "@/data/homepageData";
 
 export default function FinalCTASection() {
+  const reduce = useReducedMotion();
+
   return (
     <section
       id="quote"
@@ -35,11 +37,12 @@ export default function FinalCTASection() {
         {/* Top divider line */}
         <div className="mb-20 h-px bg-gradient-to-r from-transparent via-[rgba(220,234,247,0.15)] to-transparent" />
 
+        {/* Panel: fades and lifts as a unit */}
         <motion.div
-          initial={{ opacity: 0, y: 26 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7 }}
+          initial={reduce ? false : { opacity: 0, y: 30, scale: 0.985 }}
+          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
           className="relative overflow-hidden rounded-3xl border border-[rgba(220,234,247,0.10)] px-8 py-20 text-center shadow-[0_32px_100px_rgba(8,20,38,0.55)] md:px-16"
           style={{
             background:
@@ -75,26 +78,51 @@ export default function FinalCTASection() {
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[rgba(236,202,62,0.18)] to-transparent" />
 
           <div className="relative z-10 mx-auto max-w-3xl">
-            {/* Badge — CMS: finalCta.badge */}
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/14 bg-white/6 px-4 py-2">
+
+            {/* Badge — reveals first */}
+            <motion.div
+              initial={reduce ? false : { opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.65, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/14 bg-white/6 px-4 py-2"
+            >
               <span aria-hidden="true" className="h-1 w-1 shrink-0 rounded-full bg-[#ECCA3E]" />
               <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/65">
                 {finalCta.badge}
               </span>
-            </div>
+            </motion.div>
 
             {/* Title — CMS: finalCta.title */}
-            <h2 className="font-serif text-4xl font-semibold leading-[1.12] tracking-tight text-white md:text-5xl lg:text-6xl">
+            <motion.h2
+              initial={reduce ? false : { opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.85, delay: 0.32, ease: [0.16, 1, 0.3, 1] }}
+              className="font-serif text-4xl font-semibold leading-[1.12] tracking-tight text-white md:text-5xl lg:text-6xl"
+            >
               {finalCta.title}
-            </h2>
+            </motion.h2>
 
             {/* Description — CMS: finalCta.description */}
-            <p className="mx-auto mt-6 max-w-xl text-base leading-8 text-[rgba(232,242,252,0.60)]">
+            <motion.p
+              initial={reduce ? false : { opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7, delay: 0.52 }}
+              className="mx-auto mt-6 max-w-xl text-base leading-8 text-[rgba(232,242,252,0.60)]"
+            >
               {finalCta.description}
-            </p>
+            </motion.p>
 
             {/* Stats row — CMS: finalCta.stats */}
-            <div className="mt-10 mb-10 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 border-y border-[rgba(255,255,255,0.08)] py-8">
+            <motion.div
+              initial={reduce ? false : { opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.65, delay: 0.64, ease: [0.16, 1, 0.3, 1] }}
+              className="mt-10 mb-10 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 border-y border-[rgba(255,255,255,0.08)] py-8"
+            >
               {finalCta.stats.map((stat) => (
                 <div key={stat.label} className="text-center">
                   <div className="font-serif text-2xl font-semibold text-white">{stat.num}</div>
@@ -103,10 +131,16 @@ export default function FinalCTASection() {
                   </div>
                 </div>
               ))}
-            </div>
+            </motion.div>
 
-            {/* CTAs — primary goes to /products to browse and submit quote */}
-            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+            {/* CTAs — appear last */}
+            <motion.div
+              initial={reduce ? false : { opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.78, ease: [0.16, 1, 0.3, 1] }}
+              className="flex flex-col items-center justify-center gap-4 sm:flex-row"
+            >
               <Link href="/products">
                 <Button className="bg-[#FFFFFF] text-[#08337D] hover:bg-[#DCEAF7] shadow-lg shadow-black/22">
                   {finalCta.primaryButton}
@@ -122,7 +156,7 @@ export default function FinalCTASection() {
                   {finalCta.secondaryButton}
                 </Button>
               </Link>
-            </div>
+            </motion.div>
           </div>
         </motion.div>
       </div>

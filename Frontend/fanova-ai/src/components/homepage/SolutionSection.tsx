@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { Palette, Layers, Package, FileText } from "lucide-react";
 import { solutionSection } from "@/data/homepageData";
 
@@ -18,6 +18,7 @@ const ICONS: Record<string, LucideIconComponent> = {
 };
 
 export default function SolutionSection() {
+  const reduce = useReducedMotion();
   return (
     <section
       className="relative overflow-hidden px-6 py-20 md:py-28"
@@ -42,7 +43,7 @@ export default function SolutionSection() {
 
         {/* Section headline */}
         <motion.div
-          initial={{ opacity: 0, y: 22 }}
+          initial={reduce ? false : { opacity: 0, y: 22 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.72, ease: [0.16, 1, 0.3, 1] }}
@@ -60,12 +61,12 @@ export default function SolutionSection() {
             return (
               <motion.div
                 key={pillar.title}
-                initial={{ opacity: 0, y: 26 }}
+                initial={reduce ? false : { opacity: 0, y: 26 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{
                   duration: 0.68,
-                  delay: index * 0.08,
+                  delay: index * 0.07,
                   ease: [0.16, 1, 0.3, 1],
                 }}
                 className="relative overflow-hidden rounded-2xl border border-[rgba(220,234,247,0.08)] bg-[rgba(255,255,255,0.03)] p-7 transition-colors duration-300 hover:bg-[rgba(255,255,255,0.05)]"

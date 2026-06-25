@@ -46,6 +46,8 @@ export default function HeroSection() {
   /* ── Smooth text parallax driven by mouse (rAF + lerp) ── */
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // Skip mouse parallax entirely when the user prefers reduced motion
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let frameId: number;
     let mx = 0, my = 0, cx = 0, cy = 0;
 

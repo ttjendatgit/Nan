@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { collections } from "@/data/homepageData";
@@ -21,6 +21,7 @@ const CARD_GRADIENTS = [
 ];
 
 export default function ProductTypeSection() {
+  const reduce = useReducedMotion();
   const [categories, setCategories] = useState<ProductCategory[] | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -53,7 +54,7 @@ export default function ProductTypeSection() {
 
         {/* Section header */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={reduce ? false : { opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.65 }}
@@ -107,7 +108,7 @@ export default function ProductTypeSection() {
             {collections.map((item, index) => (
               <motion.div
                 key={item.id}
-                initial={{ opacity: 0, y: 28 }}
+                initial={reduce ? false : { opacity: 0, y: 28 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.65, delay: index * 0.07 }}
@@ -166,9 +167,10 @@ function CategoryCard({
   index: number;
   gradient: string;
 }) {
+  const reduce = useReducedMotion();
   return (
     <motion.div
-      initial={{ opacity: 0, y: 28 }}
+      initial={reduce ? false : { opacity: 0, y: 28 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.65, delay: index * 0.07 }}

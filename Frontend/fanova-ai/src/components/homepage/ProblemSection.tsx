@@ -1,9 +1,10 @@
 "use client";
 
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { problemSection } from "@/data/homepageData";
 
 export default function ProblemSection() {
+  const reduce = useReducedMotion();
   return (
     <section
       className="relative overflow-hidden px-6 py-20 md:py-28"
@@ -20,10 +21,10 @@ export default function ProblemSection() {
 
           {/* Left — problem headline */}
           <motion.div
-            initial={{ opacity: 0, x: -24 }}
+            initial={reduce ? false : { opacity: 0, x: -24 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
           >
             <h2 className="font-serif text-4xl font-semibold leading-[1.12] tracking-tight text-[#081426] md:text-5xl">
               {problemSection.headline}
@@ -38,12 +39,12 @@ export default function ProblemSection() {
             {problemSection.points.map((point, index) => (
               <motion.div
                 key={point}
-                initial={{ opacity: 0, x: 20 }}
+                initial={reduce ? false : { opacity: 0, x: 20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{
-                  duration: 0.62,
-                  delay: index * 0.09,
+                  duration: 0.75,
+                  delay: index * 0.12,
                   ease: [0.16, 1, 0.3, 1],
                 }}
                 className="relative overflow-hidden rounded-2xl border border-[rgba(8,51,125,0.08)] bg-white p-5 shadow-[0_2px_14px_rgba(8,51,125,0.04)]"

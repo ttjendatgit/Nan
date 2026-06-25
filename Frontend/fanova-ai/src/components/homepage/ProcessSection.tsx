@@ -1,11 +1,12 @@
 "use client";
 
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { processSteps } from "@/data/homepageData";
 
 export default function ProcessSection() {
+  const reduce = useReducedMotion();
   return (
     <section
       id="process"
@@ -22,10 +23,10 @@ export default function ProcessSection() {
 
         {/* Section header */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={reduce ? false : { opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.65 }}
+          transition={{ duration: 0.72, ease: [0.16, 1, 0.3, 1] }}
           className="mb-14"
         >
           <h2 className="font-serif text-4xl font-semibold tracking-tight text-[#081426] md:text-5xl lg:max-w-xl">
@@ -53,10 +54,10 @@ export default function ProcessSection() {
           {processSteps.map((item, index) => (
             <motion.div
               key={item.step}
-              initial={{ opacity: 0, y: 22 }}
+              initial={reduce ? false : { opacity: 0, y: 22 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.65, delay: index * 0.07 }}
+              transition={{ duration: 0.72, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
               className="group relative overflow-hidden rounded-2xl border border-[rgba(8,51,125,0.09)] bg-[#FFFFFF] transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(8,51,125,0.20)] hover:bg-[#F7FAFF] hover:shadow-[0_8px_32px_rgba(8,51,125,0.10)]"
             >
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(8,51,125,0.18)] to-transparent" />
