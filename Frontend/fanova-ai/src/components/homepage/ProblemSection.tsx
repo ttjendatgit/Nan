@@ -39,8 +39,8 @@ export default function ProblemSection() {
             {problemSection.points.map((point, index) => (
               <motion.div
                 key={point}
-                initial={reduce ? false : { opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
+                initial={reduce ? false : { opacity: 0, x: 20, scale: 0.98 }}
+                whileInView={{ opacity: 1, x: 0, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{
                   duration: 0.75,

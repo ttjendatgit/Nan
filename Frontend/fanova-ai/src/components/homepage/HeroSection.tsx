@@ -128,30 +128,66 @@ export default function HeroSection() {
     { scope: containerRef, dependencies: [animReady] }
   );
 
-  /* ── Hero scroll-out depth: visual stage gently recedes as user scrolls past.
-     Runs once on mount (dependencies: []). The load-in animation (above) sets
-     [data-ha='visual'] to opacity:1, scale:1 first; this scrubbed ScrollTrigger
-     then eases it out as the hero exits viewport. ── */
+  /* ── Hero scroll-out depth: visual stage and text gently recede as user
+     scrolls past the hero into the brand narrative.
+     Runs once on mount (dependencies: []). The load-in animation sets all
+     elements to their visible state first; these scrubbed ScrollTriggers then
+     ease them out as the hero exits the viewport. ── */
   useGSAP(
     () => {
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (reduced || !containerRef.current) return;
 
       const visual = containerRef.current.querySelector<HTMLElement>("[data-ha='visual']");
-      if (!visual) return;
 
-      gsap.to(visual, {
-        opacity: 0.25,
-        scale: 0.94,
-        ease: "none",
-        scrollTrigger: {
-          trigger: containerRef.current,
-          start: "center top",      // starts when hero center reaches viewport top
-          end: "bottom top",        // ends when hero bottom leaves viewport top
-          scrub: 0.8,
-          invalidateOnRefresh: true,
-        },
-      });
+      // Visual stage: fades and scales back very subtly.
+      // fromTo with an explicit from-state (opacity:1, scale:1) ensures that
+      // when the user scrolls back to the top, the scrub reverses to opacity:1
+      // rather than to the JSX-initial opacity:0 that gsap.to() would capture.
+      // immediateRender:false prevents this tween from overwriting the from-state
+      // onto the element before the load-in animation has set opacity to 1.
+      if (visual) {
+        gsap.fromTo(
+          visual,
+          { opacity: 1, scale: 1 },
+          {
+            opacity: 0.58,
+            scale: 0.97,
+            ease: "none",
+            immediateRender: false,
+            scrollTrigger: {
+              trigger: containerRef.current,
+              start: "center top",
+              end: "bottom top",
+              scrub: 0.8,
+              invalidateOnRefresh: true,
+            },
+          }
+        );
+      }
+
+      // Text container: drifts up slightly and dims — the copy "lifts away"
+      // as the user crosses into the brand manifesto below.
+      // Same fromTo + immediateRender:false pattern for consistency and safety.
+      if (textRef.current) {
+        gsap.fromTo(
+          textRef.current,
+          { opacity: 1, y: 0 },
+          {
+            opacity: 0.75,
+            y: -12,
+            ease: "none",
+            immediateRender: false,
+            scrollTrigger: {
+              trigger: containerRef.current,
+              start: "center top",
+              end: "bottom top",
+              scrub: 0.8,
+              invalidateOnRefresh: true,
+            },
+          }
+        );
+      }
     },
     { scope: containerRef, dependencies: [] }
   );
