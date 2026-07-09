@@ -280,7 +280,7 @@ export default function AdminProductsPage() {
             Sign In
           </button>
           <p className="text-xs text-[#B6D6F2]/40 text-center">
-            manager@vifan.com / Manager@123
+            Đăng nhập bằng tài khoản quản trị được cấp.
           </p>
         </form>
       </div>
