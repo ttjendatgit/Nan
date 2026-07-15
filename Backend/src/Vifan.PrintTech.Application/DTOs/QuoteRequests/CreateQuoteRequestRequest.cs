@@ -18,7 +18,7 @@ public class CreateQuoteRequestRequest
     public string? Email { get; set; }
     public string? CompanyName { get; set; }
     public int Quantity { get; set; }
-    public DateTime? NeededDate { get; set; }
+    public DateOnly? NeededDate { get; set; }
 
     /// <summary>Intended use (e.g. "Sự kiện thương hiệu", "Wedding", "Resort").</summary>
     public string? UseCase { get; set; }

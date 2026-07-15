@@ -19,7 +19,7 @@ public class QuoteRequestDto
     public string? Email { get; set; }
     public string? CompanyName { get; set; }
     public int Quantity { get; set; }
-    public DateTime? NeededDate { get; set; }
+    public DateOnly? NeededDate { get; set; }
     public string? UseCase { get; set; }
     public string? Message { get; set; }
 
