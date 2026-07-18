@@ -14,6 +14,7 @@ import {
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
 import QuoteRequestForm from "@/components/quote/QuoteRequestForm";
+import ContentBlocksRenderer from "@/components/product/ContentBlocksRenderer";
 import {
   getProduct,
   getProductOptions,
@@ -315,7 +316,9 @@ export default function ProductDetailPage({
                   <h2 className="text-sm font-semibold text-white mb-4">
                     Thông tin sản phẩm
                   </h2>
-                  {product.description ? (
+                  {product.contentBlocks && product.contentBlocks.length > 0 ? (
+                    <ContentBlocksRenderer blocks={product.contentBlocks} />
+                  ) : product.description ? (
                     <p className="text-sm text-[#B6D6F2]/55 leading-relaxed">
                       {product.description}
                     </p>

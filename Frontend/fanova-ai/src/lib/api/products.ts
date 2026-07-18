@@ -1,5 +1,6 @@
 import type {
   CatalogApiResponse,
+  ContentBlock,
   CreateProductInput,
   PagedResult,
   PaginationParams,
@@ -8,6 +9,70 @@ import type {
   UpdateProductInput,
 } from "@/types/catalog";
 import { apiFetch, getAuthHeaders } from "./client";
+
+// ─── Content blocks parser ───────────────────────────────────────────────────
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * Safely parse contentBlocksJson into a ContentBlock[].
+ * Returns [] if the value is missing, null, empty, or invalid JSON.
+ * Each block is validated per-type; malformed entries are silently dropped.
+ */
+function parseContentBlocks(raw: string | null | undefined): ContentBlock[] {
+  if (!raw || typeof raw !== "string") return [];
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (!Array.isArray(parsed)) return [];
+
+    const result: ContentBlock[] = [];
+
+    for (const entry of parsed) {
+      if (typeof entry !== "object" || entry === null) continue;
+      const blockType = entry.type;
+
+      if (blockType === "heading") {
+        if (!isNonEmptyString(entry.text)) continue;
+        const level = entry.level === 3 ? 3 : 2; // default to 2 if missing or invalid
+        result.push({ type: "heading", level, text: entry.text });
+      } else if (blockType === "paragraph") {
+        if (!isNonEmptyString(entry.text)) continue;
+        result.push({ type: "paragraph", text: entry.text });
+      } else if (blockType === "image") {
+        if (!isNonEmptyString(entry.secureUrl)) continue;
+        const alt = isNonEmptyString(entry.alt)
+          ? entry.alt
+          : isNonEmptyString(entry.caption)
+            ? entry.caption
+            : "Product content image";
+        result.push({
+          type: "image",
+          secureUrl: entry.secureUrl,
+          publicId: isNonEmptyString(entry.publicId) ? entry.publicId : "",
+          alt,
+          ...(isNonEmptyString(entry.caption) ? { caption: entry.caption } : {}),
+        });
+      }
+      // Unknown block types are silently skipped
+    }
+
+    return result;
+  } catch {
+    return [];
+  }
+}
+
+/** Hydrate a single product with parsed contentBlocks. */
+function hydrateContentBlocks<T extends Product>(product: T): T {
+  return {
+    ...product,
+    contentBlocks: parseContentBlocks(product.contentBlocksJson),
+  };
+}
 
 function productsUrl(path = "", params?: Record<string, string | number | boolean | undefined>) {
   const base = `/api/Products${path}`;
@@ -27,13 +92,16 @@ export async function getProducts(
   const res = await apiFetch<CatalogApiResponse<PagedResult<Product>>>(
     productsUrl("", params as Record<string, string | number | boolean | undefined>),
   );
-  return res.data;
+  return {
+    ...res.data,
+    items: res.data.items.map(hydrateContentBlocks),
+  };
 }
 
 /** GET /api/Products/{id} — single product (public). */
 export async function getProduct(id: string): Promise<Product> {
   const res = await apiFetch<CatalogApiResponse<Product>>(productsUrl(`/${id}`));
-  return res.data;
+  return hydrateContentBlocks(res.data);
 }
 
 /** GET /api/Products/by-category/{categoryId} — products in a category (public). */
@@ -44,7 +112,10 @@ export async function getProductsByCategory(
   const res = await apiFetch<CatalogApiResponse<PagedResult<Product>>>(
     productsUrl(`/by-category/${categoryId}`, params as Record<string, string | number | boolean | undefined>),
   );
-  return res.data;
+  return {
+    ...res.data,
+    items: res.data.items.map(hydrateContentBlocks),
+  };
 }
 
 /** GET /api/Products/{productId}/options — customization options for a product (public). */

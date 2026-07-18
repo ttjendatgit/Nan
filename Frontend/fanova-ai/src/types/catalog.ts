@@ -1,3 +1,26 @@
+// ─── Content Blocks ──────────────────────────────────────────────────────────
+
+export interface HeadingBlock {
+  type: "heading";
+  level: 2 | 3;
+  text: string;
+}
+
+export interface ParagraphBlock {
+  type: "paragraph";
+  text: string;
+}
+
+export interface ImageBlock {
+  type: "image";
+  secureUrl: string;
+  publicId: string;
+  alt: string;
+  caption?: string;
+}
+
+export type ContentBlock = HeadingBlock | ParagraphBlock | ImageBlock;
+
 // ─── Product ─────────────────────────────────────────────────────────────────
 
 export interface Product {
@@ -16,6 +39,10 @@ export interface Product {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Raw JSON string from backend ContentBlocksJson column. May be missing/null/empty until content is authored. */
+  contentBlocksJson?: string | null;
+  /** Parsed content blocks, hydrated by the API helper. Not sent by the backend directly. */
+  contentBlocks?: ContentBlock[];
 }
 
 export interface CreateProductInput {
