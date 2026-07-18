@@ -10,6 +10,6 @@ public class SeedSettings
 public class ManagerSeedSettings
 {
     public string Email { get; set; } = "manager@vifan.com";
-    public string Password { get; set; } = "Manager@123";
+    public string Password { get; set; } = "CHANGE_ME_IN_CONFIGURATION";
     public string FullName { get; set; } = "System Manager";
 }
