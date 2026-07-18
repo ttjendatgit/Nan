@@ -131,6 +131,25 @@ public class ProductsController : BaseApiController
         return OkResponse("Product deleted successfully.");
     }
 
+    /// <summary>Update a product's rich content blocks. Requires Manager role.</summary>
+    /// <remarks>
+    /// PUT /api/Products/{id}/content
+    ///
+    /// Pass <c>contentBlocksJson</c> as a JSON-serialized <c>ContentBlock[]</c> string.
+    /// Pass <c>null</c> or omit the field to clear all content blocks.
+    /// The value must be a valid JSON array when non-empty.
+    /// </remarks>
+    [HttpPut("{id:guid}/content")]
+    [Authorize(Roles = Roles.Manager)]
+    public async Task<IActionResult> UpdateContent(
+        Guid id,
+        [FromBody] UpdateProductContentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _productService.UpdateContentAsync(id, request, cancellationToken);
+        return OkResponse(result, "Product content updated.");
+    }
+
     [HttpGet("{productId:guid}/options")]
     [AllowAnonymous]
     public async Task<IActionResult> GetOptions(Guid productId, CancellationToken cancellationToken)

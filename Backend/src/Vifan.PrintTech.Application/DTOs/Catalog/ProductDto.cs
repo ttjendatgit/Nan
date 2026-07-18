@@ -24,6 +24,11 @@ public class ProductDto
     public bool IsCustomizable { get; set; }
     public int EstimatedProductionDays { get; set; }
     public bool IsActive { get; set; }
+    /// <summary>
+    /// JSON-serialized array of content blocks (ContentBlock[]).
+    /// Null when no content has been authored. Frontend parses this field.
+    /// </summary>
+    public string? ContentBlocksJson { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

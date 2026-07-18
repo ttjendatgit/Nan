@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Vifan.PrintTech.Application.Common;
 using Vifan.PrintTech.Application.DTOs.Catalog;
 using Vifan.PrintTech.Application.Exceptions;
@@ -141,6 +142,41 @@ public class ProductService : IProductService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<ProductDto> UpdateContentAsync(
+        Guid id,
+        UpdateProductContentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var product = await _productRepository.GetByIdAsync(id, cancellationToken)
+            ?? throw new NotFoundException("Product not found.");
+
+        if (!string.IsNullOrWhiteSpace(request.ContentBlocksJson))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(request.ContentBlocksJson);
+                if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                    throw new ValidationException("ContentBlocksJson must be a JSON array.");
+            }
+            catch (JsonException)
+            {
+                throw new ValidationException("ContentBlocksJson is not valid JSON.");
+            }
+
+            product.ContentBlocksJson = request.ContentBlocksJson;
+        }
+        else
+        {
+            product.ContentBlocksJson = null;
+        }
+
+        _productRepository.Update(product);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var updated = await _productRepository.GetByIdAsync(id, cancellationToken);
+        return MapToDto(updated!);
+    }
+
     private async Task EnsureCategoryExistsAsync(Guid categoryId, CancellationToken cancellationToken)
     {
         var category = await _categoryRepository.GetByIdAsync(categoryId, cancellationToken);
@@ -189,6 +225,7 @@ public class ProductService : IProductService
             IsCustomizable = product.IsCustomizable,
             EstimatedProductionDays = product.EstimatedProductionDays,
             IsActive = product.IsActive,
+            ContentBlocksJson = product.ContentBlocksJson,
             CreatedAt = product.CreatedAt,
             UpdatedAt = product.UpdatedAt
         };

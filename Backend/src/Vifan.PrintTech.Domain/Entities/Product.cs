@@ -15,6 +15,7 @@ public class Product : BaseEntity
     public bool IsCustomizable { get; set; }
     public int EstimatedProductionDays { get; set; }
     public bool IsActive { get; set; } = true;
+    public string? ContentBlocksJson { get; set; }
     public ICollection<ProductOption> Options { get; set; } = [];
     public ICollection<PricingRule> PricingRules { get; set; } = [];
 }
