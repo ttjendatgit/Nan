@@ -17,6 +17,7 @@ import {
   deleteProduct,
 } from "@/lib/api/products";
 import { getCategories } from "@/lib/api/categories";
+import ContentBlockEditor from "@/components/product/ContentBlockEditor";
 import type { Product, ProductCategory } from "@/types/catalog";
 
 function slugify(name: string): string {
@@ -581,6 +582,38 @@ export default function AdminProductsPage() {
                 {editing ? "Update Product" : "Create Product"}
               </button>
             </form>
+
+            {/* Content block editor section */}
+            <div className="mt-5 border-t border-[#1B1C4A] pt-5">
+              <h3 className="text-sm font-semibold text-white mb-1">
+                Nội dung sản phẩm
+              </h3>
+              <p className="text-xs text-[#B6D6F2]/40 mb-4">
+                Tạo phần nội dung mở rộng hiển thị trên trang chi tiết sản phẩm.
+              </p>
+              {editing ? (
+                <ContentBlockEditor
+                  productId={editing}
+                  initialBlocks={
+                    products.find((p) => p.id === editing)?.contentBlocks ?? []
+                  }
+                  token={token!}
+                  onSaved={(updated) =>
+                    setProducts((prev) =>
+                      prev.map((p) =>
+                        p.id === updated.id
+                          ? { ...p, contentBlocks: updated.contentBlocks }
+                          : p,
+                      ),
+                    )
+                  }
+                />
+              ) : (
+                <p className="text-xs text-[#B6D6F2]/25 py-3 text-center rounded-lg border border-dashed border-[#1B1C4A]">
+                  Vui lòng tạo sản phẩm trước, sau đó chỉnh nội dung mở rộng.
+                </p>
+              )}
+            </div>
           </div>
         </div>
 

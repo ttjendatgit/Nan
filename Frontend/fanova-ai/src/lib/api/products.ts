@@ -216,3 +216,23 @@ export async function updateProductWithImage(
   );
   return res.data;
 }
+
+/**
+ * PUT /api/Products/{id}/content -- save content blocks. Requires Manager token.
+ * Sends { contentBlocksJson: JSON.stringify(blocks) } and returns a hydrated Product.
+ */
+export async function updateProductContent(
+  id: string,
+  blocks: ContentBlock[],
+  token: string,
+): Promise<Product> {
+  const res = await apiFetch<CatalogApiResponse<Product>>(
+    productsUrl(`/${id}/content`),
+    {
+      method: "PUT",
+      headers: { ...getAuthHeaders(token), "Content-Type": "application/json" },
+      body: JSON.stringify({ contentBlocksJson: JSON.stringify(blocks) }),
+    },
+  );
+  return hydrateContentBlocks(res.data);
+}
