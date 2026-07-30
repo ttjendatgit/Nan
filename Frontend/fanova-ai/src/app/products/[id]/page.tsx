@@ -311,14 +311,12 @@ export default function ProductDetailPage({
 
               {/* Below-fold: info sections */}
               <div className="mt-14 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Thong tin san pham */}
+                {/* Thong tin san pham -- kept short; long-form content lives in the bottom section */}
                 <div className="rounded-2xl border border-[#1B1C4A] bg-[#111335]/50 p-6">
                   <h2 className="text-sm font-semibold text-white mb-4">
                     Thông tin sản phẩm
                   </h2>
-                  {product.contentBlocks && product.contentBlocks.length > 0 ? (
-                    <ContentBlocksRenderer blocks={product.contentBlocks} />
-                  ) : product.description ? (
+                  {product.description ? (
                     <p className="text-sm text-[#B6D6F2]/55 leading-relaxed">
                       {product.description}
                     </p>
@@ -432,6 +430,26 @@ export default function ProductDetailPage({
                           </div>
                         </div>
                       ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Nội dung chi tiết sản phẩm -- long-form blocks live in their own
+                  full-width section so they never stretch the compact info cards above */}
+              {product.contentBlocks && product.contentBlocks.length > 0 && (
+                <div className="mt-14">
+                  <div className="mb-6">
+                    <h2 className="text-xl md:text-2xl font-semibold text-white tracking-tight">
+                      Nội dung chi tiết sản phẩm
+                    </h2>
+                    <p className="text-sm text-[#B6D6F2]/40 mt-1.5">
+                      Thông tin mở rộng, hình ảnh và ghi chú chi tiết về sản phẩm.
+                    </p>
+                  </div>
+                  <div className="rounded-3xl border border-[#1B1C4A] bg-[#111335]/40 p-6 md:p-12">
+                    <div className="max-w-3xl mx-auto">
+                      <ContentBlocksRenderer blocks={product.contentBlocks} />
+                    </div>
                   </div>
                 </div>
               )}

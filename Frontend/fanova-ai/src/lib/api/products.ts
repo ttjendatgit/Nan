@@ -16,6 +16,56 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function asAlign(value: unknown): "left" | "center" | "right" | undefined {
+  return value === "left" || value === "center" || value === "right"
+    ? value
+    : undefined;
+}
+
+function asBlockTone(
+  value: unknown
+): "default" | "muted" | "accent" | "gold" | undefined {
+  return value === "default" ||
+    value === "muted" ||
+    value === "accent" ||
+    value === "gold"
+    ? value
+    : undefined;
+}
+
+function asParagraphWeight(
+  value: unknown
+): "regular" | "medium" | "semibold" | "bold" | undefined {
+  return value === "regular" ||
+    value === "medium" ||
+    value === "semibold" ||
+    value === "bold"
+    ? value
+    : undefined;
+}
+
+function asParagraphSize(value: unknown): "sm" | "base" | "lg" | undefined {
+  return value === "sm" || value === "base" || value === "lg"
+    ? value
+    : undefined;
+}
+
+function asListStyle(value: unknown): "bullet" | "number" | undefined {
+  return value === "bullet" || value === "number" ? value : undefined;
+}
+
+function asListTone(value: unknown): "default" | "accent" | undefined {
+  return value === "default" || value === "accent" ? value : undefined;
+}
+
+function asQuoteTone(
+  value: unknown
+): "default" | "accent" | "gold" | undefined {
+  return value === "default" || value === "accent" || value === "gold"
+    ? value
+    : undefined;
+}
+
 /**
  * Safely parse contentBlocksJson into a ContentBlock[].
  * Returns [] if the value is missing, null, empty, or invalid JSON.
@@ -38,10 +88,29 @@ function parseContentBlocks(raw: string | null | undefined): ContentBlock[] {
       if (blockType === "heading") {
         if (!isNonEmptyString(entry.text)) continue;
         const level = entry.level === 3 ? 3 : 2; // default to 2 if missing or invalid
-        result.push({ type: "heading", level, text: entry.text });
+        result.push({
+          type: "heading",
+          level,
+          text: entry.text,
+          ...(asAlign(entry.align) ? { align: asAlign(entry.align) } : {}),
+          ...(asBlockTone(entry.tone) ? { tone: asBlockTone(entry.tone) } : {}),
+          ...(entry.italic === true ? { italic: true } : {}),
+        });
       } else if (blockType === "paragraph") {
         if (!isNonEmptyString(entry.text)) continue;
-        result.push({ type: "paragraph", text: entry.text });
+        result.push({
+          type: "paragraph",
+          text: entry.text,
+          ...(asAlign(entry.align) ? { align: asAlign(entry.align) } : {}),
+          ...(asBlockTone(entry.tone) ? { tone: asBlockTone(entry.tone) } : {}),
+          ...(asParagraphWeight(entry.weight)
+            ? { weight: asParagraphWeight(entry.weight) }
+            : {}),
+          ...(asParagraphSize(entry.size)
+            ? { size: asParagraphSize(entry.size) }
+            : {}),
+          ...(entry.italic === true ? { italic: true } : {}),
+        });
       } else if (blockType === "image") {
         if (!isNonEmptyString(entry.secureUrl)) continue;
         const alt = isNonEmptyString(entry.alt)
@@ -56,6 +125,29 @@ function parseContentBlocks(raw: string | null | undefined): ContentBlock[] {
           alt,
           ...(isNonEmptyString(entry.caption) ? { caption: entry.caption } : {}),
         });
+      } else if (blockType === "list") {
+        if (!Array.isArray(entry.items)) continue;
+        const items = entry.items
+          .filter((item: unknown): item is string => typeof item === "string")
+          .map((item: string) => item.trim())
+          .filter((item: string) => item.length > 0);
+        if (items.length === 0) continue;
+        result.push({
+          type: "list",
+          items,
+          ...(asListStyle(entry.style) ? { style: asListStyle(entry.style) } : {}),
+          ...(asListTone(entry.tone) ? { tone: asListTone(entry.tone) } : {}),
+        });
+      } else if (blockType === "quote") {
+        if (!isNonEmptyString(entry.text)) continue;
+        result.push({
+          type: "quote",
+          text: entry.text,
+          ...(isNonEmptyString(entry.caption) ? { caption: entry.caption } : {}),
+          ...(asQuoteTone(entry.tone) ? { tone: asQuoteTone(entry.tone) } : {}),
+        });
+      } else if (blockType === "divider") {
+        result.push({ type: "divider" });
       }
       // Unknown block types are silently skipped
     }

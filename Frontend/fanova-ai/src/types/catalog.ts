@@ -1,14 +1,30 @@
 // ─── Content Blocks ──────────────────────────────────────────────────────────
 
+export type BlockAlign = "left" | "center" | "right";
+export type BlockTone = "default" | "muted" | "accent" | "gold";
+export type ParagraphWeight = "regular" | "medium" | "semibold" | "bold";
+export type ParagraphSize = "sm" | "base" | "lg";
+export type ListStyle = "bullet" | "number";
+export type ListTone = "default" | "accent";
+export type QuoteTone = "default" | "accent" | "gold";
+
 export interface HeadingBlock {
   type: "heading";
   level: 2 | 3;
   text: string;
+  align?: BlockAlign;
+  tone?: BlockTone;
+  italic?: boolean;
 }
 
 export interface ParagraphBlock {
   type: "paragraph";
   text: string;
+  align?: BlockAlign;
+  tone?: BlockTone;
+  weight?: ParagraphWeight;
+  italic?: boolean;
+  size?: ParagraphSize;
 }
 
 export interface ImageBlock {
@@ -19,7 +35,31 @@ export interface ImageBlock {
   caption?: string;
 }
 
-export type ContentBlock = HeadingBlock | ParagraphBlock | ImageBlock;
+export interface ListBlock {
+  type: "list";
+  items: string[];
+  style?: ListStyle;
+  tone?: ListTone;
+}
+
+export interface QuoteBlock {
+  type: "quote";
+  text: string;
+  caption?: string;
+  tone?: QuoteTone;
+}
+
+export interface DividerBlock {
+  type: "divider";
+}
+
+export type ContentBlock =
+  | HeadingBlock
+  | ParagraphBlock
+  | ImageBlock
+  | ListBlock
+  | QuoteBlock
+  | DividerBlock;
 
 // ─── Product ─────────────────────────────────────────────────────────────────
 
