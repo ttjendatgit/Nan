@@ -8,6 +8,7 @@ import {
   ChevronUp,
   ChevronDown,
   Trash2,
+  Copy,
   Type,
   Pilcrow,
   List as ListIcon,
@@ -15,6 +16,8 @@ import {
   ImageIcon,
   SeparatorHorizontal,
   Eye,
+  ExternalLink,
+  PenLine,
   X,
   CheckCircle2,
   AlertTriangle,
@@ -109,6 +112,84 @@ const LIST_STYLE_OPTIONS = [
   { value: "bullet", label: "Bullet" },
   { value: "number", label: "Số thứ tự" },
 ] as const;
+
+// -- Content cleaning (shared by save + dirty-state comparison) ---------------
+// Trims text, drops blank blocks/items, normalizes image fields. Used both to
+// build the actual save payload and to compute whether the editor has
+// meaningful unsaved changes -- comparing *cleaned* blocks avoids false
+// "unsaved changes" flags from transient artifacts like toggling italic on
+// then off again.
+
+function cleanContentBlocks(blocks: ContentBlock[]): ContentBlock[] {
+  const cleaned: ContentBlock[] = [];
+  for (const block of blocks) {
+    if (block.type === "heading") {
+      const text = block.text.trim();
+      if (text.length === 0) continue;
+      cleaned.push({
+        type: "heading",
+        level: block.level,
+        text,
+        ...(block.align ? { align: block.align } : {}),
+        ...(block.tone ? { tone: block.tone } : {}),
+        ...(block.italic ? { italic: true } : {}),
+      });
+    } else if (block.type === "paragraph") {
+      const text = block.text.trim();
+      if (text.length === 0) continue;
+      cleaned.push({
+        type: "paragraph",
+        text,
+        ...(block.align ? { align: block.align } : {}),
+        ...(block.tone ? { tone: block.tone } : {}),
+        ...(block.weight ? { weight: block.weight } : {}),
+        ...(block.size ? { size: block.size } : {}),
+        ...(block.italic ? { italic: true } : {}),
+      });
+    } else if (block.type === "image") {
+      const secureUrl = block.secureUrl.trim();
+      if (secureUrl.length === 0) continue;
+      const publicId = (block.publicId ?? "").trim();
+      const alt = block.alt.trim();
+      const caption = (block.caption ?? "").trim();
+      cleaned.push({
+        type: "image",
+        secureUrl,
+        publicId,
+        alt,
+        ...(caption.length > 0 ? { caption } : {}),
+      });
+    } else if (block.type === "list") {
+      const items = block.items
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+      if (items.length === 0) continue;
+      cleaned.push({
+        type: "list",
+        items,
+        ...(block.style ? { style: block.style } : {}),
+        ...(block.tone ? { tone: block.tone } : {}),
+      });
+    } else if (block.type === "quote") {
+      const text = block.text.trim();
+      if (text.length === 0) continue;
+      const caption = (block.caption ?? "").trim();
+      cleaned.push({
+        type: "quote",
+        text,
+        ...(caption.length > 0 ? { caption } : {}),
+        ...(block.tone ? { tone: block.tone } : {}),
+      });
+    } else if (block.type === "divider") {
+      cleaned.push({ type: "divider" });
+    }
+  }
+  return cleaned;
+}
+
+function contentSignature(blocks: ContentBlock[]): string {
+  return JSON.stringify(cleanContentBlocks(blocks));
+}
 
 // -- Small toolbar primitives ---------------------------------------------------
 
@@ -263,6 +344,9 @@ export default function ContentBlockEditor({
   onSaved,
 }: ContentBlockEditorProps) {
   const [blocks, setBlocks] = useState<ContentBlock[]>(initialBlocks ?? []);
+  const [savedSignature, setSavedSignature] = useState(() =>
+    contentSignature(initialBlocks ?? [])
+  );
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{
@@ -284,11 +368,28 @@ export default function ContentBlockEditor({
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const replaceTargetIndex = useRef<number | null>(null);
 
-  // Sync when productId or initialBlocks changes
+  const uploadingImage = uploading || replacingIndex !== null;
+  const busy = saving || uploadingImage;
+  const isDirty = contentSignature(blocks) !== savedSignature;
+
+  // Sync when productId or initialBlocks changes -- also resets dirty state
   useEffect(() => {
-    setBlocks(initialBlocks ?? []);
+    const next = initialBlocks ?? [];
+    setBlocks(next);
+    setSavedSignature(contentSignature(next));
     setMessage(null);
   }, [productId, initialBlocks]);
+
+  // Warn on refresh/close while there are unsaved changes
+  useEffect(() => {
+    if (!isDirty) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isDirty]);
 
   // -- Block mutations --------------------------------------------------------
 
@@ -298,6 +399,17 @@ export default function ContentBlockEditor({
 
   function removeBlock(index: number) {
     setBlocks((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function duplicateBlock(index: number) {
+    setBlocks((prev) => {
+      // structuredClone -- image blocks copy secureUrl/publicId metadata only,
+      // no re-upload happens.
+      const copy = structuredClone(prev[index]);
+      const next = [...prev];
+      next.splice(index + 1, 0, copy);
+      return next;
+    });
   }
 
   function moveBlock(index: number, direction: -1 | 1) {
@@ -363,13 +475,12 @@ export default function ContentBlockEditor({
       setBlocks((prev) => [...prev, newBlock]);
       setMessage({
         type: "success",
-        text: "Ảnh đã được thêm vào nội dung. Vui lòng bấm Lưu nội dung để cập nhật trang sản phẩm.",
+        text: "Ảnh đã được thêm vào nội dung. Bấm Lưu nội dung để cập nhật trang sản phẩm.",
       });
-    } catch (err) {
+    } catch {
+      // Never surface raw Cloudinary/API error text to admin users.
       const text =
-        err instanceof Error
-          ? err.message
-          : "Đã có lỗi xảy ra khi tải ảnh. Vui lòng thử lại.";
+        "Không thể tải ảnh. Vui lòng kiểm tra định dạng, dung lượng ảnh hoặc thử lại sau.";
       setMessage({ type: "error", text });
       setUploadErrorText(text);
       setUploadErrorOpen(true);
@@ -403,13 +514,12 @@ export default function ContentBlockEditor({
       );
       setMessage({
         type: "success",
-        text: "Ảnh đã được thay thế. Vui lòng bấm Lưu nội dung để cập nhật trang sản phẩm.",
+        text: "Ảnh đã được thay thế. Bấm Lưu nội dung để cập nhật trang sản phẩm.",
       });
-    } catch (err) {
+    } catch {
+      // Never surface raw Cloudinary/API error text to admin users.
       const text =
-        err instanceof Error
-          ? err.message
-          : "Đã có lỗi xảy ra khi tải ảnh. Vui lòng thử lại.";
+        "Không thể tải ảnh. Vui lòng kiểm tra định dạng, dung lượng ảnh hoặc thử lại sau.";
       setMessage({ type: "error", text });
       setUploadErrorText(text);
       setUploadErrorOpen(true);
@@ -460,83 +570,20 @@ export default function ContentBlockEditor({
   async function performSave() {
     if (!productId) return;
 
-    // Clean blocks: trim all text, strip blanks, normalize image/list fields
-    const cleaned: ContentBlock[] = [];
-    for (const block of blocks) {
-      if (block.type === "heading") {
-        const text = block.text.trim();
-        if (text.length === 0) continue;
-        cleaned.push({
-          type: "heading",
-          level: block.level,
-          text,
-          ...(block.align ? { align: block.align } : {}),
-          ...(block.tone ? { tone: block.tone } : {}),
-          ...(block.italic ? { italic: true } : {}),
-        });
-      } else if (block.type === "paragraph") {
-        const text = block.text.trim();
-        if (text.length === 0) continue;
-        cleaned.push({
-          type: "paragraph",
-          text,
-          ...(block.align ? { align: block.align } : {}),
-          ...(block.tone ? { tone: block.tone } : {}),
-          ...(block.weight ? { weight: block.weight } : {}),
-          ...(block.size ? { size: block.size } : {}),
-          ...(block.italic ? { italic: true } : {}),
-        });
-      } else if (block.type === "image") {
-        const secureUrl = block.secureUrl.trim();
-        if (secureUrl.length === 0) continue;
-        const publicId = (block.publicId ?? "").trim();
-        const alt = block.alt.trim();
-        const caption = (block.caption ?? "").trim();
-        cleaned.push({
-          type: "image",
-          secureUrl,
-          publicId,
-          alt,
-          ...(caption.length > 0 ? { caption } : {}),
-        });
-      } else if (block.type === "list") {
-        const items = block.items
-          .map((item) => item.trim())
-          .filter((item) => item.length > 0);
-        if (items.length === 0) continue;
-        cleaned.push({
-          type: "list",
-          items,
-          ...(block.style ? { style: block.style } : {}),
-          ...(block.tone ? { tone: block.tone } : {}),
-        });
-      } else if (block.type === "quote") {
-        const text = block.text.trim();
-        if (text.length === 0) continue;
-        const caption = (block.caption ?? "").trim();
-        cleaned.push({
-          type: "quote",
-          text,
-          ...(caption.length > 0 ? { caption } : {}),
-          ...(block.tone ? { tone: block.tone } : {}),
-        });
-      } else if (block.type === "divider") {
-        cleaned.push({ type: "divider" });
-      }
-    }
+    const cleaned = cleanContentBlocks(blocks);
 
     setSaving(true);
     setMessage(null);
     try {
       const updated = await updateProductContent(productId, cleaned, token);
-      setBlocks(updated.contentBlocks ?? cleaned);
-      setMessage({ type: "success", text: "Đã lưu nội dung thành công." });
+      const finalBlocks = updated.contentBlocks ?? cleaned;
+      setBlocks(finalBlocks);
+      setSavedSignature(contentSignature(finalBlocks));
       setSuccessOpen(true);
       onSaved?.(updated);
     } catch (err) {
       const text =
         err instanceof Error ? err.message : "Đã có lỗi xảy ra. Vui lòng thử lại.";
-      setMessage({ type: "error", text });
       setErrorText(text);
       setErrorOpen(true);
     } finally {
@@ -549,432 +596,465 @@ export default function ContentBlockEditor({
     void performSave();
   }
 
-  const busy = saving || uploading || replacingIndex !== null;
   const hasBlocks = blocks.length > 0;
+
+  function statusLabel(): string {
+    if (saving) return "Đang lưu...";
+    if (uploadingImage) return "Đang tải ảnh...";
+    if (isDirty) return "Có thay đổi chưa lưu";
+    return "Đã lưu";
+  }
+
+  function statusDotClass(): string {
+    if (saving || uploadingImage) return "bg-amber-400 animate-pulse";
+    if (isDirty) return "bg-amber-400";
+    return "bg-green-400";
+  }
+
+  function statusTextClass(): string {
+    if (saving || uploadingImage || isDirty) return "text-[#B6D6F2]/70";
+    return "text-green-400/80";
+  }
 
   // -- Render -----------------------------------------------------------------
 
   return (
     <div className="space-y-4">
-      {/* Block list */}
-      {blocks.length === 0 && (
-        <p className="text-xs text-[#B6D6F2]/30 py-3 text-center">
-          Chưa có nội dung. Thêm block phía dưới.
-        </p>
+      {/* Block list / empty state */}
+      {blocks.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-[#1B1C4A] bg-[#0D131F]/60 px-6 py-10 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#1B1C4A]">
+            <PenLine className="h-5 w-5 text-[#B6D6F2]/50" />
+          </div>
+          <p className="text-sm font-semibold text-white mb-1.5">
+            Chưa có nội dung chi tiết
+          </p>
+          <p className="text-xs text-[#B6D6F2]/45 leading-relaxed mb-5 max-w-sm mx-auto">
+            Bắt đầu bằng tiêu đề, đoạn văn hoặc ảnh để xây dựng phần nội dung
+            hiển thị ở cuối trang sản phẩm.
+          </p>
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <button type="button" onClick={addHeading} className={ADD_BLOCK_BTN}>
+              <Type className="h-3.5 w-3.5" />
+              Thêm tiêu đề
+            </button>
+            <button type="button" onClick={addParagraph} className={ADD_BLOCK_BTN}>
+              <Pilcrow className="h-3.5 w-3.5" />
+              Thêm đoạn văn
+            </button>
+            <button
+              type="button"
+              onClick={triggerImageUpload}
+              disabled={uploadingImage}
+              className={ADD_BLOCK_BTN}
+            >
+              <ImageIcon className="h-3.5 w-3.5" />
+              Thêm ảnh
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {blocks.map((block, index) => (
+            <div
+              key={index}
+              className="rounded-xl border border-[#1B1C4A] bg-[#0D131F] p-3.5 space-y-2.5"
+            >
+              {/* Card header */}
+              <div className="flex items-center gap-2">
+                {/* Type badge */}
+                {block.type === "heading" && (
+                  <span className={`${TYPE_BADGE} bg-[#273481]/30 text-[#B6D6F2]/70`}>
+                    Tiêu đề
+                  </span>
+                )}
+                {block.type === "paragraph" && (
+                  <span className={`${TYPE_BADGE} bg-[#1B1C4A] text-[#B6D6F2]/50`}>
+                    Đoạn văn
+                  </span>
+                )}
+                {block.type === "image" && (
+                  <span className={`${TYPE_BADGE} bg-green-900/30 text-green-400/70`}>
+                    Ảnh
+                  </span>
+                )}
+                {block.type === "list" && (
+                  <span className={`${TYPE_BADGE} bg-purple-900/25 text-purple-300/70`}>
+                    Danh sách
+                  </span>
+                )}
+                {block.type === "quote" && (
+                  <span className={`${TYPE_BADGE} bg-amber-900/20 text-amber-300/70`}>
+                    Trích dẫn
+                  </span>
+                )}
+                {block.type === "divider" && (
+                  <span className={`${TYPE_BADGE} bg-[#1B1C4A] text-[#B6D6F2]/35`}>
+                    Đường ngăn
+                  </span>
+                )}
+
+                <div className="flex-1" />
+
+                {/* Move / duplicate / delete controls */}
+                <button
+                  type="button"
+                  className={ICON_BTN}
+                  onClick={() => moveBlock(index, -1)}
+                  disabled={index === 0}
+                  title="Di chuyển lên"
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className={ICON_BTN}
+                  onClick={() => moveBlock(index, 1)}
+                  disabled={index === blocks.length - 1}
+                  title="Di chuyển xuống"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className={ICON_BTN}
+                  onClick={() => duplicateBlock(index)}
+                  title="Nhân bản"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className={`${ICON_BTN} hover:text-red-400 hover:bg-red-900/20`}
+                  onClick={() => removeBlock(index)}
+                  title="Xóa"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* Block body */}
+              {block.type === "heading" && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={block.level}
+                      onChange={(e) =>
+                        updateBlock(index, {
+                          ...block,
+                          level: Number(e.target.value) as 2 | 3,
+                        })
+                      }
+                      className={SELECT_CLS}
+                    >
+                      <option value={2}>H2</option>
+                      <option value={3}>H3</option>
+                    </select>
+                    <AlignButtons
+                      value={block.align}
+                      onChange={(align) => updateBlock(index, { ...block, align })}
+                    />
+                    <StyleSelect
+                      value={block.tone}
+                      onChange={(tone) =>
+                        updateBlock(index, {
+                          ...block,
+                          tone: tone as HeadingBlock["tone"],
+                        })
+                      }
+                      options={TONE_OPTIONS_FULL}
+                    />
+                    <ItalicToggle
+                      active={block.italic}
+                      onToggle={() =>
+                        updateBlock(index, { ...block, italic: !block.italic })
+                      }
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    value={block.text}
+                    onChange={(e) =>
+                      updateBlock(index, { ...block, text: e.target.value })
+                    }
+                    placeholder="Nhập tiêu đề..."
+                    className={INPUT_CLS}
+                  />
+                </div>
+              )}
+
+              {block.type === "paragraph" && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <StyleSelect
+                      value={block.size ?? "base"}
+                      onChange={(size) =>
+                        updateBlock(index, {
+                          ...block,
+                          size: size as ParagraphBlock["size"],
+                        })
+                      }
+                      options={SIZE_OPTIONS}
+                    />
+                    <StyleSelect
+                      value={block.weight}
+                      onChange={(weight) =>
+                        updateBlock(index, {
+                          ...block,
+                          weight: weight as ParagraphBlock["weight"],
+                        })
+                      }
+                      options={WEIGHT_OPTIONS}
+                    />
+                    <AlignButtons
+                      value={block.align}
+                      onChange={(align) => updateBlock(index, { ...block, align })}
+                    />
+                    <StyleSelect
+                      value={block.tone}
+                      onChange={(tone) =>
+                        updateBlock(index, {
+                          ...block,
+                          tone: tone as ParagraphBlock["tone"],
+                        })
+                      }
+                      options={TONE_OPTIONS_FULL}
+                    />
+                    <ItalicToggle
+                      active={block.italic}
+                      onToggle={() =>
+                        updateBlock(index, { ...block, italic: !block.italic })
+                      }
+                    />
+                  </div>
+                  <textarea
+                    value={block.text}
+                    onChange={(e) =>
+                      updateBlock(index, { ...block, text: e.target.value })
+                    }
+                    placeholder="Nhập nội dung đoạn văn..."
+                    rows={3}
+                    className={`${INPUT_CLS} resize-none`}
+                  />
+                </div>
+              )}
+
+              {block.type === "image" && (
+                <div className="space-y-2">
+                  {/* Image preview */}
+                  {block.secureUrl && (
+                    <div className="relative aspect-video w-full max-w-[240px] overflow-hidden rounded-lg border border-[#1B1C4A] bg-[#0A0B24]">
+                      <Image
+                        src={block.secureUrl}
+                        alt={block.alt || "Preview"}
+                        fill
+                        className="object-cover"
+                        sizes="240px"
+                      />
+                      {replacingIndex === index && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                          <Loader2 className="h-5 w-5 animate-spin text-white" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => triggerReplaceImage(index)}
+                    disabled={busy}
+                    className="flex items-center gap-1.5 rounded-lg border border-[#1B1C4A] px-2.5 py-1.5 text-xs text-[#B6D6F2]/60 hover:border-[#273481] hover:text-white transition-all disabled:opacity-40"
+                  >
+                    {replacingIndex === index ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    )}
+                    {replacingIndex === index ? "Đang tải ảnh..." : "Thay ảnh"}
+                  </button>
+                  <input
+                    type="text"
+                    value={block.alt}
+                    onChange={(e) =>
+                      updateBlock(index, { ...block, alt: e.target.value })
+                    }
+                    placeholder="Mô tả ảnh (alt)..."
+                    className={INPUT_CLS}
+                  />
+                  <input
+                    type="text"
+                    value={block.caption ?? ""}
+                    onChange={(e) =>
+                      updateBlock(index, { ...block, caption: e.target.value })
+                    }
+                    placeholder="Chú thích ảnh..."
+                    className={INPUT_CLS}
+                  />
+                  <p className="text-[10px] text-[#B6D6F2]/30 leading-relaxed">
+                    Xóa block này chỉ gỡ ảnh khỏi nội dung sản phẩm, không xóa
+                    tệp ảnh trên Cloudinary.
+                  </p>
+                </div>
+              )}
+
+              {block.type === "list" && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <StyleSelect
+                      value={block.style}
+                      onChange={(style) =>
+                        updateBlock(index, {
+                          ...block,
+                          style: style as ListBlock["style"],
+                        })
+                      }
+                      options={LIST_STYLE_OPTIONS}
+                    />
+                    <StyleSelect
+                      value={block.tone}
+                      onChange={(tone) =>
+                        updateBlock(index, {
+                          ...block,
+                          tone: tone as ListBlock["tone"],
+                        })
+                      }
+                      options={TONE_OPTIONS_LIST}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    {block.items.map((item, itemIndex) => (
+                      <div key={itemIndex} className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={item}
+                          onChange={(e) =>
+                            updateListItem(index, itemIndex, e.target.value)
+                          }
+                          placeholder={`Dòng ${itemIndex + 1}...`}
+                          className={INPUT_CLS}
+                        />
+                        <button
+                          type="button"
+                          className={`${ICON_BTN} hover:text-red-400 hover:bg-red-900/20 shrink-0`}
+                          onClick={() => removeListItem(index, itemIndex)}
+                          disabled={block.items.length === 1}
+                          title="Xóa dòng"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => addListItem(index)}
+                    className="flex items-center gap-1.5 rounded-lg border border-[#1B1C4A] px-2.5 py-1.5 text-xs text-[#B6D6F2]/60 hover:border-[#273481] hover:text-white transition-all"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Thêm dòng
+                  </button>
+                </div>
+              )}
+
+              {block.type === "quote" && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <StyleSelect
+                      value={block.tone}
+                      onChange={(tone) =>
+                        updateBlock(index, {
+                          ...block,
+                          tone: tone as QuoteBlock["tone"],
+                        })
+                      }
+                      options={TONE_OPTIONS_QUOTE}
+                    />
+                  </div>
+                  <textarea
+                    value={block.text}
+                    onChange={(e) =>
+                      updateBlock(index, { ...block, text: e.target.value })
+                    }
+                    placeholder="Nhập nội dung trích dẫn..."
+                    rows={2}
+                    className={`${INPUT_CLS} resize-none`}
+                  />
+                  <input
+                    type="text"
+                    value={block.caption ?? ""}
+                    onChange={(e) =>
+                      updateBlock(index, { ...block, caption: e.target.value })
+                    }
+                    placeholder="Chú thích (tùy chọn)..."
+                    className={INPUT_CLS}
+                  />
+                </div>
+              )}
+
+              {block.type === "divider" && (
+                <div className="py-1">
+                  <div className="h-px w-full bg-gradient-to-r from-transparent via-[#273481]/60 to-transparent" />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
-      <div className="space-y-2.5">
-        {blocks.map((block, index) => (
-          <div
-            key={index}
-            className="rounded-xl border border-[#1B1C4A] bg-[#0D131F] p-3.5 space-y-2.5"
-          >
-            {/* Card header */}
-            <div className="flex items-center gap-2">
-              {/* Type badge */}
-              {block.type === "heading" && (
-                <span className={`${TYPE_BADGE} bg-[#273481]/30 text-[#B6D6F2]/70`}>
-                  Tiêu đề
-                </span>
-              )}
-              {block.type === "paragraph" && (
-                <span className={`${TYPE_BADGE} bg-[#1B1C4A] text-[#B6D6F2]/50`}>
-                  Đoạn văn
-                </span>
-              )}
-              {block.type === "image" && (
-                <span className={`${TYPE_BADGE} bg-green-900/30 text-green-400/70`}>
-                  Ảnh
-                </span>
-              )}
-              {block.type === "list" && (
-                <span className={`${TYPE_BADGE} bg-purple-900/25 text-purple-300/70`}>
-                  Danh sách
-                </span>
-              )}
-              {block.type === "quote" && (
-                <span className={`${TYPE_BADGE} bg-amber-900/20 text-amber-300/70`}>
-                  Trích dẫn
-                </span>
-              )}
-              {block.type === "divider" && (
-                <span className={`${TYPE_BADGE} bg-[#1B1C4A] text-[#B6D6F2]/35`}>
-                  Đường ngăn
-                </span>
-              )}
-
-              <div className="flex-1" />
-
-              {/* Move / delete controls */}
-              <button
-                type="button"
-                className={ICON_BTN}
-                onClick={() => moveBlock(index, -1)}
-                disabled={index === 0}
-                title="Di chuyển lên"
-              >
-                <ChevronUp className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                className={ICON_BTN}
-                onClick={() => moveBlock(index, 1)}
-                disabled={index === blocks.length - 1}
-                title="Di chuyển xuống"
-              >
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                className={`${ICON_BTN} hover:text-red-400 hover:bg-red-900/20`}
-                onClick={() => removeBlock(index)}
-                title="Xóa"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-
-            {/* Block body */}
-            {block.type === "heading" && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <select
-                    value={block.level}
-                    onChange={(e) =>
-                      updateBlock(index, {
-                        ...block,
-                        level: Number(e.target.value) as 2 | 3,
-                      })
-                    }
-                    className={SELECT_CLS}
-                  >
-                    <option value={2}>H2</option>
-                    <option value={3}>H3</option>
-                  </select>
-                  <AlignButtons
-                    value={block.align}
-                    onChange={(align) => updateBlock(index, { ...block, align })}
-                  />
-                  <StyleSelect
-                    value={block.tone}
-                    onChange={(tone) =>
-                      updateBlock(index, {
-                        ...block,
-                        tone: tone as HeadingBlock["tone"],
-                      })
-                    }
-                    options={TONE_OPTIONS_FULL}
-                  />
-                  <ItalicToggle
-                    active={block.italic}
-                    onToggle={() =>
-                      updateBlock(index, { ...block, italic: !block.italic })
-                    }
-                  />
-                </div>
-                <input
-                  type="text"
-                  value={block.text}
-                  onChange={(e) =>
-                    updateBlock(index, { ...block, text: e.target.value })
-                  }
-                  placeholder="Nhập tiêu đề..."
-                  className={INPUT_CLS}
-                />
-              </div>
-            )}
-
-            {block.type === "paragraph" && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <StyleSelect
-                    value={block.size ?? "base"}
-                    onChange={(size) =>
-                      updateBlock(index, {
-                        ...block,
-                        size: size as ParagraphBlock["size"],
-                      })
-                    }
-                    options={SIZE_OPTIONS}
-                  />
-                  <StyleSelect
-                    value={block.weight}
-                    onChange={(weight) =>
-                      updateBlock(index, {
-                        ...block,
-                        weight: weight as ParagraphBlock["weight"],
-                      })
-                    }
-                    options={WEIGHT_OPTIONS}
-                  />
-                  <AlignButtons
-                    value={block.align}
-                    onChange={(align) => updateBlock(index, { ...block, align })}
-                  />
-                  <StyleSelect
-                    value={block.tone}
-                    onChange={(tone) =>
-                      updateBlock(index, {
-                        ...block,
-                        tone: tone as ParagraphBlock["tone"],
-                      })
-                    }
-                    options={TONE_OPTIONS_FULL}
-                  />
-                  <ItalicToggle
-                    active={block.italic}
-                    onToggle={() =>
-                      updateBlock(index, { ...block, italic: !block.italic })
-                    }
-                  />
-                </div>
-                <textarea
-                  value={block.text}
-                  onChange={(e) =>
-                    updateBlock(index, { ...block, text: e.target.value })
-                  }
-                  placeholder="Nhập nội dung đoạn văn..."
-                  rows={3}
-                  className={`${INPUT_CLS} resize-none`}
-                />
-              </div>
-            )}
-
-            {block.type === "image" && (
-              <div className="space-y-2">
-                {/* Image preview */}
-                {block.secureUrl && (
-                  <div className="relative aspect-video w-full max-w-[240px] overflow-hidden rounded-lg border border-[#1B1C4A] bg-[#0A0B24]">
-                    <Image
-                      src={block.secureUrl}
-                      alt={block.alt || "Preview"}
-                      fill
-                      className="object-cover"
-                      sizes="240px"
-                    />
-                    {replacingIndex === index && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                        <Loader2 className="h-5 w-5 animate-spin text-white" />
-                      </div>
-                    )}
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => triggerReplaceImage(index)}
-                  disabled={busy}
-                  className="flex items-center gap-1.5 rounded-lg border border-[#1B1C4A] px-2.5 py-1.5 text-xs text-[#B6D6F2]/60 hover:border-[#273481] hover:text-white transition-all disabled:opacity-40"
-                >
-                  {replacingIndex === index ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  )}
-                  {replacingIndex === index ? "Đang tải ảnh..." : "Thay ảnh"}
-                </button>
-                <input
-                  type="text"
-                  value={block.alt}
-                  onChange={(e) =>
-                    updateBlock(index, { ...block, alt: e.target.value })
-                  }
-                  placeholder="Mô tả ảnh (alt)..."
-                  className={INPUT_CLS}
-                />
-                <input
-                  type="text"
-                  value={block.caption ?? ""}
-                  onChange={(e) =>
-                    updateBlock(index, { ...block, caption: e.target.value })
-                  }
-                  placeholder="Chú thích (caption)..."
-                  className={INPUT_CLS}
-                />
-                <p className="text-[10px] text-[#B6D6F2]/30 leading-relaxed">
-                  Xóa block này chỉ gỡ ảnh khỏi nội dung sản phẩm, không xóa
-                  tệp ảnh trên Cloudinary.
-                </p>
-              </div>
-            )}
-
-            {block.type === "list" && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <StyleSelect
-                    value={block.style}
-                    onChange={(style) =>
-                      updateBlock(index, {
-                        ...block,
-                        style: style as ListBlock["style"],
-                      })
-                    }
-                    options={LIST_STYLE_OPTIONS}
-                  />
-                  <StyleSelect
-                    value={block.tone}
-                    onChange={(tone) =>
-                      updateBlock(index, {
-                        ...block,
-                        tone: tone as ListBlock["tone"],
-                      })
-                    }
-                    options={TONE_OPTIONS_LIST}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  {block.items.map((item, itemIndex) => (
-                    <div key={itemIndex} className="flex items-center gap-1.5">
-                      <input
-                        type="text"
-                        value={item}
-                        onChange={(e) =>
-                          updateListItem(index, itemIndex, e.target.value)
-                        }
-                        placeholder={`Dòng ${itemIndex + 1}...`}
-                        className={INPUT_CLS}
-                      />
-                      <button
-                        type="button"
-                        className={`${ICON_BTN} hover:text-red-400 hover:bg-red-900/20 shrink-0`}
-                        onClick={() => removeListItem(index, itemIndex)}
-                        disabled={block.items.length === 1}
-                        title="Xóa dòng"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => addListItem(index)}
-                  className="flex items-center gap-1.5 rounded-lg border border-[#1B1C4A] px-2.5 py-1.5 text-xs text-[#B6D6F2]/60 hover:border-[#273481] hover:text-white transition-all"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Thêm dòng
-                </button>
-              </div>
-            )}
-
-            {block.type === "quote" && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <StyleSelect
-                    value={block.tone}
-                    onChange={(tone) =>
-                      updateBlock(index, {
-                        ...block,
-                        tone: tone as QuoteBlock["tone"],
-                      })
-                    }
-                    options={TONE_OPTIONS_QUOTE}
-                  />
-                </div>
-                <textarea
-                  value={block.text}
-                  onChange={(e) =>
-                    updateBlock(index, { ...block, text: e.target.value })
-                  }
-                  placeholder="Nhập nội dung trích dẫn..."
-                  rows={2}
-                  className={`${INPUT_CLS} resize-none`}
-                />
-                <input
-                  type="text"
-                  value={block.caption ?? ""}
-                  onChange={(e) =>
-                    updateBlock(index, { ...block, caption: e.target.value })
-                  }
-                  placeholder="Chú thích (tùy chọn)..."
-                  className={INPUT_CLS}
-                />
-              </div>
-            )}
-
-            {block.type === "divider" && (
-              <div className="py-1">
-                <div className="h-px w-full bg-gradient-to-r from-transparent via-[#273481]/60 to-transparent" />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Add block buttons */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <button type="button" onClick={addHeading} disabled={busy} className={ADD_BLOCK_BTN}>
-          <Type className="h-3.5 w-3.5" />
-          Thêm tiêu đề
-        </button>
-        <button type="button" onClick={addParagraph} disabled={busy} className={ADD_BLOCK_BTN}>
-          <Pilcrow className="h-3.5 w-3.5" />
-          Thêm đoạn văn
-        </button>
-        <button type="button" onClick={addList} disabled={busy} className={ADD_BLOCK_BTN}>
-          <ListIcon className="h-3.5 w-3.5" />
-          Thêm danh sách
-        </button>
-        <button type="button" onClick={addQuote} disabled={busy} className={ADD_BLOCK_BTN}>
-          <QuoteIcon className="h-3.5 w-3.5" />
-          Thêm trích dẫn
-        </button>
-        <button
-          type="button"
-          onClick={triggerImageUpload}
-          disabled={busy}
-          className={ADD_BLOCK_BTN}
-        >
-          {uploading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <ImageIcon className="h-3.5 w-3.5" />
-          )}
-          {uploading ? "Đang tải ảnh..." : "Thêm ảnh"}
-        </button>
-        <button type="button" onClick={addDivider} disabled={busy} className={ADD_BLOCK_BTN}>
-          <SeparatorHorizontal className="h-3.5 w-3.5" />
-          Thêm đường ngăn
-        </button>
-        <input
-          ref={imgInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/avif"
-          className="hidden"
-          onChange={handleImageFile}
-        />
-        <input
-          ref={replaceInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/avif"
-          className="hidden"
-          onChange={handleReplaceImageFile}
-        />
-      </div>
-
-      {/* Actions row */}
-      <div className="flex items-center gap-3">
-        {productId && (
+      {/* Add block buttons -- hidden while the empty state's own quick actions
+          are showing, so there is never more than one control per action on screen */}
+      {hasBlocks && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <button type="button" onClick={addHeading} disabled={busy} className={ADD_BLOCK_BTN}>
+            <Type className="h-3.5 w-3.5" />
+            Thêm tiêu đề
+          </button>
+          <button type="button" onClick={addParagraph} disabled={busy} className={ADD_BLOCK_BTN}>
+            <Pilcrow className="h-3.5 w-3.5" />
+            Thêm đoạn văn
+          </button>
+          <button type="button" onClick={addList} disabled={busy} className={ADD_BLOCK_BTN}>
+            <ListIcon className="h-3.5 w-3.5" />
+            Thêm danh sách
+          </button>
+          <button type="button" onClick={addQuote} disabled={busy} className={ADD_BLOCK_BTN}>
+            <QuoteIcon className="h-3.5 w-3.5" />
+            Thêm trích dẫn
+          </button>
           <button
             type="button"
-            onClick={requestSave}
+            onClick={triggerImageUpload}
             disabled={busy}
-            className={PRIMARY_BTN}
+            className={ADD_BLOCK_BTN}
           >
-            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Lưu nội dung
+            {uploading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <ImageIcon className="h-3.5 w-3.5" />
+            )}
+            {uploading ? "Đang tải ảnh..." : "Thêm ảnh"}
           </button>
-        )}
-        <button
-          type="button"
-          onClick={() => setPreviewOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg border border-[#1B1C4A] px-3 py-2 text-xs text-[#B6D6F2]/60 hover:border-[#273481] hover:text-white transition-all"
-        >
-          <Eye className="h-3.5 w-3.5" />
-          Xem trước
-        </button>
-      </div>
+          <button type="button" onClick={addDivider} disabled={busy} className={ADD_BLOCK_BTN}>
+            <SeparatorHorizontal className="h-3.5 w-3.5" />
+            Thêm đường ngăn
+          </button>
+        </div>
+      )}
+      <input
+        ref={imgInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/avif"
+        className="hidden"
+        onChange={handleImageFile}
+      />
+      <input
+        ref={replaceInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/avif"
+        className="hidden"
+        onChange={handleReplaceImageFile}
+      />
 
-      {/* Inline status -- secondary feedback only; modals above are primary */}
+      {/* Inline status -- secondary feedback for uploads only; sticky bar + modals are primary */}
       {message && (
         <p
           className={`text-xs ${
@@ -984,6 +1064,57 @@ export default function ContentBlockEditor({
           {message.text}
         </p>
       )}
+
+      {/* ── Sticky action bar ────────────────────────────────────────────────── */}
+      <div className="sticky bottom-0 z-20 pt-2">
+        <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl border border-[#1B1C4A] bg-[#111335]/95 backdrop-blur px-4 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.4)]">
+          <div className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className={`h-1.5 w-1.5 rounded-full ${statusDotClass()}`}
+            />
+            <span className={`text-xs font-medium ${statusTextClass()}`}>
+              {statusLabel()}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {productId && (
+              <Link
+                href={`/products/${productId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 rounded-lg border border-[#1B1C4A] px-3 py-2 text-xs text-[#B6D6F2]/60 hover:border-[#273481] hover:text-white transition-all"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Xem trang sản phẩm
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-[#1B1C4A] px-3 py-2 text-xs text-[#B6D6F2]/60 hover:border-[#273481] hover:text-white transition-all"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              Xem trước
+            </button>
+            {productId && (
+              <button
+                type="button"
+                onClick={requestSave}
+                disabled={busy}
+                className={
+                  isDirty
+                    ? `${PRIMARY_BTN} shadow-[0_0_0_3px_rgba(182,214,242,0.18)]`
+                    : "flex items-center justify-center gap-2 rounded-lg border border-[#1B1C4A] px-4 py-2 text-sm font-medium text-[#B6D6F2]/55 hover:border-[#273481] hover:text-white transition-all disabled:opacity-50"
+                }
+              >
+                {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Lưu nội dung
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* ── Confirm save modal ──────────────────────────────────────────────── */}
       <Modal
