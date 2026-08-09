@@ -21,6 +21,7 @@ const ICONS: Record<string, LucideIconComponent> = {
 export default function UseCaseSection() {
   return (
     <section
+      id="applications"
       className="relative overflow-hidden px-6 py-20 md:py-28"
       style={{ background: "linear-gradient(180deg, #081426 0%, #0A1B38 100%)" }}
     >

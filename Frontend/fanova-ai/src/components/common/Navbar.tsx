@@ -1,14 +1,27 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Menu, X, ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { ChevronDown, Menu, Search, Tag, User, X } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import Button from "@/components/ui/Button";
-import { announcementBar, navConfig } from "@/data/homepageData";
+import { usePathname, useRouter } from "next/navigation";
+import { motion } from "motion/react";
+import { announcementBar } from "@/data/homepageData";
 import { useAuth } from "@/contexts/AuthContext";
+import { getProducts } from "@/lib/api/products";
 import { getCategories } from "@/lib/api/categories";
-import type { ProductCategory } from "@/types/catalog";
+import type { Product, ProductCategory } from "@/types/catalog";
+
+/** Lowercases and strips diacritics so Vietnamese search matches with or without accents. */
+const DIACRITIC_MARKS_RE = /[̀-ͯ]/g;
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(DIACRITIC_MARKS_RE, "")
+    .replace(/đ/gi, "d")
+    .toLowerCase();
+}
 
 /** True for Manager or Staff — case-insensitive. */
 function isAdminUser(roles?: string[]): boolean {
@@ -16,125 +29,545 @@ function isAdminUser(roles?: string[]): boolean {
   return roles.some((r) => ["manager", "staff"].includes(r.toLowerCase()));
 }
 
+const ROLE_LABELS: Record<string, string> = { manager: "System Manager", staff: "Staff" };
+
+/** Human-readable label for the first recognized role, if any. */
+function primaryRoleLabel(roles?: string[]): string | null {
+  const match = roles?.find((r) => ROLE_LABELS[r.toLowerCase()]);
+  return match ? ROLE_LABELS[match.toLowerCase()] : null;
+}
+
+/** Closes an open flyout (dropdown/panel) on outside click or Escape. */
+function useDismissablePanel(open: boolean, ref: RefObject<HTMLElement | null>, onClose: () => void) {
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, ref]);
+}
+
+const SUGGESTED_SEARCHES = ["Quạt sự kiện", "Quạt thủ công", "Quạt quà tặng", "Quạt thương hiệu"];
+
+/**
+ * Suggestions, loading/error/empty states, or matched categories (max 4) and
+ * products (max 5) grouped into labeled sections -- shared by the desktop
+ * panel and the mobile inline search.
+ */
+function SearchResultsPanel({
+  query,
+  loading,
+  error,
+  categories,
+  products,
+  onSuggestionClick,
+  onSelectResult,
+}: {
+  query: string;
+  loading: boolean;
+  error: string | null;
+  categories: ProductCategory[];
+  products: Product[];
+  onSuggestionClick: (value: string) => void;
+  onSelectResult: () => void;
+}) {
+  if (query === "") {
+    return (
+      <div>
+        <p className="mb-2 px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+          Gợi ý tìm kiếm
+        </p>
+        <div className="flex flex-wrap gap-2 px-1">
+          {SUGGESTED_SEARCHES.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onSuggestionClick(s)}
+              className="rounded-full border border-white/[0.14] bg-white/[0.04] px-3 py-1.5 text-xs text-white/75 transition hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <p className="px-1 py-6 text-center text-sm text-white/50">Đang tìm kiếm...</p>;
+  }
+
+  if (error) {
+    return <p className="px-1 py-6 text-center text-sm text-white/50">{error}</p>;
+  }
+
+  if (categories.length === 0 && products.length === 0) {
+    return (
+      <p className="px-1 py-6 text-center text-sm text-white/50">
+        Không tìm thấy sản phẩm hoặc danh mục phù hợp.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {categories.length > 0 && (
+        <div>
+          <p className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+            Danh mục
+          </p>
+          <ul className="flex flex-col gap-1">
+            {categories.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={`/products?categoryId=${c.id}`}
+                  onClick={onSelectResult}
+                  className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-white/[0.06]"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/[0.06]">
+                    {c.imageUrl ? (
+                      <Image
+                        src={c.imageUrl}
+                        alt={c.name}
+                        width={40}
+                        height={40}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <Tag size={15} className="text-white/30" />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-white">{c.name}</span>
+                    {c.description && (
+                      <span className="block truncate text-xs text-white/45">{c.description}</span>
+                    )}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {products.length > 0 && (
+        <div>
+          <p className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+            Sản phẩm
+          </p>
+          <ul className="flex flex-col gap-1">
+            {products.map((p) => (
+              <li key={p.id}>
+                <Link
+                  href={`/products/${p.id}`}
+                  onClick={onSelectResult}
+                  className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-white/[0.06]"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/[0.06]">
+                    {p.imageUrl ? (
+                      <Image
+                        src={p.imageUrl}
+                        alt={p.name}
+                        width={44}
+                        height={44}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="font-serif text-sm text-white/25">Nan</span>
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-white">{p.name}</span>
+                    <span className="block truncate text-xs text-white/45">
+                      {p.categoryName || p.description || ""}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Nav content ────────────────────────────────────────────────────────────
+// Public-facing pill nav. Hash targets point at existing homepage sections
+// (id="about" on BrandStatementSection, id="applications" on UseCaseSection,
+// id="quote" on FinalCTASection) rather than pages that don't exist yet.
+
+const NAV_ITEMS = [
+  { label: "Trang chủ", href: "/" },
+  { label: "Sản phẩm", href: "/products" },
+  { label: "Ứng dụng", href: "/#applications" },
+  { label: "Về Nan", href: "/#about" },
+  { label: "Liên hệ", href: "/#quote" },
+] as const;
+
+const QUOTE_HREF = "/#quote";
+
+/** Route-based active state. Hash-anchor items only ever highlight on hover
+ * (see spec: "hash links can highlight on hover only if active detection is
+ * not simple") since there's no reliable way to know which section is in
+ * view without a scroll-spy observer, which is out of scope here. */
+function isRouteActive(href: string, pathname: string): boolean {
+  if (href === "/") return pathname === "/";
+  if (href === "/products") return pathname === "/products" || pathname.startsWith("/products/");
+  return false;
+}
+
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
+
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [productPool, setProductPool] = useState<Product[] | null>(null);
+  const [categoryPool, setCategoryPool] = useState<ProductCategory[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const searchWrapRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchFetchingRef = useRef(false);
+
   const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const pathname = usePathname();
   const router = useRouter();
 
   function handleLogout() {
+    setAccountOpen(false);
     logout();
     setMobileOpen(false);
     router.push("/");
   }
 
   const displayName = user?.fullName ?? user?.email?.split("@")[0] ?? "";
+  const admin = isAdminUser(user?.roles);
+  const roleLabel = admin ? primaryRoleLabel(user?.roles) : null;
+
+  function openAccount() {
+    setAccountOpen((v) => !v);
+    setSearchOpen(false);
+  }
+
+  function openSearch() {
+    setSearchOpen((v) => !v);
+    setAccountOpen(false);
+  }
+
+  useDismissablePanel(accountOpen, accountRef, () => setAccountOpen(false));
+  useDismissablePanel(searchOpen, searchWrapRef, () => setSearchOpen(false));
+
+  // Load the searchable product + category pool once, the first time search
+  // is opened from either the desktop panel or the mobile menu.
+  //
+  // searchLoading is intentionally NOT a dependency here: setting it inside
+  // this effect used to also list it as a dependency, so the state update
+  // re-ran the effect, whose cleanup flipped `cancelled` to true on the
+  // in-flight request before it resolved -- orphaning setSearchLoading(false)
+  // and leaving the panel stuck on "Đang tìm kiếm..." forever. searchFetchingRef
+  // (a ref, not state) now guards against starting a second fetch instead.
+  useEffect(() => {
+    if (!searchOpen && !mobileOpen) return;
+    if (productPool !== null || searchFetchingRef.current) return;
+    searchFetchingRef.current = true;
+    let cancelled = false;
+    setSearchLoading(true);
+    setSearchError(null);
+    Promise.all([
+      getProducts({ pageSize: 100, activeOnly: true }),
+      getCategories({ pageSize: 50, activeOnly: true }),
+    ])
+      .then(([productsRes, categoriesRes]) => {
+        if (cancelled) return;
+        setProductPool(productsRes.items);
+        setCategoryPool(categoriesRes.items);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("Navbar search: failed to load products/categories", err);
+        }
+        setSearchError("Không thể tải dữ liệu tìm kiếm. Vui lòng thử lại.");
+      })
+      .finally(() => {
+        searchFetchingRef.current = false;
+        if (!cancelled) setSearchLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [searchOpen, mobileOpen, productPool]);
 
   useEffect(() => {
-    getCategories({ pageSize: 20, activeOnly: true })
-      .then((res) => setCategories(res.items))
-      .catch(() => setCategories([]));
-  }, []);
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
+
+  const trimmedQuery = searchQuery.trim();
+  const normalizedQuery = normalizeSearchText(trimmedQuery);
+  const matchedCategories = normalizedQuery && categoryPool
+    ? categoryPool
+        .filter((c) => normalizeSearchText(`${c.name} ${c.description ?? ""}`).includes(normalizedQuery))
+        .slice(0, 4)
+    : [];
+  const matchedProducts = normalizedQuery && productPool
+    ? productPool
+        .filter((p) =>
+          normalizeSearchText(`${p.name} ${p.description ?? ""} ${p.categoryName ?? ""}`).includes(normalizedQuery),
+        )
+        .slice(0, 5)
+    : [];
 
   return (
     <header className="fixed left-0 top-0 z-[999] w-full">
       {/* ── Announcement bar ── */}
       {announcementBar.visible && (
-        <div
-          className="flex items-center justify-center px-4 py-2.5"
-          style={{ background: "#081426", borderBottom: "1px solid rgba(220,234,247,0.08)" }}
-        >
-          <div className="flex items-center gap-2.5">
-            <span aria-hidden="true" className="h-1 w-1 shrink-0 rounded-full bg-[#ECCA3E]" />
-            <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[rgba(220,234,247,0.65)]">
+        <div className="flex items-center justify-center bg-[#020724] px-4 py-[7px]">
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true" className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#FFD014]/55" />
+            <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/45">
               {announcementBar.text}
             </span>
-            <span aria-hidden="true" className="h-1 w-1 shrink-0 rounded-full bg-[#ECCA3E]" />
+            <span aria-hidden="true" className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#FFD014]/55" />
           </div>
         </div>
       )}
 
       {/* ── Main nav bar ── */}
       <div
-        className="border-b border-[rgba(8,51,125,0.10)] bg-[#FAFAF8]/96 backdrop-blur-xl"
-        style={{ boxShadow: "0 1px 0 rgba(8,51,125,0.06), 0 4px 20px rgba(8,20,38,0.04)" }}
+        className="border-b border-white/10 backdrop-blur-xl"
+        style={{
+          background: "rgba(6,16,71,0.96)",
+          boxShadow: "0 1px 0 rgba(255,255,255,0.06), 0 24px 48px -20px rgba(2,7,36,0.65)",
+        }}
       >
-        <div className="mx-auto flex h-14 max-w-7xl items-center px-6">
-          {/* Left: nav links */}
-          <nav className="hidden flex-1 items-center gap-7 md:flex">
-            {navConfig.links.map((link) =>
-              link.label === "Collections" ? (
-                <CollectionsDesktopItem key={link.label} categories={categories} />
-              ) : (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  className="font-mono text-[10px] uppercase tracking-[0.18em] text-[rgba(8,20,38,0.45)] transition-colors duration-200 hover:text-[#08337D]"
+        <div className="mx-auto grid h-[68px] max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-6">
+          {/* Left: wordmark */}
+          <Link href="/" className="flex shrink-0 items-center gap-3 justify-self-start">
+            <span className="font-serif text-[26px] font-semibold leading-none tracking-tight text-white">
+              Nan
+            </span>
+            <span aria-hidden="true" className="hidden h-6 w-px bg-white/15 sm:block" />
+            <span className="hidden font-mono text-[9px] font-medium uppercase leading-[1.4] tracking-[0.26em] text-white/50 sm:block">
+              Custom
+              <br />
+              Fan Design
+            </span>
+          </Link>
+
+          {/* Center: sliding pill nav */}
+          <nav
+            onMouseLeave={() => setHovered(null)}
+            className="hidden items-center gap-0.5 justify-self-center rounded-full border border-white/[0.14] bg-white/[0.06] p-[3px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] md:flex"
+          >
+            {NAV_ITEMS.map((item) => {
+              const active = isRouteActive(item.href, pathname);
+              const isHovered = hovered === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onMouseEnter={() => setHovered(item.href)}
+                  className="relative rounded-full px-4 py-[7px] text-[13px] font-medium tracking-tight transition-colors duration-200"
+                  style={{ color: active ? "#02167F" : isHovered ? "#FFFFFF" : "rgba(255,255,255,0.72)" }}
                 >
-                  {link.label}
-                </a>
-              )
-            )}
+                  {active && (
+                    <motion.span
+                      layoutId="navbar-active-pill"
+                      className="absolute inset-0 rounded-full bg-[#FAF8F0]"
+                      style={{ boxShadow: "0 2px 10px rgba(2,7,36,0.35)" }}
+                      transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                    />
+                  )}
+                  {!active && isHovered && (
+                    <span className="absolute inset-0 rounded-full bg-white/10" />
+                  )}
+                  <span className="relative z-10">{item.label}</span>
+                </Link>
+              );
+            })}
           </nav>
 
-          {/* Center: brand */}
-          <div className="flex flex-1 justify-start md:absolute md:left-1/2 md:flex-none md:-translate-x-1/2">
-            <a href="/" className="flex flex-col items-center leading-tight">
-              <span className="font-serif text-[21px] font-semibold tracking-wide text-[#081426]">
-                Nan
-              </span>
-              <span className="font-mono text-[7.5px] uppercase tracking-[0.32em] text-[#08337D]">
-                Custom Fan Design
-              </span>
-            </a>
-          </div>
+          {/* Right: icon actions + CTA */}
+          <div className="flex items-center justify-self-end gap-2.5">
+            <div className="hidden items-center gap-2 md:flex">
+              {/* Search */}
+              <div ref={searchWrapRef} className="relative">
+                <button
+                  onClick={openSearch}
+                  aria-label="Tìm sản phẩm"
+                  title="Tìm sản phẩm"
+                  aria-expanded={searchOpen}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.14] bg-white/[0.04] text-white/75 transition hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
+                >
+                  <Search size={16} />
+                </button>
 
-          {/* Right: auth-aware CTA */}
-          <div className="flex flex-1 items-center justify-end gap-2">
-            {!isLoading && (
-              <div className="hidden md:flex items-center gap-2">
-                {isAuthenticated ? (
-                  <>
-                    {isAdminUser(user?.roles) && (
-                      <Link href="/admin">
-                        <Button variant="ghost" className="px-4 py-2 text-[11px]">
-                          Dashboard
-                        </Button>
-                      </Link>
-                    )}
-                    <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[rgba(8,20,38,0.48)] max-w-[140px] truncate">
-                      {displayName}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      onClick={handleLogout}
-                      className="px-4 py-2 text-[11px]"
-                    >
-                      Đăng xuất
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Link href="/auth/login">
-                      <Button variant="ghost" className="px-4 py-2 text-[11px]">
-                        Đăng nhập
-                      </Button>
-                    </Link>
-                    <Link href="/auth/register">
-                      <Button className="px-5 py-2 text-[11px]">
-                        Đăng ký
-                      </Button>
-                    </Link>
-                  </>
+                {searchOpen && (
+                  <motion.div
+                    role="search"
+                    aria-label="Tìm kiếm sản phẩm"
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute right-0 top-[calc(100%+10px)] z-20 w-[380px] overflow-hidden rounded-2xl border border-white/[0.12] bg-[#020724] p-4"
+                    style={{ boxShadow: "0 24px 48px -16px rgba(2,7,36,0.7)" }}
+                  >
+                    <h2 className="text-sm font-semibold text-white">Tìm kiếm sản phẩm</h2>
+                    <div className="relative mt-3">
+                      <Search
+                        size={15}
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/40"
+                      />
+                      <input
+                        ref={searchInputRef}
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Tìm quạt, danh mục, ứng dụng..."
+                        className="w-full rounded-full border border-white/[0.14] bg-white/[0.05] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/35 outline-none transition focus:border-white/30"
+                      />
+                    </div>
+                    <div className="nan-scrollbar mt-4 max-h-[420px] overflow-y-auto">
+                      <SearchResultsPanel
+                        query={trimmedQuery}
+                        loading={searchLoading}
+                        error={searchError}
+                        categories={matchedCategories}
+                        products={matchedProducts}
+                        onSuggestionClick={(s) => setSearchQuery(s)}
+                        onSelectResult={() => setSearchOpen(false)}
+                      />
+                    </div>
+                  </motion.div>
                 )}
               </div>
-            )}
+
+              {/* Account */}
+              {!isLoading && (
+                <div ref={accountRef} className="relative">
+                  {isAuthenticated ? (
+                    <button
+                      onClick={openAccount}
+                      aria-expanded={accountOpen}
+                      aria-haspopup="menu"
+                      aria-controls="navbar-account-menu"
+                      aria-label="Tài khoản"
+                      className="flex h-9 items-center gap-1 rounded-full border border-white/[0.14] bg-white/[0.04] pl-1 pr-2 text-white/75 transition hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
+                    >
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-[11px] font-semibold text-white">
+                        {(displayName || "?").charAt(0).toUpperCase()}
+                      </span>
+                      <ChevronDown
+                        size={13}
+                        className={`text-white/50 transition-transform duration-200 ${accountOpen ? "rotate-180" : ""}`}
+                      />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={openAccount}
+                      aria-expanded={accountOpen}
+                      aria-haspopup="menu"
+                      aria-controls="navbar-account-menu"
+                      aria-label="Tài khoản"
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.14] bg-white/[0.04] text-white/75 transition hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
+                    >
+                      <User size={16} />
+                    </button>
+                  )}
+
+                  {accountOpen && (
+                    <motion.div
+                      id="navbar-account-menu"
+                      role="menu"
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                      className="absolute right-0 top-[calc(100%+10px)] z-20 w-60 overflow-hidden rounded-2xl border border-white/[0.12] bg-[#020724] p-1.5"
+                      style={{ boxShadow: "0 24px 48px -16px rgba(2,7,36,0.7)" }}
+                    >
+                      {isAuthenticated ? (
+                        <>
+                          <div className="px-3 pb-2 pt-1.5">
+                            <p className="truncate text-sm font-medium text-white">{displayName || user?.email}</p>
+                            {roleLabel && (
+                              <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                                {roleLabel}
+                              </p>
+                            )}
+                          </div>
+                          <div className="mx-1 h-px bg-white/10" />
+                          {admin && (
+                            <Link
+                              href="/admin"
+                              role="menuitem"
+                              onClick={() => setAccountOpen(false)}
+                              className="mt-1 block rounded-xl px-3 py-2 text-sm text-white/80 transition hover:bg-white/[0.08] hover:text-white"
+                            >
+                              Dashboard
+                            </Link>
+                          )}
+                          <button
+                            role="menuitem"
+                            onClick={handleLogout}
+                            className="block w-full rounded-xl px-3 py-2 text-left text-sm text-white/80 transition hover:bg-white/[0.08] hover:text-white"
+                          >
+                            Đăng xuất
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            href="/auth/login"
+                            role="menuitem"
+                            onClick={() => setAccountOpen(false)}
+                            className="block rounded-xl px-3 py-2 text-sm text-white/80 transition hover:bg-white/[0.08] hover:text-white"
+                          >
+                            Đăng nhập
+                          </Link>
+                          <Link
+                            href="/auth/register"
+                            role="menuitem"
+                            onClick={() => setAccountOpen(false)}
+                            className="block rounded-xl px-3 py-2 text-sm text-white/80 transition hover:bg-white/[0.08] hover:text-white"
+                          >
+                            Đăng ký
+                          </Link>
+                        </>
+                      )}
+                    </motion.div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <Link
+              href={QUOTE_HREF}
+              className="hidden items-center justify-center rounded-full bg-[#FFD014] px-5 py-2 text-[13px] font-semibold text-[#061047] transition-all duration-200 hover:-translate-y-px hover:bg-[#F2C500] active:translate-y-0 active:scale-[0.98] sm:inline-flex"
+              style={{ boxShadow: "0 1px 2px rgba(2,7,36,0.30), 0 10px 26px -10px rgba(255,208,20,0.45)" }}
+            >
+              Yêu cầu báo giá
+            </Link>
 
             {/* Mobile hamburger */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label="Toggle menu"
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[rgba(8,51,125,0.16)] text-[rgba(8,20,38,0.48)] transition hover:border-[#08337D] hover:text-[#08337D] md:hidden"
+              aria-expanded={mobileOpen}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 text-white transition hover:border-white/40 hover:bg-white/10 md:hidden"
             >
               {mobileOpen ? <X size={16} /> : <Menu size={16} />}
             </button>
@@ -143,210 +576,148 @@ export default function Navbar() {
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div className="border-t border-[rgba(8,51,125,0.10)] bg-[#FAFAF8]/97 px-6 py-5 md:hidden">
-            <nav className="flex flex-col gap-5">
-              {navConfig.links.map((link) =>
-                link.label === "Collections" ? (
-                  <CollectionsMobileItem
-                    key={link.label}
-                    categories={categories}
-                    onClose={() => setMobileOpen(false)}
-                  />
-                ) : (
-                  <a
-                    key={link.label}
-                    href={link.href}
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden border-t border-white/10 bg-[#061047] md:hidden"
+          >
+            <nav className="flex flex-col gap-1 px-6 py-5">
+              {NAV_ITEMS.map((item) => {
+                const active = isRouteActive(item.href, pathname);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
                     onClick={() => setMobileOpen(false)}
-                    className="font-mono text-[10px] uppercase tracking-[0.18em] text-[rgba(8,20,38,0.48)] transition hover:text-[#08337D]"
+                    className={`rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-[#FAF8F0] text-[#02167F]"
+                        : "text-white/80 hover:bg-white/10"
+                    }`}
                   >
-                    {link.label}
-                  </a>
-                )
-              )}
+                    {item.label}
+                  </Link>
+                );
+              })}
 
-              {/* Mobile auth controls */}
+              {/* Mobile search -- inline, shares state with the desktop panel */}
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <p className="mb-2 px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                  Tìm sản phẩm
+                </p>
+                <div className="relative">
+                  <Search
+                    size={15}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/40"
+                  />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Tìm quạt, danh mục, ứng dụng..."
+                    className="w-full rounded-full border border-white/[0.14] bg-white/[0.05] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/35 outline-none transition focus:border-white/30"
+                  />
+                </div>
+                {trimmedQuery !== "" && (
+                  <div className="nan-scrollbar mt-2 max-h-72 overflow-y-auto rounded-2xl border border-white/[0.10] bg-white/[0.03] p-1.5">
+                    <SearchResultsPanel
+                      query={trimmedQuery}
+                      loading={searchLoading}
+                      error={searchError}
+                      categories={matchedCategories}
+                      products={matchedProducts}
+                      onSuggestionClick={(s) => setSearchQuery(s)}
+                      onSelectResult={() => {
+                        setSearchQuery("");
+                        setMobileOpen(false);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <Link
+                href={QUOTE_HREF}
+                onClick={() => setMobileOpen(false)}
+                className="mt-3 inline-flex items-center justify-center rounded-full bg-[#FFD014] px-5 py-3 text-sm font-semibold text-[#061047] active:scale-[0.98]"
+                style={{ boxShadow: "0 1px 2px rgba(2,7,36,0.30), 0 10px 26px -10px rgba(255,208,20,0.45)" }}
+              >
+                Yêu cầu báo giá
+              </Link>
+
+              {/* Mobile account section -- grouped, not a crowded single row */}
               {!isLoading && (
-                isAuthenticated ? (
-                  <div className="flex flex-col gap-3 pt-1 border-t border-[rgba(8,51,125,0.08)]">
-                    <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[rgba(8,20,38,0.40)] pt-1">
-                      {displayName}
-                    </span>
-                    {isAdminUser(user?.roles) && (
-                      <Link href="/admin" onClick={() => setMobileOpen(false)}>
-                        <Button variant="ghost" className="w-full py-2.5 text-xs">
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <p className="px-1 pb-2 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                    Tài khoản
+                  </p>
+                  {isAuthenticated ? (
+                    <div className="flex flex-col gap-1 text-sm">
+                      <div className="px-1 pb-1">
+                        <p className="truncate text-sm font-medium text-white/90">{displayName || user?.email}</p>
+                        {roleLabel && <p className="mt-0.5 text-[11px] text-white/40">{roleLabel}</p>}
+                      </div>
+                      {admin && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setMobileOpen(false)}
+                          className="rounded-xl px-3 py-2 text-white/80 transition hover:bg-white/10 hover:text-white"
+                        >
                           Dashboard
-                        </Button>
-                      </Link>
-                    )}
-                    <Button
-                      variant="ghost"
-                      onClick={handleLogout}
-                      className="w-full py-2.5 text-xs"
-                    >
-                      Đăng xuất
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3 pt-1 border-t border-[rgba(8,51,125,0.08)]">
-                    <Link href="/auth/login" onClick={() => setMobileOpen(false)}>
-                      <Button variant="ghost" className="mt-1 w-full py-2.5 text-xs">
+                        </Link>
+                      )}
+                      <button
+                        onClick={handleLogout}
+                        className="rounded-xl px-3 py-2 text-left text-white/80 transition hover:bg-white/10 hover:text-white"
+                      >
+                        Đăng xuất
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <Link
+                        href="/auth/login"
+                        onClick={() => setMobileOpen(false)}
+                        className="rounded-full border border-white/[0.14] bg-white/[0.06] px-4 py-2.5 text-center text-white/[0.76] transition hover:bg-white/[0.08] hover:text-white"
+                      >
                         Đăng nhập
-                      </Button>
-                    </Link>
-                    <Link href="/auth/register" onClick={() => setMobileOpen(false)}>
-                      <Button className="w-full py-2.5 text-xs">
+                      </Link>
+                      <Link
+                        href="/auth/register"
+                        onClick={() => setMobileOpen(false)}
+                        className="rounded-full border border-white/[0.14] bg-white/[0.06] px-4 py-2.5 text-center text-white/[0.76] transition hover:bg-white/[0.08] hover:text-white"
+                      >
                         Đăng ký
-                      </Button>
-                    </Link>
-                  </div>
-                )
+                      </Link>
+                    </div>
+                  )}
+                </div>
               )}
             </nav>
-          </div>
+          </motion.div>
         )}
       </div>
+
+      <style jsx>{`
+        .nan-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+        }
+        .nan-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .nan-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .nan-scrollbar::-webkit-scrollbar-thumb {
+          background-color: rgba(255, 255, 255, 0.18);
+          border-radius: 9999px;
+        }
+        .nan-scrollbar::-webkit-scrollbar-thumb:hover {
+          background-color: rgba(255, 255, 255, 0.28);
+        }
+      `}</style>
     </header>
-  );
-}
-
-// ─── Collections Desktop Dropdown ─────────────────────────────────────────────
-
-function CollectionsDesktopItem({ categories }: { categories: ProductCategory[] }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [open]);
-
-  return (
-    <div
-      ref={ref}
-      className="relative"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
-      <a
-        href="/products"
-        className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[rgba(8,20,38,0.45)] transition-colors duration-200 hover:text-[#08337D]"
-      >
-        Collections
-        <ChevronDown
-          size={10}
-          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-        />
-      </a>
-
-      {open && (
-        <div className="absolute left-0 top-full z-[100] pt-3">
-          <div
-            className="w-64 overflow-hidden rounded-xl border border-[#1B1C4A] bg-[#0D131F] py-2"
-            style={{
-              boxShadow: "0 16px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(27,28,74,0.35)",
-            }}
-          >
-            {categories.length === 0 ? (
-              <div className="px-4 py-3">
-                <Link
-                  href="/products"
-                  className="text-xs text-[#B6D6F2]/50 hover:text-white transition-colors"
-                  onClick={() => setOpen(false)}
-                >
-                  Xem tất cả sản phẩm
-                </Link>
-              </div>
-            ) : (
-              <>
-                {categories.map((cat) => (
-                  <Link
-                    key={cat.id}
-                    href={`/products?categoryId=${cat.id}`}
-                    onClick={() => setOpen(false)}
-                    className="group flex flex-col px-4 py-2.5 transition-colors hover:bg-[#1B1C4A]"
-                  >
-                    <span className="text-[11px] font-medium text-[#B6D6F2] transition-colors group-hover:text-white">
-                      {cat.name}
-                    </span>
-                    {cat.description && (
-                      <span className="mt-0.5 line-clamp-1 text-[10px] text-[#B6D6F2]/35 transition-colors group-hover:text-[#B6D6F2]/55">
-                        {cat.description}
-                      </span>
-                    )}
-                  </Link>
-                ))}
-                <div className="mx-4 my-1.5 h-px bg-[#1B1C4A]" />
-                <Link
-                  href="/products"
-                  onClick={() => setOpen(false)}
-                  className="flex items-center px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] text-[#B6D6F2]/40 transition-colors hover:text-[#B6D6F2]"
-                >
-                  Tất cả dòng quạt
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Collections Mobile Item ──────────────────────────────────────────────────
-
-function CollectionsMobileItem({
-  categories,
-  onClose,
-}: {
-  categories: ProductCategory[];
-  onClose: () => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div>
-      <div className="flex items-center justify-between">
-        <a
-          href="/products"
-          onClick={onClose}
-          className="font-mono text-[10px] uppercase tracking-[0.18em] text-[rgba(8,20,38,0.48)] transition hover:text-[#08337D]"
-        >
-          Collections
-        </a>
-        {categories.length > 0 && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            aria-label="Toggle categories"
-            className="p-1 text-[rgba(8,20,38,0.35)] transition-colors hover:text-[#08337D]"
-          >
-            <ChevronDown
-              size={12}
-              className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-            />
-          </button>
-        )}
-      </div>
-
-      {expanded && categories.length > 0 && (
-        <div className="ml-2 mt-2.5 flex flex-col gap-0.5 border-l border-[rgba(8,51,125,0.12)] pl-4">
-          {categories.map((cat) => (
-            <Link
-              key={cat.id}
-              href={`/products?categoryId=${cat.id}`}
-              onClick={onClose}
-              className="py-1.5 text-[10px] font-medium text-[rgba(8,20,38,0.55)] transition-colors hover:text-[#08337D]"
-            >
-              {cat.name}
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }

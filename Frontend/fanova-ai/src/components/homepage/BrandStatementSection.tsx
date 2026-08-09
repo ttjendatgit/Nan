@@ -7,6 +7,7 @@ export default function BrandStatementSection() {
   const reduce = useReducedMotion();
   return (
     <section
+      id="about"
       className="relative overflow-hidden px-6 py-24 md:py-36"
       style={{ background: "linear-gradient(180deg, #081426 0%, #0A1B38 100%)" }}
     >
