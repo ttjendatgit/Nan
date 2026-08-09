@@ -23,6 +23,7 @@ import {
   AlignRight,
   Italic,
   Plus,
+  RefreshCw,
 } from "lucide-react";
 import { uploadMedia } from "@/lib/api/media";
 import { updateProductContent } from "@/lib/api/products";
@@ -275,7 +276,13 @@ export default function ContentBlockEditor({
   const [errorText, setErrorText] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
 
+  const [uploadErrorOpen, setUploadErrorOpen] = useState(false);
+  const [uploadErrorText, setUploadErrorText] = useState("");
+  const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
+
   const imgInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const replaceTargetIndex = useRef<number | null>(null);
 
   // Sync when productId or initialBlocks changes
   useEffect(() => {
@@ -354,13 +361,61 @@ export default function ContentBlockEditor({
         caption: "",
       };
       setBlocks((prev) => [...prev, newBlock]);
-    } catch (err) {
       setMessage({
-        type: "error",
-        text: err instanceof Error ? err.message : "Upload thất bại",
+        type: "success",
+        text: "Ảnh đã được thêm vào nội dung. Vui lòng bấm Lưu nội dung để cập nhật trang sản phẩm.",
       });
+    } catch (err) {
+      const text =
+        err instanceof Error
+          ? err.message
+          : "Đã có lỗi xảy ra khi tải ảnh. Vui lòng thử lại.";
+      setMessage({ type: "error", text });
+      setUploadErrorText(text);
+      setUploadErrorOpen(true);
     } finally {
       setUploading(false);
+    }
+  }
+
+  function triggerReplaceImage(index: number) {
+    replaceTargetIndex.current = index;
+    replaceInputRef.current?.click();
+  }
+
+  async function handleReplaceImageFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const index = replaceTargetIndex.current;
+    // Reset input so the same file can be re-selected
+    if (replaceInputRef.current) replaceInputRef.current.value = "";
+    if (!file || index === null) return;
+
+    setReplacingIndex(index);
+    setMessage(null);
+    try {
+      const result = await uploadMedia(file, "products", token);
+      setBlocks((prev) =>
+        prev.map((b, i) =>
+          i === index && b.type === "image"
+            ? { ...b, secureUrl: result.secureUrl, publicId: result.publicId }
+            : b
+        )
+      );
+      setMessage({
+        type: "success",
+        text: "Ảnh đã được thay thế. Vui lòng bấm Lưu nội dung để cập nhật trang sản phẩm.",
+      });
+    } catch (err) {
+      const text =
+        err instanceof Error
+          ? err.message
+          : "Đã có lỗi xảy ra khi tải ảnh. Vui lòng thử lại.";
+      setMessage({ type: "error", text });
+      setUploadErrorText(text);
+      setUploadErrorOpen(true);
+    } finally {
+      setReplacingIndex(null);
+      replaceTargetIndex.current = null;
     }
   }
 
@@ -494,7 +549,7 @@ export default function ContentBlockEditor({
     void performSave();
   }
 
-  const busy = saving || uploading;
+  const busy = saving || uploading || replacingIndex !== null;
   const hasBlocks = blocks.length > 0;
 
   // -- Render -----------------------------------------------------------------
@@ -697,8 +752,26 @@ export default function ContentBlockEditor({
                       className="object-cover"
                       sizes="240px"
                     />
+                    {replacingIndex === index && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                        <Loader2 className="h-5 w-5 animate-spin text-white" />
+                      </div>
+                    )}
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={() => triggerReplaceImage(index)}
+                  disabled={busy}
+                  className="flex items-center gap-1.5 rounded-lg border border-[#1B1C4A] px-2.5 py-1.5 text-xs text-[#B6D6F2]/60 hover:border-[#273481] hover:text-white transition-all disabled:opacity-40"
+                >
+                  {replacingIndex === index ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  {replacingIndex === index ? "Đang tải ảnh..." : "Thay ảnh"}
+                </button>
                 <input
                   type="text"
                   value={block.alt}
@@ -717,6 +790,10 @@ export default function ContentBlockEditor({
                   placeholder="Chú thích (caption)..."
                   className={INPUT_CLS}
                 />
+                <p className="text-[10px] text-[#B6D6F2]/30 leading-relaxed">
+                  Xóa block này chỉ gỡ ảnh khỏi nội dung sản phẩm, không xóa
+                  tệp ảnh trên Cloudinary.
+                </p>
               </div>
             )}
 
@@ -852,7 +929,7 @@ export default function ContentBlockEditor({
           ) : (
             <ImageIcon className="h-3.5 w-3.5" />
           )}
-          {uploading ? "Đang tải..." : "Thêm ảnh"}
+          {uploading ? "Đang tải ảnh..." : "Thêm ảnh"}
         </button>
         <button type="button" onClick={addDivider} disabled={busy} className={ADD_BLOCK_BTN}>
           <SeparatorHorizontal className="h-3.5 w-3.5" />
@@ -864,6 +941,13 @@ export default function ContentBlockEditor({
           accept="image/jpeg,image/png,image/webp,image/avif"
           className="hidden"
           onChange={handleImageFile}
+        />
+        <input
+          ref={replaceInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/avif"
+          className="hidden"
+          onChange={handleReplaceImageFile}
         />
       </div>
 
@@ -978,6 +1062,29 @@ export default function ContentBlockEditor({
           <p className="text-sm text-[#B6D6F2]/60 leading-relaxed mb-5">{errorText}</p>
           <div className="flex items-center justify-end">
             <button type="button" onClick={() => setErrorOpen(false)} className={PRIMARY_BTN}>
+              Đóng
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Upload error modal ──────────────────────────────────────────────── */}
+      <Modal
+        open={uploadErrorOpen}
+        onClose={() => setUploadErrorOpen(false)}
+        labelledBy="upload-error-title"
+        maxWidthClassName="max-w-md"
+      >
+        <div className="p-5">
+          <div className="flex items-center gap-2.5 mb-2">
+            <AlertTriangle className="h-5 w-5 text-red-400 shrink-0" />
+            <h2 id="upload-error-title" className="text-base font-semibold text-white">
+              Không thể tải ảnh
+            </h2>
+          </div>
+          <p className="text-sm text-[#B6D6F2]/60 leading-relaxed mb-5">{uploadErrorText}</p>
+          <div className="flex items-center justify-end">
+            <button type="button" onClick={() => setUploadErrorOpen(false)} className={PRIMARY_BTN}>
               Đóng
             </button>
           </div>
