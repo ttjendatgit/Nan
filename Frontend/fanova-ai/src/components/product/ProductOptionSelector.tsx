@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Check, Minus, Plus } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import {
   PRODUCT_OPTION_GROUPS,
   REQUIRED_GROUP_IDS,
   DEFAULT_QUANTITY_FALLBACK,
-  calculateAddOns,
   calculateUnitPrice,
   buildOptionSummaryText,
   formatCurrency,
@@ -33,7 +32,6 @@ export default function ProductOptionSelector({ product, onRequestQuote }: Produ
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const hasPrice = product.basePrice > 0;
-  const addOns = calculateAddOns(selected);
   const unitPrice = hasPrice ? calculateUnitPrice(product.basePrice, selected) : 0;
   const subtotal = hasPrice ? unitPrice * quantity : 0;
 
@@ -78,36 +76,52 @@ export default function ProductOptionSelector({ product, onRequestQuote }: Produ
     onRequestQuote(summary, quantity);
   }
 
+  const selectedSizeId = selected.size?.[0];
+
+  // items-start removed deliberately: with a Grid default of align-items:
+  // stretch, this sticky column's own box stretches to the full row height
+  // (matching the taller option-groups column), giving position:sticky the
+  // room it needs to stay pinned through the scroll. With items-start, the
+  // sticky wrapper's box shrank to just its content height and the summary
+  // "ran out" of containing block within the first ~150px of scroll. The
+  // inner card keeps its natural compact height regardless; only the
+  // invisible outer wrapper stretches.
   return (
-    <div className="rounded-3xl border border-white/10 bg-[#061047] p-6" style={{ boxShadow: "0 24px 60px -20px rgba(2,7,36,0.7)" }}>
-      <h2 className="text-lg font-semibold text-white tracking-tight">Chọn thông số sản phẩm</h2>
-      <p className="mt-1.5 text-sm text-white/55 leading-relaxed">
-        Tùy chọn giúp Nan tư vấn cấu hình và báo giá phù hợp hơn.
-      </p>
+    <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1fr_380px] lg:gap-14">
 
-      <div className="mt-6 flex flex-col gap-6">
-        {PRODUCT_OPTION_GROUPS.map((group, index) => (
-          <OptionGroupField
-            key={group.id}
-            stepNumber={index + 1}
-            group={group}
-            selectedIds={selected[group.id] ?? []}
-            selectedSizeId={selected.size?.[0]}
-            onToggle={(valueId) => toggleValue(group.id, valueId, group.multiSelect)}
-          />
-        ))}
+      {/* Option groups -- wide two-column editorial grid, not a narrow stack */}
+      <div>
+        <h2 className="font-serif text-2xl font-semibold tracking-tight text-[#0F1320]">
+          Cấu hình sản phẩm
+        </h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-[rgba(15,19,32,0.60)]">
+          Chọn thông số để Nan tư vấn cấu hình và báo giá phù hợp hơn.
+        </p>
 
-        {/* Group 7: Số lượng */}
-        <div>
-          <StepLabel stepNumber={PRODUCT_OPTION_GROUPS.length + 1} title="Số lượng" required />
-          <div className="flex items-center gap-3">
+        <div className="mt-9 grid grid-cols-1 gap-x-10 gap-y-9 border-t border-[rgba(15,19,32,0.14)] pt-8 sm:grid-cols-2">
+          {PRODUCT_OPTION_GROUPS.map((group, index) => (
+            <OptionGroupField
+              key={group.id}
+              stepNumber={index + 1}
+              group={group}
+              selectedIds={selected[group.id] ?? []}
+              selectedSizeId={selectedSizeId}
+              onToggle={(valueId) => toggleValue(group.id, valueId, group.multiSelect)}
+            />
+          ))}
+        </div>
+
+        {/* Quantity -- full width, larger touch targets */}
+        <div className="mt-9 border-t border-[rgba(15,19,32,0.14)] pt-8">
+          <GroupLabel stepNumber={PRODUCT_OPTION_GROUPS.length + 1} title="Số lượng" required />
+          <div className="mt-4 flex items-center gap-3">
             <button
               type="button"
               aria-label="Giảm số lượng"
               onClick={() => commitQuantity(quantity - QUANTITY_STEP)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] text-white/75 transition hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[rgba(15,19,32,0.20)] text-[#0F1320] transition hover:border-[#192B88] hover:text-[#192B88]"
             >
-              <Minus size={16} />
+              <span aria-hidden="true" className="text-lg leading-none">&#8722;</span>
             </button>
             <label className="sr-only" htmlFor="product-option-quantity">
               Số lượng
@@ -120,91 +134,116 @@ export default function ProductOptionSelector({ product, onRequestQuote }: Produ
               value={quantityInput}
               onChange={(e) => setQuantityInput(e.target.value)}
               onBlur={() => commitQuantity(parseInt(quantityInput, 10) || minQuantity)}
-              className="w-full rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2.5 text-center text-sm font-semibold text-white outline-none transition focus:border-white/30"
+              className="w-32 rounded-md border border-[rgba(15,19,32,0.20)] bg-transparent px-3 py-2.5 text-center text-base font-semibold text-[#0F1320] outline-none transition focus:border-[#192B88]"
             />
             <button
               type="button"
               aria-label="Tăng số lượng"
               onClick={() => commitQuantity(quantity + QUANTITY_STEP)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] text-white/75 transition hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[rgba(15,19,32,0.20)] text-[#0F1320] transition hover:border-[#192B88] hover:text-[#192B88]"
             >
-              <Plus size={16} />
+              <span aria-hidden="true" className="text-lg leading-none">+</span>
             </button>
+            <span className="text-xs text-[rgba(15,19,32,0.50)]">Tối thiểu {minQuantity} cái</span>
           </div>
-          <p className="mt-1.5 text-xs text-white/40">Tối thiểu {minQuantity} cái</p>
         </div>
       </div>
 
-      {/* Pricing summary */}
-      <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-white/55">Giá tham khảo / cái</span>
-          <span className="font-semibold text-white">{hasPrice ? formatCurrency(unitPrice) : "Cần báo giá"}</span>
-        </div>
-        <div className="mt-2 flex items-center justify-between text-sm">
-          <span className="text-white/55">Số lượng</span>
-          <span className="font-semibold text-white">{quantity.toLocaleString("vi-VN")} cái</span>
-        </div>
-        <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3 text-sm">
-          <span className="text-white/70">Tạm tính</span>
-          <span className="text-base font-bold text-[#FFD014]">
-            {hasPrice ? formatCurrency(subtotal) : "Cần báo giá"}
-          </span>
-        </div>
+      {/* Summary + estimate -- the ONLY sticky element, compact, dark surface
+          as a deliberate accent within the light configurator section.
+          top-32 (128px) clears the fixed announcement-bar + Navbar stack
+          (measured 112.5px) with a visible margin, not a guessed value.
 
-        {addOns.length > 0 && (
-          <div className="mt-3 border-t border-white/10 pt-3">
-            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-white/35">
-              Phụ thu tham khảo
+          Two nested divs, deliberately: this outer one is the grid item and
+          stretches to the row's full height (matching the taller
+          option-groups column) via the grid's default align-items:stretch --
+          that's the "room to travel" position:sticky needs. The INNER div
+          carries the sticky positioning itself and keeps its own natural
+          (short) content height. Putting sticky directly on the stretched
+          grid item was the bug: an element that's already exactly as tall as
+          its own containing block has nowhere to move, so it never visually
+          stuck -- confirmed at runtime (its top tracked the grid's top in
+          exact 1:1 lockstep with scroll, at every scroll position tested). */}
+      <div>
+      <div className="lg:sticky lg:top-32">
+        <div className="rounded-lg border border-[#192B88]/25 bg-[#0F1320] p-4">
+          <h3 className="font-serif text-lg font-semibold text-[#F1F0EA]">Tóm tắt cấu hình</h3>
+
+          <div className="mt-2.5">
+          <SummaryList group={PRODUCT_OPTION_GROUPS[0]} selectedIds={selected.size ?? []} selectedSizeId={selectedSizeId} />
+          <SummaryList group={PRODUCT_OPTION_GROUPS[1]} selectedIds={selected.material ?? []} selectedSizeId={selectedSizeId} />
+          <SummaryList group={PRODUCT_OPTION_GROUPS[2]} selectedIds={selected.printSides ?? []} selectedSizeId={selectedSizeId} />
+          <SummaryList group={PRODUCT_OPTION_GROUPS[3]} selectedIds={selected.backSide ?? []} selectedSizeId={selectedSizeId} />
+          <SummaryList group={PRODUCT_OPTION_GROUPS[4]} selectedIds={selected.ribType ?? []} selectedSizeId={selectedSizeId} />
+          <SummaryList group={PRODUCT_OPTION_GROUPS[5]} selectedIds={selected.logoAccessories ?? []} selectedSizeId={selectedSizeId} />
+          </div>
+
+          <div className="mt-2.5 flex items-center justify-between border-t border-white/10 pt-2.5 text-sm">
+            <span className="text-[#F1F0EA]/60">Số lượng</span>
+            <span className="font-semibold text-[#F1F0EA]">{quantity.toLocaleString("vi-VN")} cái</span>
+          </div>
+
+          {/* Estimate */}
+          <div className="mt-2.5 border-t border-white/10 pt-2.5">
+            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#F1F0EA]/40">
+              Ước tính
             </p>
-            <ul className="flex flex-col gap-1">
-              {addOns.map(({ group, value, delta }) => (
-                <li key={`${group.id}-${value.id}`} className="flex items-center justify-between text-xs text-white/55">
-                  <span>{value.label}</span>
-                  <span className="text-white/70">+{formatCurrency(delta)}/cái</span>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-1.5 flex items-center justify-between text-sm">
+              <span className="text-[#F1F0EA]/60">Giá tham khảo / cái</span>
+              <span className="font-medium text-[#F1F0EA]">{hasPrice ? formatCurrency(unitPrice) : "Cần báo giá"}</span>
+            </div>
+            <div className="mt-1.5 flex items-center justify-between border-t border-white/10 pt-1.5">
+              <span className="text-sm text-[#F1F0EA]/70">Tạm tính</span>
+              <span className="text-lg font-bold text-[#F1F0EA]">
+                {hasPrice ? formatCurrency(subtotal) : "Cần báo giá"}
+              </span>
+            </div>
           </div>
-        )}
-      </div>
 
-      <p className="mt-4 text-xs leading-relaxed text-white/40">
-        Giá hiển thị chỉ mang tính tham khảo. Vui lòng gửi yêu cầu để Nan tư vấn và báo giá chính xác theo thiết kế,
-        chất liệu và số lượng thực tế.
-      </p>
+          <p className="mt-2.5 text-[11px] leading-snug text-[#F1F0EA]/40">
+            Giá hiển thị chỉ mang tính tham khảo. Vui lòng gửi yêu cầu để Nan tư vấn và báo giá chính xác theo thiết kế,
+            chất liệu và số lượng thực tế.
+          </p>
 
-      {validationError && (
-        <div role="alert" className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3">
-          <AlertCircle size={16} className="mt-0.5 shrink-0 text-red-400" />
-          <p className="text-xs leading-relaxed text-red-300">{validationError}</p>
+          {validationError && (
+            <div role="alert" className="mt-2.5 flex items-start gap-2.5 rounded-md border border-red-500/30 bg-red-500/10 px-3.5 py-2">
+              <AlertCircle size={16} className="mt-0.5 shrink-0 text-red-400" />
+              <p className="text-xs leading-relaxed text-red-300">{validationError}</p>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleRequestQuote}
+            className="mt-3 w-full rounded-md bg-[#192B88] py-3 text-sm font-semibold text-[#F1F0EA] transition-all hover:bg-[#F1F0EA] hover:text-[#0F1320] active:scale-[0.98]"
+          >
+            Yêu cầu báo giá chính xác
+          </button>
         </div>
-      )}
-
-      <button
-        type="button"
-        onClick={handleRequestQuote}
-        className="mt-5 w-full rounded-full bg-[#FFD014] py-3.5 text-sm font-semibold text-[#061047] transition-all hover:bg-[#F2C500] active:scale-[0.98]"
-        style={{ boxShadow: "0 10px 26px -10px rgba(255,208,20,0.45)" }}
-      >
-        Yêu cầu báo giá chính xác
-      </button>
+      </div>
+      </div>
     </div>
   );
 }
 
 // ─── Option group field ─────────────────────────────────────────────────────
 
-function StepLabel({ stepNumber, title, required }: { stepNumber: number; title: string; required: boolean }) {
+function GroupLabel({ stepNumber, title, required }: { stepNumber: number; title: string; required: boolean }) {
   return (
-    <div className="mb-3 flex items-center gap-2.5">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FFD014] text-[11px] font-bold text-[#061047]">
-        {stepNumber}
+    <div className="flex items-baseline gap-3">
+      <span className="font-mono text-xs font-semibold text-[#192B88]">
+        {String(stepNumber).padStart(2, "0")}
       </span>
-      <p className="text-sm font-semibold text-white">
-        {title}
-        {required && <span className="ml-1 text-[#FFD014]">*</span>}
-      </p>
+      <h3 className="font-serif text-lg font-semibold text-[#0F1320]">{title}</h3>
+      {required ? (
+        <span className="text-[10px] font-medium uppercase tracking-[0.10em] text-[rgba(15,19,32,0.45)]">
+          Bắt buộc
+        </span>
+      ) : (
+        <span className="text-[10px] font-medium uppercase tracking-[0.10em] text-[rgba(15,19,32,0.32)]">
+          Tùy chọn
+        </span>
+      )}
     </div>
   );
 }
@@ -224,8 +263,8 @@ function OptionGroupField({
 }) {
   return (
     <div>
-      <StepLabel stepNumber={stepNumber} title={group.title} required={group.required} />
-      <div className="flex flex-wrap gap-2">
+      <GroupLabel stepNumber={stepNumber} title={group.title} required={group.required} />
+      <div className="mt-4 flex flex-wrap gap-2">
         {group.values.map((value) => {
           const isSelected = selectedIds.includes(value.id);
           const delta = resolveDelta(value, selectedSizeId);
@@ -235,21 +274,58 @@ function OptionGroupField({
               type="button"
               aria-pressed={isSelected}
               onClick={() => onToggle(value.id)}
-              className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-medium transition ${
+              className={`flex items-center gap-1.5 rounded-md border px-3.5 py-2 text-xs font-medium transition ${
                 isSelected
-                  ? "border-transparent bg-[#FFD014] text-[#061047]"
-                  : "border-white/15 bg-white/[0.04] text-white/75 hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
+                  ? "border-[#192B88] bg-[#192B88] text-[#F1F0EA]"
+                  : "border-[rgba(15,19,32,0.18)] bg-transparent text-[rgba(15,19,32,0.75)] hover:border-[#192B88]/50 hover:text-[#0F1320]"
               }`}
             >
-              {isSelected && <Check size={13} />}
               {value.label}
-              {delta > 0 && !isSelected && (
-                <span className="text-white/35">+{(delta / 1000).toLocaleString("vi-VN")}k</span>
+              {delta > 0 && (
+                <span className={isSelected ? "text-[#F1F0EA]/65" : "text-[rgba(15,19,32,0.40)]"}>
+                  +{(delta / 1000).toLocaleString("vi-VN")}k
+                </span>
               )}
             </button>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ─── Summary row (only rendered once a value is selected) ──────────────────
+
+function SummaryList({
+  group,
+  selectedIds,
+  selectedSizeId,
+}: {
+  group: (typeof PRODUCT_OPTION_GROUPS)[number];
+  selectedIds: string[];
+  selectedSizeId: string | undefined;
+}) {
+  if (selectedIds.length === 0) return null;
+  const items = selectedIds
+    .map((id) => group.values.find((v) => v.id === id))
+    .filter((v): v is (typeof group.values)[number] => Boolean(v));
+  if (items.length === 0) return null;
+
+  return (
+    <div className="flex items-baseline justify-between gap-4 border-b border-white/10 py-2 text-sm last:border-b-0">
+      <span className="text-[#F1F0EA]/50">{group.title}</span>
+      <span className="text-right font-medium text-[#F1F0EA]">
+        {items.map((v, i) => {
+          const delta = resolveDelta(v, selectedSizeId);
+          return (
+            <span key={v.id}>
+              {v.label}
+              {delta > 0 && <span className="text-[#F1F0EA]/45"> (+{formatCurrency(delta)})</span>}
+              {i < items.length - 1 ? ", " : ""}
+            </span>
+          );
+        })}
+      </span>
     </div>
   );
 }
