@@ -15,6 +15,7 @@ import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
 import QuoteRequestForm from "@/components/quote/QuoteRequestForm";
 import ContentBlocksRenderer from "@/components/product/ContentBlocksRenderer";
+import ProductOptionSelector from "@/components/product/ProductOptionSelector";
 import {
   getProduct,
   getProductOptions,
@@ -35,7 +36,23 @@ export default function ProductDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showQuoteForm, setShowQuoteForm] = useState(false);
+  const [pendingQuote, setPendingQuote] = useState<{ message: string; quantity: number } | null>(null);
   const prefersReducedMotion = useReducedMotion();
+
+  function openPlainQuoteForm() {
+    setPendingQuote(null);
+    setShowQuoteForm(true);
+  }
+
+  function closeQuoteForm() {
+    setShowQuoteForm(false);
+    setPendingQuote(null);
+  }
+
+  function handleOptionSelectorQuote(summaryText: string, quantity: number) {
+    setPendingQuote({ message: summaryText, quantity });
+    setShowQuoteForm(true);
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -196,8 +213,9 @@ export default function ProductDetailPage({
                 </span>
               </nav>
 
-              {/* Hero: image + info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16">
+              {/* Hero: image + info (left) and sticky option selector (right) */}
+              <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[1fr_400px] lg:gap-12">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-12">
                 {/* Product image */}
                 <div className="relative aspect-square rounded-3xl overflow-hidden bg-[#111335] border border-[#1B1C4A]">
                   {product.imageUrl ? (
@@ -300,13 +318,19 @@ export default function ProductDetailPage({
                       Bắt đầu thiết kế
                     </Link>
                     <button
-                      onClick={() => setShowQuoteForm(true)}
+                      onClick={openPlainQuoteForm}
                       className="rounded-xl border border-[#273481]/45 py-3.5 text-sm font-medium text-[#B6D6F2] hover:border-[#273481] hover:text-white transition-all active:scale-[0.98]"
                     >
                       Gửi yêu cầu báo giá
                     </button>
                   </div>
                 </div>
+              </div>
+
+              {/* Right: sticky product option selector */}
+              <div className="lg:sticky lg:top-28">
+                <ProductOptionSelector product={product} onRequestQuote={handleOptionSelectorQuote} />
+              </div>
               </div>
 
               {/* Below-fold: info sections */}
@@ -496,7 +520,7 @@ export default function ProductDetailPage({
             {/* Backdrop */}
             <div
               className="absolute inset-0 bg-black/72 backdrop-blur-sm"
-              onClick={() => setShowQuoteForm(false)}
+              onClick={closeQuoteForm}
             />
             {/* Panel */}
             <motion.div
@@ -512,8 +536,10 @@ export default function ProductDetailPage({
                 productName={product.name}
                 categoryName={product.categoryName}
                 minQuantity={product.minQuantity}
-                onSuccess={() => setShowQuoteForm(false)}
-                onCancel={() => setShowQuoteForm(false)}
+                initialQuantity={pendingQuote?.quantity}
+                initialMessage={pendingQuote?.message}
+                onSuccess={closeQuoteForm}
+                onCancel={closeQuoteForm}
               />
             </motion.div>
           </motion.div>
