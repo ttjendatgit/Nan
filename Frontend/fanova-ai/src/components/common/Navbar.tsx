@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { ChevronDown, Menu, Search, Tag, User, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Menu, Search, Tag, User, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { announcementBar } from "@/data/homepageData";
 import { useAuth } from "@/contexts/AuthContext";
 import { getProducts } from "@/lib/api/products";
@@ -57,6 +57,18 @@ function useDismissablePanel(open: boolean, ref: RefObject<HTMLElement | null>, 
   }, [open, ref]);
 }
 
+/** Closes on Escape only -- used for the full-panel mobile menu, which has no "outside" to click. */
+function useEscapeToClose(open: boolean, onClose: () => void) {
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+}
+
 const SUGGESTED_SEARCHES = ["Quạt sự kiện", "Quạt thủ công", "Quạt quà tặng", "Quạt thương hiệu"];
 
 /**
@@ -84,7 +96,7 @@ function SearchResultsPanel({
   if (query === "") {
     return (
       <div>
-        <p className="mb-2 px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+        <p className="mb-2 px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-[#A9ABA5]">
           Gợi ý tìm kiếm
         </p>
         <div className="flex flex-wrap gap-2 px-1">
@@ -93,7 +105,7 @@ function SearchResultsPanel({
               key={s}
               type="button"
               onClick={() => onSuggestionClick(s)}
-              className="rounded-full border border-white/[0.14] bg-white/[0.04] px-3 py-1.5 text-xs text-white/75 transition hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
+              className="rounded-full border border-white/[0.12] px-3 py-1.5 text-xs text-[#A9ABA5] transition hover:border-[#B6A17B]/50 hover:text-[#F1F0EA]"
             >
               {s}
             </button>
@@ -104,16 +116,16 @@ function SearchResultsPanel({
   }
 
   if (loading) {
-    return <p className="px-1 py-6 text-center text-sm text-white/50">Đang tìm kiếm...</p>;
+    return <p className="px-1 py-6 text-center text-sm text-[#A9ABA5]">Đang tìm kiếm...</p>;
   }
 
   if (error) {
-    return <p className="px-1 py-6 text-center text-sm text-white/50">{error}</p>;
+    return <p className="px-1 py-6 text-center text-sm text-[#A9ABA5]">{error}</p>;
   }
 
   if (categories.length === 0 && products.length === 0) {
     return (
-      <p className="px-1 py-6 text-center text-sm text-white/50">
+      <p className="px-1 py-6 text-center text-sm text-[#A9ABA5]">
         Không tìm thấy sản phẩm hoặc danh mục phù hợp.
       </p>
     );
@@ -123,7 +135,7 @@ function SearchResultsPanel({
     <div className="flex flex-col gap-4">
       {categories.length > 0 && (
         <div>
-          <p className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+          <p className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-[#A9ABA5]">
             Danh mục
           </p>
           <ul className="flex flex-col gap-1">
@@ -132,9 +144,9 @@ function SearchResultsPanel({
                 <Link
                   href={`/products?categoryId=${c.id}`}
                   onClick={onSelectResult}
-                  className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-white/[0.06]"
+                  className="flex items-center gap-3 rounded-md p-2 transition hover:bg-white/[0.05]"
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/[0.06]">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden bg-white/[0.05]">
                     {c.imageUrl ? (
                       <Image
                         src={c.imageUrl}
@@ -144,13 +156,13 @@ function SearchResultsPanel({
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <Tag size={15} className="text-white/30" />
+                      <Tag size={15} strokeWidth={1.5} className="text-[#A9ABA5]" />
                     )}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-white">{c.name}</span>
+                    <span className="block truncate text-sm font-medium text-[#F1F0EA]">{c.name}</span>
                     {c.description && (
-                      <span className="block truncate text-xs text-white/45">{c.description}</span>
+                      <span className="block truncate text-xs text-[#A9ABA5]">{c.description}</span>
                     )}
                   </span>
                 </Link>
@@ -162,7 +174,7 @@ function SearchResultsPanel({
 
       {products.length > 0 && (
         <div>
-          <p className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+          <p className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-[#A9ABA5]">
             Sản phẩm
           </p>
           <ul className="flex flex-col gap-1">
@@ -171,9 +183,9 @@ function SearchResultsPanel({
                 <Link
                   href={`/products/${p.id}`}
                   onClick={onSelectResult}
-                  className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-white/[0.06]"
+                  className="flex items-center gap-3 rounded-md p-2 transition hover:bg-white/[0.05]"
                 >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/[0.06]">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden bg-white/[0.05]">
                     {p.imageUrl ? (
                       <Image
                         src={p.imageUrl}
@@ -183,12 +195,12 @@ function SearchResultsPanel({
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <span className="font-serif text-sm text-white/25">Nan</span>
+                      <span className="font-serif text-sm text-[#A9ABA5]">Nan</span>
                     )}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-white">{p.name}</span>
-                    <span className="block truncate text-xs text-white/45">
+                    <span className="block truncate text-sm font-medium text-[#F1F0EA]">{p.name}</span>
+                    <span className="block truncate text-xs text-[#A9ABA5]">
                       {p.categoryName || p.description || ""}
                     </span>
                   </span>
@@ -203,7 +215,7 @@ function SearchResultsPanel({
 }
 
 // ─── Nav content ────────────────────────────────────────────────────────────
-// Public-facing pill nav. Hash targets point at existing homepage sections
+// Public-facing nav. Hash targets point at existing homepage sections
 // (id="about" on BrandStatementSection, id="applications" on UseCaseSection,
 // id="quote" on FinalCTASection) rather than pages that don't exist yet.
 
@@ -227,11 +239,23 @@ function isRouteActive(href: string, pathname: string): boolean {
   return false;
 }
 
+const mobilePanelVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.045, delayChildren: 0.06 } },
+};
+
+const mobileItemVariants = {
+  hidden: { opacity: 0, y: 14 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.36, ease: [0.16, 1, 0.3, 1] as const } },
+};
+
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [hovered, setHovered] = useState<string | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -270,6 +294,19 @@ export default function Navbar() {
 
   useDismissablePanel(accountOpen, accountRef, () => setAccountOpen(false));
   useDismissablePanel(searchOpen, searchWrapRef, () => setSearchOpen(false));
+  useEscapeToClose(mobileOpen, () => setMobileOpen(false));
+
+  // Hero-integrated (transparent) near the top, stable dark surface once the
+  // user scrolls -- a single threshold crossing, not continuous scroll-position
+  // tracking, so this stays cheap and only re-renders when the boolean flips.
+  useEffect(() => {
+    function handleScroll() {
+      setScrolled(window.scrollY > 24);
+    }
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Load the searchable product + category pool once, the first time search
   // is opened from either the desktop panel or the mobile menu.
@@ -335,75 +372,77 @@ export default function Navbar() {
     <header className="fixed left-0 top-0 z-[999] w-full">
       {/* ── Announcement bar ── */}
       {announcementBar.visible && (
-        <div className="flex items-center justify-center bg-[#020724] px-4 py-[7px]">
+        <div
+          className="flex items-center justify-center px-4 py-[7px] transition-[background-color] duration-300"
+          style={{ background: scrolled ? "var(--nan-dark)" : "rgba(15,19,32,0.35)" }}
+        >
           <div className="flex items-center gap-2">
-            <span aria-hidden="true" className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#FFD014]/55" />
-            <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/45">
+            <span aria-hidden="true" className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#B6A17B]/60" />
+            <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#F1F0EA]/45">
               {announcementBar.text}
             </span>
-            <span aria-hidden="true" className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#FFD014]/55" />
+            <span aria-hidden="true" className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#B6A17B]/60" />
           </div>
         </div>
       )}
 
-      {/* ── Main nav bar ── */}
+      {/* ── Main nav bar: transparent over the Hero, stable ink surface once scrolled ── */}
       <div
-        className="border-b border-white/10 backdrop-blur-xl"
+        className="border-b transition-[background-color,border-color,backdrop-filter] duration-300"
         style={{
-          background: "rgba(6,16,71,0.96)",
-          boxShadow: "0 1px 0 rgba(255,255,255,0.06), 0 24px 48px -20px rgba(2,7,36,0.65)",
+          background: scrolled ? "rgba(15,19,32,0.94)" : "transparent",
+          borderColor: scrolled ? "rgba(241,240,234,0.10)" : "transparent",
+          backdropFilter: scrolled ? "blur(14px)" : "none",
+          WebkitBackdropFilter: scrolled ? "blur(14px)" : "none",
         }}
       >
-        <div className="mx-auto grid h-[68px] max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-6">
-          {/* Left: wordmark */}
+        <div className="mx-auto grid h-[84px] max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-6 lg:px-10">
+          {/* Left: wordmark -- generous breathing room, no badge/card */}
           <Link href="/" className="flex shrink-0 items-center gap-3 justify-self-start">
-            <span className="font-serif text-[26px] font-semibold leading-none tracking-tight text-white">
+            <span className="font-serif text-[24px] font-medium leading-none tracking-tight text-[#F1F0EA]">
               Nan
             </span>
-            <span aria-hidden="true" className="hidden h-6 w-px bg-white/15 sm:block" />
-            <span className="hidden font-mono text-[9px] font-medium uppercase leading-[1.4] tracking-[0.26em] text-white/50 sm:block">
+            <span aria-hidden="true" className="hidden h-5 w-px bg-white/15 sm:block" />
+            <span className="hidden font-mono text-[9px] font-medium uppercase leading-[1.4] tracking-[0.26em] text-[#A9ABA5] sm:block">
               Custom
               <br />
               Fan Design
             </span>
           </Link>
 
-          {/* Center: sliding pill nav */}
+          {/* Center: editorial nav -- plain links, thin underline indicator, no pill container */}
           <nav
             onMouseLeave={() => setHovered(null)}
-            className="hidden items-center gap-0.5 justify-self-center rounded-full border border-white/[0.14] bg-white/[0.06] p-[3px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] md:flex"
+            className="hidden items-center gap-9 justify-self-center md:flex"
           >
             {NAV_ITEMS.map((item) => {
               const active = isRouteActive(item.href, pathname);
-              const isHovered = hovered === item.href;
+              const highlighted = hovered ? hovered === item.href : active;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   onMouseEnter={() => setHovered(item.href)}
-                  className="relative rounded-full px-4 py-[7px] text-[13px] font-medium tracking-tight transition-colors duration-200"
-                  style={{ color: active ? "#02167F" : isHovered ? "#FFFFFF" : "rgba(255,255,255,0.72)" }}
+                  className="relative py-2 text-[13px] font-medium transition-colors duration-300"
+                  style={{ color: highlighted ? "#F1F0EA" : "rgba(241,240,234,0.55)" }}
                 >
-                  {active && (
+                  {item.label}
+                  {highlighted && (
                     <motion.span
-                      layoutId="navbar-active-pill"
-                      className="absolute inset-0 rounded-full bg-[#FAF8F0]"
-                      style={{ boxShadow: "0 2px 10px rgba(2,7,36,0.35)" }}
-                      transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                      layoutId="navbar-active-underline"
+                      className="absolute -bottom-0.5 left-0 right-0 h-px"
+                      style={{ background: "#F1F0EA" }}
+                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
                     />
                   )}
-                  {!active && isHovered && (
-                    <span className="absolute inset-0 rounded-full bg-white/10" />
-                  )}
-                  <span className="relative z-10">{item.label}</span>
                 </Link>
               );
             })}
           </nav>
 
-          {/* Right: icon actions + CTA */}
-          <div className="flex items-center justify-self-end gap-2.5">
-            <div className="hidden items-center gap-2 md:flex">
+          {/* Right: icon actions + editorial CTA */}
+          <div className="flex items-center justify-self-end gap-5">
+            <div className="hidden items-center gap-4 md:flex">
               {/* Search */}
               <div ref={searchWrapRef} className="relative">
                 <button
@@ -411,9 +450,9 @@ export default function Navbar() {
                   aria-label="Tìm sản phẩm"
                   title="Tìm sản phẩm"
                   aria-expanded={searchOpen}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.14] bg-white/[0.04] text-white/75 transition hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
+                  className="flex h-9 w-9 items-center justify-center text-[rgba(241,240,234,0.65)] transition-colors duration-300 hover:text-[#F1F0EA]"
                 >
-                  <Search size={16} />
+                  <Search size={17} strokeWidth={1.5} />
                 </button>
 
                 {searchOpen && (
@@ -422,15 +461,16 @@ export default function Navbar() {
                     aria-label="Tìm kiếm sản phẩm"
                     initial={{ opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute right-0 top-[calc(100%+10px)] z-20 w-[380px] overflow-hidden rounded-2xl border border-white/[0.12] bg-[#020724] p-4"
-                    style={{ boxShadow: "0 24px 48px -16px rgba(2,7,36,0.7)" }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute right-0 top-[calc(100%+14px)] z-20 w-[380px] border border-white/[0.10] p-4"
+                    style={{ background: "var(--nan-dark)", boxShadow: "0 24px 48px -16px rgba(0,0,0,0.6)" }}
                   >
-                    <h2 className="text-sm font-semibold text-white">Tìm kiếm sản phẩm</h2>
+                    <h2 className="text-sm font-medium text-[#F1F0EA]">Tìm kiếm sản phẩm</h2>
                     <div className="relative mt-3">
                       <Search
                         size={15}
-                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/40"
+                        strokeWidth={1.5}
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#A9ABA5]"
                       />
                       <input
                         ref={searchInputRef}
@@ -438,7 +478,7 @@ export default function Navbar() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Tìm quạt, danh mục, ứng dụng..."
-                        className="w-full rounded-full border border-white/[0.14] bg-white/[0.05] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/35 outline-none transition focus:border-white/30"
+                        className="w-full border border-white/[0.12] bg-transparent py-2.5 pl-9 pr-3 text-sm text-[#F1F0EA] placeholder:text-[#A9ABA5]/70 outline-none transition focus:border-[#B6A17B]/50"
                       />
                     </div>
                     <div className="nan-scrollbar mt-4 max-h-[420px] overflow-y-auto">
@@ -466,14 +506,15 @@ export default function Navbar() {
                       aria-haspopup="menu"
                       aria-controls="navbar-account-menu"
                       aria-label="Tài khoản"
-                      className="flex h-9 items-center gap-1 rounded-full border border-white/[0.14] bg-white/[0.04] pl-1 pr-2 text-white/75 transition hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
+                      className="flex h-9 items-center gap-2 text-[rgba(241,240,234,0.65)] transition-colors duration-300 hover:text-[#F1F0EA]"
                     >
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-[11px] font-semibold text-white">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-[11px] font-medium text-[#F1F0EA]">
                         {(displayName || "?").charAt(0).toUpperCase()}
                       </span>
                       <ChevronDown
                         size={13}
-                        className={`text-white/50 transition-transform duration-200 ${accountOpen ? "rotate-180" : ""}`}
+                        strokeWidth={1.5}
+                        className={`transition-transform duration-300 ${accountOpen ? "rotate-180" : ""}`}
                       />
                     </button>
                   ) : (
@@ -483,9 +524,9 @@ export default function Navbar() {
                       aria-haspopup="menu"
                       aria-controls="navbar-account-menu"
                       aria-label="Tài khoản"
-                      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.14] bg-white/[0.04] text-white/75 transition hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
+                      className="flex h-9 w-9 items-center justify-center text-[rgba(241,240,234,0.65)] transition-colors duration-300 hover:text-[#F1F0EA]"
                     >
-                      <User size={16} />
+                      <User size={17} strokeWidth={1.5} />
                     </button>
                   )}
 
@@ -495,16 +536,18 @@ export default function Navbar() {
                       role="menu"
                       initial={{ opacity: 0, y: -6 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-                      className="absolute right-0 top-[calc(100%+10px)] z-20 w-60 overflow-hidden rounded-2xl border border-white/[0.12] bg-[#020724] p-1.5"
-                      style={{ boxShadow: "0 24px 48px -16px rgba(2,7,36,0.7)" }}
+                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                      className="absolute right-0 top-[calc(100%+14px)] z-20 w-60 border border-white/[0.10] p-1.5"
+                      style={{ background: "var(--nan-dark)", boxShadow: "0 24px 48px -16px rgba(0,0,0,0.6)" }}
                     >
                       {isAuthenticated ? (
                         <>
                           <div className="px-3 pb-2 pt-1.5">
-                            <p className="truncate text-sm font-medium text-white">{displayName || user?.email}</p>
+                            <p className="truncate text-sm font-medium text-[#F1F0EA]">
+                              {displayName || user?.email}
+                            </p>
                             {roleLabel && (
-                              <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                              <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.16em] text-[#A9ABA5]">
                                 {roleLabel}
                               </p>
                             )}
@@ -515,7 +558,7 @@ export default function Navbar() {
                               href="/admin"
                               role="menuitem"
                               onClick={() => setAccountOpen(false)}
-                              className="mt-1 block rounded-xl px-3 py-2 text-sm text-white/80 transition hover:bg-white/[0.08] hover:text-white"
+                              className="mt-1 block px-3 py-2 text-sm text-[#A9ABA5] transition hover:bg-white/[0.05] hover:text-[#F1F0EA]"
                             >
                               Dashboard
                             </Link>
@@ -523,7 +566,7 @@ export default function Navbar() {
                           <button
                             role="menuitem"
                             onClick={handleLogout}
-                            className="block w-full rounded-xl px-3 py-2 text-left text-sm text-white/80 transition hover:bg-white/[0.08] hover:text-white"
+                            className="block w-full px-3 py-2 text-left text-sm text-[#A9ABA5] transition hover:bg-white/[0.05] hover:text-[#F1F0EA]"
                           >
                             Đăng xuất
                           </button>
@@ -534,7 +577,7 @@ export default function Navbar() {
                             href="/auth/login"
                             role="menuitem"
                             onClick={() => setAccountOpen(false)}
-                            className="block rounded-xl px-3 py-2 text-sm text-white/80 transition hover:bg-white/[0.08] hover:text-white"
+                            className="block px-3 py-2 text-sm text-[#A9ABA5] transition hover:bg-white/[0.05] hover:text-[#F1F0EA]"
                           >
                             Đăng nhập
                           </Link>
@@ -542,7 +585,7 @@ export default function Navbar() {
                             href="/auth/register"
                             role="menuitem"
                             onClick={() => setAccountOpen(false)}
-                            className="block rounded-xl px-3 py-2 text-sm text-white/80 transition hover:bg-white/[0.08] hover:text-white"
+                            className="block px-3 py-2 text-sm text-[#A9ABA5] transition hover:bg-white/[0.05] hover:text-[#F1F0EA]"
                           >
                             Đăng ký
                           </Link>
@@ -554,73 +597,78 @@ export default function Navbar() {
               )}
             </div>
 
+            {/* Editorial CTA: text + arrow, thin underline -- not a filled pill */}
             <Link
               href={QUOTE_HREF}
-              className="hidden items-center justify-center rounded-full bg-[#FFD014] px-5 py-2 text-[13px] font-semibold text-[#061047] transition-all duration-200 hover:-translate-y-px hover:bg-[#F2C500] active:translate-y-0 active:scale-[0.98] sm:inline-flex"
-              style={{ boxShadow: "0 1px 2px rgba(2,7,36,0.30), 0 10px 26px -10px rgba(255,208,20,0.45)" }}
+              className="hidden items-center gap-1.5 border-b border-[#B6A17B]/40 pb-0.5 text-[13px] font-medium text-[#F1F0EA] transition-all duration-300 hover:gap-2.5 hover:border-[#B6A17B] sm:inline-flex"
             >
               Yêu cầu báo giá
+              <ArrowUpRight size={14} strokeWidth={1.5} className="text-[#B6A17B]" />
             </Link>
 
-            {/* Mobile hamburger */}
+            {/* Mobile menu trigger */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label="Toggle menu"
               aria-expanded={mobileOpen}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 text-white transition hover:border-white/40 hover:bg-white/10 md:hidden"
+              className="flex h-10 w-10 items-center justify-center text-[#F1F0EA] transition hover:opacity-70 md:hidden"
             >
-              {mobileOpen ? <X size={16} /> : <Menu size={16} />}
+              {mobileOpen ? <X size={20} strokeWidth={1.5} /> : <Menu size={20} strokeWidth={1.5} />}
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Mobile menu */}
+      {/* ── Mobile menu: full-panel below the bar, oversized labels, staggered reveal ── */}
+      <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden border-t border-white/10 bg-[#061047] md:hidden"
+            variants={reduceMotion ? undefined : mobilePanelVariants}
+            initial={reduceMotion ? { opacity: 0 } : "hidden"}
+            animate={reduceMotion ? { opacity: 1 } : "visible"}
+            exit={{ opacity: 0, transition: { duration: 0.18 } }}
+            className="fixed inset-x-0 bottom-0 top-[84px] overflow-y-auto md:hidden"
+            style={{ background: "var(--nan-dark)" }}
           >
-            <nav className="flex flex-col gap-1 px-6 py-5">
+            <nav className="flex flex-col gap-1 px-6 py-8">
               {NAV_ITEMS.map((item) => {
                 const active = isRouteActive(item.href, pathname);
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileOpen(false)}
-                    className={`rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                      active
-                        ? "bg-[#FAF8F0] text-[#02167F]"
-                        : "text-white/80 hover:bg-white/10"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
+                  <motion.div key={item.href} variants={reduceMotion ? undefined : mobileItemVariants}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={`block py-3 font-serif text-[28px] font-medium leading-tight transition-colors ${
+                        active ? "text-[#F1F0EA]" : "text-[#A9ABA5]"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  </motion.div>
                 );
               })}
 
               {/* Mobile search -- inline, shares state with the desktop panel */}
-              <div className="mt-4 border-t border-white/10 pt-4">
-                <p className="mb-2 px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+              <motion.div variants={reduceMotion ? undefined : mobileItemVariants} className="mt-6 border-t border-white/10 pt-6">
+                <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.16em] text-[#A9ABA5]">
                   Tìm sản phẩm
                 </p>
                 <div className="relative">
                   <Search
                     size={15}
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/40"
+                    strokeWidth={1.5}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#A9ABA5]"
                   />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Tìm quạt, danh mục, ứng dụng..."
-                    className="w-full rounded-full border border-white/[0.14] bg-white/[0.05] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/35 outline-none transition focus:border-white/30"
+                    className="w-full border border-white/[0.12] bg-transparent py-2.5 pl-9 pr-3 text-sm text-[#F1F0EA] placeholder:text-[#A9ABA5]/70 outline-none transition focus:border-[#B6A17B]/50"
                   />
                 </div>
                 {trimmedQuery !== "" && (
-                  <div className="nan-scrollbar mt-2 max-h-72 overflow-y-auto rounded-2xl border border-white/[0.10] bg-white/[0.03] p-1.5">
+                  <div className="nan-scrollbar mt-2 max-h-72 overflow-y-auto border border-white/[0.10] p-1.5">
                     <SearchResultsPanel
                       query={trimmedQuery}
                       loading={searchLoading}
@@ -635,74 +683,76 @@ export default function Navbar() {
                     />
                   </div>
                 )}
-              </div>
+              </motion.div>
 
-              <Link
-                href={QUOTE_HREF}
-                onClick={() => setMobileOpen(false)}
-                className="mt-3 inline-flex items-center justify-center rounded-full bg-[#FFD014] px-5 py-3 text-sm font-semibold text-[#061047] active:scale-[0.98]"
-                style={{ boxShadow: "0 1px 2px rgba(2,7,36,0.30), 0 10px 26px -10px rgba(255,208,20,0.45)" }}
-              >
-                Yêu cầu báo giá
-              </Link>
+              <motion.div variants={reduceMotion ? undefined : mobileItemVariants}>
+                <Link
+                  href={QUOTE_HREF}
+                  onClick={() => setMobileOpen(false)}
+                  className="mt-6 inline-flex w-full items-center justify-center gap-2 border border-[#B6A17B] py-3.5 text-sm font-medium text-[#F1F0EA] transition active:scale-[0.98]"
+                >
+                  Yêu cầu báo giá
+                  <ArrowUpRight size={15} strokeWidth={1.5} className="text-[#B6A17B]" />
+                </Link>
+              </motion.div>
 
               {/* Mobile account section -- grouped, not a crowded single row */}
               {!isLoading && (
-                <div className="mt-4 border-t border-white/10 pt-4">
-                  <p className="px-1 pb-2 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                <motion.div variants={reduceMotion ? undefined : mobileItemVariants} className="mt-6 border-t border-white/10 pt-6">
+                  <p className="pb-3 text-[10px] font-medium uppercase tracking-[0.16em] text-[#A9ABA5]">
                     Tài khoản
                   </p>
                   {isAuthenticated ? (
                     <div className="flex flex-col gap-1 text-sm">
-                      <div className="px-1 pb-1">
-                        <p className="truncate text-sm font-medium text-white/90">{displayName || user?.email}</p>
-                        {roleLabel && <p className="mt-0.5 text-[11px] text-white/40">{roleLabel}</p>}
+                      <div className="pb-2">
+                        <p className="truncate text-sm font-medium text-[#F1F0EA]">{displayName || user?.email}</p>
+                        {roleLabel && <p className="mt-0.5 text-[11px] text-[#A9ABA5]">{roleLabel}</p>}
                       </div>
                       {admin && (
                         <Link
                           href="/admin"
                           onClick={() => setMobileOpen(false)}
-                          className="rounded-xl px-3 py-2 text-white/80 transition hover:bg-white/10 hover:text-white"
+                          className="py-2 text-[#A9ABA5] transition hover:text-[#F1F0EA]"
                         >
                           Dashboard
                         </Link>
                       )}
                       <button
                         onClick={handleLogout}
-                        className="rounded-xl px-3 py-2 text-left text-white/80 transition hover:bg-white/10 hover:text-white"
+                        className="py-2 text-left text-[#A9ABA5] transition hover:text-[#F1F0EA]"
                       >
                         Đăng xuất
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex items-center gap-6 text-sm">
                       <Link
                         href="/auth/login"
                         onClick={() => setMobileOpen(false)}
-                        className="rounded-full border border-white/[0.14] bg-white/[0.06] px-4 py-2.5 text-center text-white/[0.76] transition hover:bg-white/[0.08] hover:text-white"
+                        className="text-[#A9ABA5] transition hover:text-[#F1F0EA]"
                       >
                         Đăng nhập
                       </Link>
                       <Link
                         href="/auth/register"
                         onClick={() => setMobileOpen(false)}
-                        className="rounded-full border border-white/[0.14] bg-white/[0.06] px-4 py-2.5 text-center text-white/[0.76] transition hover:bg-white/[0.08] hover:text-white"
+                        className="text-[#A9ABA5] transition hover:text-[#F1F0EA]"
                       >
                         Đăng ký
                       </Link>
                     </div>
                   )}
-                </div>
+                </motion.div>
               )}
             </nav>
           </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
       <style jsx>{`
         .nan-scrollbar {
           scrollbar-width: thin;
-          scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+          scrollbar-color: rgba(241, 240, 234, 0.18) transparent;
         }
         .nan-scrollbar::-webkit-scrollbar {
           width: 6px;
@@ -711,11 +761,11 @@ export default function Navbar() {
           background: transparent;
         }
         .nan-scrollbar::-webkit-scrollbar-thumb {
-          background-color: rgba(255, 255, 255, 0.18);
+          background-color: rgba(241, 240, 234, 0.18);
           border-radius: 9999px;
         }
         .nan-scrollbar::-webkit-scrollbar-thumb:hover {
-          background-color: rgba(255, 255, 255, 0.28);
+          background-color: rgba(241, 240, 234, 0.28);
         }
       `}</style>
     </header>

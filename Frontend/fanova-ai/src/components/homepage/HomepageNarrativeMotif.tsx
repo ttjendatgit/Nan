@@ -121,7 +121,7 @@ export default function HomepageNarrativeMotif() {
           ref={arcRef}
           d={ARC_PATH}
           fill="none"
-          stroke="rgba(236,202,62,0.14)"
+          stroke="rgba(182,161,123,0.14)"
           strokeWidth="1.5"
           strokeLinecap="round"
         />
@@ -141,7 +141,7 @@ export default function HomepageNarrativeMotif() {
           height: "72px",
           borderRadius: "50%",
           background:
-            "radial-gradient(circle at center, rgba(236,202,62,0.09) 0%, rgba(236,202,62,0.04) 50%, transparent 72%)",
+            "radial-gradient(circle at center, rgba(182,161,123,0.09) 0%, rgba(182,161,123,0.04) 50%, transparent 72%)",
           filter: "blur(18px)",
         }}
       />

@@ -8,7 +8,7 @@ export default function SolutionSection() {
   return (
     <section
       className="relative overflow-hidden px-6 py-20 md:py-28"
-      style={{ background: "linear-gradient(180deg, #0A1B38 0%, #081426 100%)" }}
+      style={{ background: "#0F1320" }}
     >
       {/* Grid texture */}
       <div
@@ -21,9 +21,8 @@ export default function SolutionSection() {
         }}
       />
 
-      {/* Ambient glows */}
-      <div className="pointer-events-none absolute left-1/3 top-0 h-72 w-72 rounded-full bg-[#08337D]/15 blur-[80px]" />
-      <div className="pointer-events-none absolute bottom-0 right-1/4 h-56 w-56 rounded-full bg-[#114F99]/08 blur-[60px]" />
+      {/* Ambient glow -- one restrained source, not a stack */}
+      <div className="pointer-events-none absolute left-1/3 top-0 h-72 w-72 rounded-full bg-[#192B88]/10 blur-[80px]" />
 
       <div className="relative mx-auto max-w-7xl">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-20">
@@ -55,7 +54,7 @@ export default function SolutionSection() {
                 }}
                 className="flex gap-6 border-b border-[rgba(220,234,247,0.10)] py-8"
               >
-                <span className="font-serif text-2xl font-semibold leading-none text-[rgba(236,202,62,0.55)]">
+                <span className="font-serif text-2xl font-semibold leading-none text-[rgba(182,161,123,0.65)]">
                   {String(index + 1).padStart(2, "0")}
                 </span>
                 <div>

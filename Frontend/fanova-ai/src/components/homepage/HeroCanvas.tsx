@@ -84,10 +84,10 @@ function FanGroup() {
   }, []);
 
   const ribs = useMemo(() => {
-    // Premium ice-blue center → clean white edges, matched to new deep-navy Hero
+    // Premium ice-blue center → clean white edges, matched to the architectural Hero
     const cCenter = new THREE.Color("#DCEAF7"); // ice-blue — crisp and luminous
     const cEdge   = new THREE.Color("#FFFFFF");  // pure white tips
-    const eCenter = new THREE.Color("#08337D");  // brand primary emissive base
+    const eCenter = new THREE.Color("#192B88");  // brand blue emissive base
     const eEdge   = new THREE.Color("#4A74A7");  // soft blue emissive edge
 
     return Array.from({ length: N_RIBS }, (_, i) => {
@@ -182,8 +182,8 @@ export default function HeroCanvas() {
         {/* Rim light: separates outer ribs from bg */}
         <directionalLight position={[-4, 0, 1.5]} intensity={0.50} color="#E8F2FC" />
 
-        {/* Royal blue point glow behind fan — refined halo */}
-        <pointLight position={[0.2, -0.1, 1.6]} intensity={0.65} color="#114F99" distance={7} decay={2} />
+        {/* Restrained point light behind fan — tight falloff, not a bloom */}
+        <pointLight position={[0.2, -0.1, 1.6]} intensity={0.4} color="#192B88" distance={5} decay={2} />
 
         <Suspense fallback={null}>
           <FanGroup />

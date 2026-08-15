@@ -12,12 +12,12 @@ const HeroCanvas = dynamic(() => import("./HeroCanvas"), {
 export default function HeroVisualStage() {
   return (
     <div className="relative h-full w-full overflow-hidden">
-      {/* Stage ambient: single circular glow behind the fan — rounded-full + heavy blur
-          prevents any rectangular edge artifact. HeroSection's own gradient layers
-          already provide the dark navy background; this adds one soft centred halo. */}
+      {/* Stage ambient: HeroSection's architectural blue panel already sits
+          behind this stage, so this is just a small, tight separation glow --
+          not a second layer of ambient lighting. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[80%] w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#08337D]/20 blur-[72px]"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[55%] w-[55%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#192B88]/12 blur-[64px]"
       />
 
       <HeroCanvas />

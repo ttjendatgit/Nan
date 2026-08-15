@@ -53,6 +53,10 @@ export default function FanIntro({ onComplete }: { onComplete: () => void }) {
 
     const ribs = ribGroupsRef.current.filter(Boolean) as SVGGElement[];
 
+    // If any ref isn't ready, the timeline (and its onComplete: finish) never
+    // gets created -- without this fallback that would strand the homepage
+    // behind the intro overlay forever, since finish() is what marks the
+    // intro seen and lets HeroSection reveal its content.
     if (
       !overlayRef.current  ||
       !wrapperRef.current  ||
@@ -66,7 +70,10 @@ export default function FanIntro({ onComplete }: { onComplete: () => void }) {
       !pivotRef.current       ||
       !atmosphereRef.current  ||
       ribs.length === 0
-    ) return;
+    ) {
+      finish();
+      return;
+    }
 
     // ── Initial states ────────────────────────────────────────────────────
     gsap.set(wrapperRef.current, { opacity: 0, scale: 0.88, transformOrigin: "50% 72%" });

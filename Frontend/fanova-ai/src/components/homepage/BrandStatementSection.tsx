@@ -9,7 +9,7 @@ export default function BrandStatementSection() {
     <section
       id="about"
       className="relative overflow-hidden px-6 py-24 md:py-36"
-      style={{ background: "linear-gradient(180deg, #081426 0%, #0A1B38 100%)" }}
+      style={{ background: "#0F1320" }}
     >
       {/* Subtle grid overlay */}
       <div
@@ -25,7 +25,7 @@ export default function BrandStatementSection() {
       {/* Ambient center glow */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-[12%] top-1/2 h-[55%] w-[42%] -translate-y-1/2 rounded-full bg-[#08337D]/10 blur-[90px]"
+        className="pointer-events-none absolute left-[12%] top-1/2 h-[50%] w-[36%] -translate-y-1/2 rounded-full bg-[#192B88]/10 blur-[90px]"
       />
 
       <div className="relative mx-auto max-w-5xl">
@@ -36,7 +36,7 @@ export default function BrandStatementSection() {
           viewport={{ once: true }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           style={{ originX: 0 }}
-          className="mb-10 h-px w-14 bg-[#ECCA3E]/55"
+          className="mb-10 h-px w-14 bg-[#B6A17B]/55"
         />
 
         <motion.p

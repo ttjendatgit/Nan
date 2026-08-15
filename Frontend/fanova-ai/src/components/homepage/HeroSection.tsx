@@ -7,14 +7,13 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
 import Button from "@/components/ui/Button";
-import { hasSeenIntro } from "@/hooks/useIntroComplete";
 import { heroConfig } from "@/data/homepageData";
 
 /* ─── HeroVisualStage is WebGL-only; skip SSR ─── */
@@ -26,25 +25,9 @@ const HeroVisualStage = dynamic(() => import("./HeroVisualStage"), {
 export default function HeroSection() {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
-  const [animReady, setAnimReady] = useState(false);
 
   // Split headline into words for per-word GSAP animation
   const words = heroConfig.headline.split(" ");
-
-  /* ── Wait for Fan Intro to finish before revealing text ── */
-  useEffect(() => {
-    if (hasSeenIntro()) {
-      setAnimReady(true);
-      return;
-    }
-    const id = setInterval(() => {
-      if (hasSeenIntro()) {
-        setAnimReady(true);
-        clearInterval(id);
-      }
-    }, 80);
-    return () => clearInterval(id);
-  }, []);
 
   /* ── Smooth text parallax driven by mouse (rAF + lerp) ── */
   useEffect(() => {
@@ -78,54 +61,62 @@ export default function HeroSection() {
     };
   }, []);
 
-  /* ── GSAP text reveal ── */
+  /* ── GSAP text reveal ──
+     Runs once on mount -- NOT gated on FanIntro, sessionStorage, or any
+     completion signal from another component. Every element it targets is
+     already visible by default in the markup (no inline opacity:0), so this
+     is pure progressive enhancement: if GSAP fails to load, this effect never
+     runs, or `prefers-reduced-motion` short-circuits it, the Hero is still
+     fully visible from the first paint. When it does run, `fromTo` briefly
+     sets the "from" state before animating back to the element's natural
+     (visible) state -- there is nothing for a failed/interrupted intro
+     elsewhere on the page to strand, because this component owns its own
+     visibility. FanIntro (if it plays) is a fully opaque full-screen overlay
+     on top of this, so this animation running underneath it is invisible
+     until the overlay itself dissolves -- no coordination between the two
+     is required. ── */
   useGSAP(
     () => {
-      if (!animReady) return;
-
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (reduced) {
-        gsap.set("[data-ha]", { opacity: 1, y: 0 });
-        return;
-      }
+      if (reduced) return;
 
       gsap.fromTo(
         "[data-ha='badge']",
         { opacity: 0, y: 12 },
-        { opacity: 1, y: 0, duration: 0.65, ease: "power2.out", delay: 0.1, clearProps: "transform" }
+        { opacity: 1, y: 0, duration: 0.65, ease: "power2.out", delay: 0.05, clearProps: "transform" }
       );
 
       gsap.fromTo(
         "[data-ha='word']",
         { opacity: 0, y: 24 },
-        { opacity: 1, y: 0, duration: 0.82, ease: "power3.out", stagger: 0.068, delay: 0.35, clearProps: "transform" }
+        { opacity: 1, y: 0, duration: 0.82, ease: "power3.out", stagger: 0.068, delay: 0.15, clearProps: "transform" }
       );
 
       gsap.fromTo(
         "[data-ha='sub']",
         { opacity: 0, y: 14 },
-        { opacity: 1, y: 0, duration: 0.65, ease: "power2.out", delay: 1.0, clearProps: "transform" }
+        { opacity: 1, y: 0, duration: 0.65, ease: "power2.out", delay: 0.45, clearProps: "transform" }
       );
 
       gsap.fromTo(
         "[data-ha='cta']",
         { opacity: 0, y: 12 },
-        { opacity: 1, y: 0, duration: 0.55, ease: "power2.out", stagger: 0.1, delay: 1.3, clearProps: "transform" }
+        { opacity: 1, y: 0, duration: 0.55, ease: "power2.out", stagger: 0.1, delay: 0.6, clearProps: "transform" }
       );
 
       gsap.fromTo(
         "[data-ha='proof']",
         { opacity: 0, y: 10 },
-        { opacity: 1, y: 0, duration: 0.5, ease: "power2.out", stagger: 0.07, delay: 1.55, clearProps: "transform" }
+        { opacity: 1, y: 0, duration: 0.5, ease: "power2.out", stagger: 0.07, delay: 0.8, clearProps: "transform" }
       );
 
       gsap.fromTo(
         "[data-ha='visual']",
         { opacity: 0, scale: 0.96 },
-        { opacity: 1, scale: 1, duration: 0.9, ease: "power2.out", delay: 0.5, clearProps: "transform" }
+        { opacity: 1, scale: 1, duration: 0.9, ease: "power2.out", delay: 0.1, clearProps: "transform" }
       );
     },
-    { scope: containerRef, dependencies: [animReady] }
+    { scope: containerRef, dependencies: [] }
   );
 
   /* ── Hero scroll-out depth: visual stage and text gently recede as user
@@ -196,9 +187,7 @@ export default function HeroSection() {
     <section
       ref={containerRef}
       className="relative min-h-screen overflow-hidden"
-      style={{
-        background: "radial-gradient(ellipse at 65% 42%, #0D2A55 0%, #0A1B38 42%, #081426 68%)",
-      }}
+      style={{ background: "#0F1320" }}
     >
       {/*
         CMS: hero background image layer.
@@ -234,54 +223,54 @@ export default function HeroSection() {
         }}
       />
 
-      {/* ── Royal blue radial glow from right (behind the fan) ── */}
+      {/* ── Architectural blue field: a cropped plane that frames the fan,
+          not a dark-half/blue-half split. Small, bleeds off the right edge
+          so its full geometry is never fully on-screen -- reads as cropped
+          editorial framing rather than a graphic wedge. Sits behind the
+          headline/fan/CTA in visual weight. ── */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute right-0 top-0 h-[80%] w-[60%] opacity-70"
+        className="pointer-events-none absolute right-[-5%] top-[22%] hidden h-[54%] w-[28%] lg:block"
         style={{
-          background:
-            "radial-gradient(ellipse at 75% 26%, rgba(17,79,153,0.70) 0%, rgba(8,51,125,0.32) 50%, transparent 72%)",
+          background: "#192B88",
+          clipPath: "polygon(14% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 11%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.90) 16%, rgba(0,0,0,0.90) 84%, transparent 100%)",
+          maskImage:
+            "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.90) 16%, rgba(0,0,0,0.90) 84%, transparent 100%)",
         }}
       />
 
-      {/* ── Focused royal blue halo ── */}
+      {/* ── Single restrained focal light: separates the fan silhouette from
+          the panel/canvas behind it. Tight radius, low opacity -- a hint of
+          depth, not a spotlight. ── */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute right-[8%] top-[18%] h-[62%] w-[44%]"
+        className="pointer-events-none absolute right-[12%] top-[24%] hidden h-[38%] w-[28%] md:block"
         style={{
           background:
-            "radial-gradient(ellipse at 50% 44%, rgba(8,51,125,0.42) 0%, rgba(17,79,153,0.18) 38%, transparent 62%)",
+            "radial-gradient(ellipse at 55% 48%, rgba(25,43,136,0.30) 0%, transparent 62%)",
         }}
       />
 
-      {/* ── Soft fan center glow ── */}
+      {/* ── Left ambient accent: warm material touch ── */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute right-[4%] top-[12%] h-[70%] w-[52%]"
+        className="pointer-events-none absolute left-0 top-1/4 h-[50%] w-[42%] opacity-[0.12]"
         style={{
           background:
-            "radial-gradient(ellipse at 58% 54%, rgba(74,116,167,0.26) 0%, rgba(8,51,125,0.12) 50%, transparent 70%)",
-        }}
-      />
-
-      {/* ── Left ambient accent ── */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute left-0 top-1/4 h-[50%] w-[42%] opacity-25"
-        style={{
-          background:
-            "radial-gradient(ellipse at 8% 50%, rgba(74,116,167,0.28) 0%, transparent 62%)",
+            "radial-gradient(ellipse at 8% 50%, rgba(182,161,123,0.35) 0%, transparent 62%)",
         }}
       />
 
       {/* ── Top + bottom gradient fades ── */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-[#081426] to-transparent"
+        className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-[#0F1320] to-transparent"
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-52 bg-gradient-to-t from-[#081426]/85 to-transparent"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-52 bg-gradient-to-t from-[#0F1320]/85 to-transparent"
       />
 
       {/* ── Left-side text protection ── */}
@@ -290,7 +279,7 @@ export default function HeroSection() {
         className="pointer-events-none absolute inset-y-0 left-0 z-[2] w-[62%]"
         style={{
           background:
-            "linear-gradient(to right, #081426 0%, rgba(8,20,38,0.97) 22%, rgba(8,20,38,0.80) 48%, rgba(8,20,38,0.16) 78%, transparent 100%)",
+            "linear-gradient(to right, #0F1320 0%, rgba(15,19,32,0.97) 22%, rgba(15,19,32,0.80) 48%, rgba(15,19,32,0.16) 78%, transparent 100%)",
         }}
       />
 
@@ -315,10 +304,9 @@ export default function HeroSection() {
             {/* Badge — CMS: heroConfig.badge */}
             <div
               data-ha="badge"
-              style={{ opacity: 0 }}
-              className="mb-7 inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/7 px-4 py-2 backdrop-blur-sm"
+              className="mb-7 inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/7 px-4 py-2"
             >
-              <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#ECCA3E]" />
+              <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#B6A17B]" />
               <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/75">
                 {heroConfig.badge}
               </span>
@@ -332,7 +320,7 @@ export default function HeroSection() {
                   className="inline-block overflow-hidden align-bottom"
                   style={{ marginRight: i < words.length - 1 ? "0.26em" : undefined }}
                 >
-                  <span data-ha="word" style={{ display: "inline-block", opacity: 0 }}>
+                  <span data-ha="word" style={{ display: "inline-block" }}>
                     {word}
                   </span>
                 </span>
@@ -342,22 +330,21 @@ export default function HeroSection() {
             {/* Subheadline — CMS: heroConfig.subheadline */}
             <p
               data-ha="sub"
-              style={{ opacity: 0 }}
-              className="mt-6 max-w-[22rem] text-[0.9375rem] leading-[1.75] text-[rgba(232,242,252,0.65)] lg:mt-7"
+              className="mt-6 max-w-[22rem] text-[0.9375rem] leading-[1.75] text-[rgba(241,240,234,0.65)] lg:mt-7"
             >
               {heroConfig.subheadline}
             </p>
 
             {/* CTA buttons — CMS: heroConfig.primaryCta / secondaryCta */}
             <div className="mt-10 flex flex-wrap gap-4">
-              <span data-ha="cta" style={{ opacity: 0 }}>
+              <span data-ha="cta">
                 <a href="#quote">
-                  <Button className="bg-[#FFFFFF] text-[#08337D] hover:bg-[#DCEAF7] shadow-[0_4px_22px_rgba(0,0,0,0.22),0_2px_8px_rgba(8,51,125,0.14)] ring-1 ring-inset ring-[rgba(8,51,125,0.10)] hover:shadow-[0_6px_28px_rgba(0,0,0,0.18),0_2px_12px_rgba(8,51,125,0.18)]">
+                  <Button className="bg-[#F1F0EA] text-[#0F1320] hover:bg-white shadow-[0_4px_22px_rgba(0,0,0,0.28),0_2px_8px_rgba(0,0,0,0.16)] ring-1 ring-inset ring-[rgba(15,19,32,0.10)] hover:shadow-[0_6px_28px_rgba(0,0,0,0.22),0_2px_12px_rgba(0,0,0,0.18)]">
                     {heroConfig.primaryCta}
                   </Button>
                 </a>
               </span>
-              <span data-ha="cta" style={{ opacity: 0 }}>
+              <span data-ha="cta">
                 <Link href="/products">
                   <Button
                     variant="secondary"
@@ -375,13 +362,12 @@ export default function HeroSection() {
                 <div
                   key={point}
                   data-ha="proof"
-                  style={{ opacity: 0 }}
                   className="flex items-center gap-2"
                 >
-                  <span className="font-mono text-[9px] font-bold text-[#ECCA3E]">
+                  <span className="font-mono text-[9px] font-bold text-[#B6A17B]">
                     {String(i + 1).padStart(2, "0")}
                   </span>
-                  <span className="text-[11px] leading-none text-[rgba(232,242,252,0.46)]">
+                  <span className="text-[11px] leading-none text-[rgba(241,240,234,0.46)]">
                     / {point}
                   </span>
                 </div>
@@ -396,7 +382,6 @@ export default function HeroSection() {
         <div
           data-ha="visual"
           aria-hidden="true"
-          style={{ opacity: 0 }}
           className="hidden h-[88vh] w-[50%] md:block lg:w-[52%]"
         >
           <HeroVisualStage />

@@ -2,6 +2,20 @@
 
 :root {
   /* ═══════════════════════════════════════════════════════
+     NAN DESIGN SYSTEM v4 — Dark Architectural (Phase 2)
+     Editorial / architectural direction: deep ink, XNRGY-family
+     blue, ivory, stone, warm material accent used sparingly.
+     Extends v3 below rather than replacing it -- sections not
+     yet migrated keep using v3 tokens until a later pass brings
+     them forward.
+  ═══════════════════════════════════════════════════════ */
+  --nan-dark: #0f1320;
+  --nan-blue: #192b88;
+  --nan-light: #f1f0ea;
+  --nan-muted: #a9aba5;
+  --nan-material: #b6a17b;
+
+  /* ═══════════════════════════════════════════════════════
      NAN DESIGN SYSTEM — Luxury Blue × Warm Ivory (v3)
      Core philosophy: premium craftsmanship + modern editorial
   ═══════════════════════════════════════════════════════ */
@@ -109,21 +123,40 @@ body {
 
 /* Grid textures — calibrated for light backgrounds */
 .bg-grid-dots {
-  background-image: radial-gradient(rgba(8, 51, 125, 0.065) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(25, 43, 136, 0.065) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
 .bg-grid-lines {
   background-image:
-    linear-gradient(rgba(8, 51, 125, 0.048) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(8, 51, 125, 0.048) 1px, transparent 1px);
+    linear-gradient(rgba(25, 43, 136, 0.048) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(25, 43, 136, 0.048) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
 /* Grid for warm ivory sections */
 .bg-grid-dots-warm {
-  background-image: radial-gradient(rgba(8, 51, 125, 0.055) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(25, 43, 136, 0.055) 1px, transparent 1px);
   background-size: 28px 28px;
+}
+
+/* Nan editorial 12-column grid: restrained vertical alignment rules for
+   light sections, evoking architectural drafting rather than a UI kit grid.
+   Hidden below lg -- at narrow widths the rules would just read as noise. */
+.nan-grid-12 {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .nan-grid-12 {
+    display: block;
+    background-image: repeating-linear-gradient(
+      to right,
+      rgba(25, 43, 136, 0.05) 0,
+      rgba(25, 43, 136, 0.05) 1px,
+      transparent 1px,
+      transparent calc(100% / 12)
+    );
+  }
 }
 
 /* Auth glass card — solid fallback when backdrop-filter is unavailable */

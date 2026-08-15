@@ -4,20 +4,17 @@ import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { processSteps } from "@/data/homepageData";
+import EditorialGrid from "./EditorialGrid";
 
 export default function ProcessSection() {
   const reduce = useReducedMotion();
   return (
     <section
       id="process"
-      className="relative overflow-hidden bg-[#FFFFFF] px-6 py-20 md:py-28"
+      className="relative overflow-hidden px-6 py-20 md:py-28"
+      style={{ background: "#F1F0EA" }}
     >
-      {/* Grid */}
-      <div className="absolute inset-0 bg-grid-lines opacity-45" />
-
-      {/* Glows */}
-      <div className="pointer-events-none absolute left-0 top-24 h-72 w-72 rounded-full bg-[#DCEAF7]/20 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-24 right-0 h-72 w-72 rounded-full bg-[#DCEAF7]/15 blur-3xl" />
+      <EditorialGrid />
 
       <div className="relative mx-auto max-w-7xl">
 
@@ -29,11 +26,11 @@ export default function ProcessSection() {
           transition={{ duration: 0.72, ease: [0.16, 1, 0.3, 1] }}
           className="mb-14"
         >
-          <h2 className="font-serif text-4xl font-semibold tracking-tight text-[#081426] md:text-5xl lg:max-w-xl">
+          <h2 className="font-serif text-4xl font-semibold tracking-tight text-[#0F1320] md:text-5xl lg:max-w-xl">
             Từ ý tưởng đến{" "}
-            <span className="text-[#08337D]">chiếc quạt hoàn thiện.</span>
+            <span className="text-[#192B88]">chiếc quạt hoàn thiện.</span>
           </h2>
-          <p className="mt-5 max-w-lg text-[0.9375rem] leading-7 text-[#4A74A7]">
+          <p className="mt-5 max-w-lg text-[0.9375rem] leading-7 text-[rgba(15,19,32,0.62)]">
             Quy trình được thiết kế để bạn có thể yêu cầu báo giá, tư vấn thiết kế
             và nhận hàng mà không cần hiểu kỹ thuật in ấn.
           </p>
@@ -46,11 +43,11 @@ export default function ProcessSection() {
             </a>
           </div>
 
-          <div className="mt-10 h-px bg-gradient-to-r from-[rgba(8,51,125,0.14)] via-[rgba(8,51,125,0.08)] to-transparent" />
+          <div className="mt-10 h-px bg-[rgba(15,19,32,0.12)]" />
         </motion.div>
 
-        {/* Process steps */}
-        <div className="space-y-3">
+        {/* Process steps — numbered structural list, not stacked cards */}
+        <div className="border-t border-[rgba(15,19,32,0.12)]">
           {processSteps.map((item, index) => (
             <motion.div
               key={item.step}
@@ -58,22 +55,15 @@ export default function ProcessSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.72, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
-              className="group relative overflow-hidden rounded-2xl border border-[rgba(8,51,125,0.09)] bg-[#FFFFFF] transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(8,51,125,0.20)] hover:bg-[#F7FAFF] hover:shadow-[0_8px_32px_rgba(8,51,125,0.10)]"
+              className="group relative border-b border-[rgba(15,19,32,0.12)]"
             >
-              {/* Top accent line */}
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(8,51,125,0.18)] to-transparent" />
-
-              {/* Left connector accent: draws in after the card appears,
+              {/* Left connector accent: draws in after the row appears,
                   communicating sequential step progression. */}
               {!reduce && (
                 <motion.div
                   aria-hidden="true"
-                  className="pointer-events-none absolute left-0 top-0 h-full w-0.5"
-                  style={{
-                    originY: 0,
-                    background:
-                      "linear-gradient(to bottom, rgba(8,51,125,0.22), rgba(8,51,125,0.10) 70%, transparent)",
-                  }}
+                  className="pointer-events-none absolute left-0 top-0 hidden h-full w-px md:block"
+                  style={{ originY: 0, background: "rgba(25,43,136,0.35)" }}
                   initial={{ scaleY: 0 }}
                   whileInView={{ scaleY: 1 }}
                   viewport={{ once: true, amount: 0.4 }}
@@ -85,32 +75,32 @@ export default function ProcessSection() {
                 />
               )}
 
-              <div className="flex flex-col gap-5 p-6 md:flex-row md:items-center md:p-7">
+              <div className="flex flex-col gap-5 py-7 pl-0 md:flex-row md:items-center md:py-8 md:pl-8">
                 {/* Step number */}
-                <div className="flex shrink-0 flex-row items-center gap-4 md:flex-col md:items-start md:gap-1">
-                  <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[rgba(8,51,125,0.35)]">
+                <div className="flex shrink-0 flex-row items-center gap-4 md:w-16 md:flex-col md:items-start md:gap-1">
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[rgba(15,19,32,0.38)]">
                     Step
                   </span>
-                  <span className="font-mono text-[1.75rem] font-bold leading-none text-[#08337D] md:text-[2rem]">
+                  <span className="font-mono text-[1.75rem] font-bold leading-none text-[#192B88] md:text-[2rem]">
                     {item.step}
                   </span>
                 </div>
 
                 {/* Divider */}
-                <div className="hidden h-12 w-px bg-[rgba(8,51,125,0.12)] md:block" />
+                <div className="hidden h-12 w-px bg-[rgba(15,19,32,0.14)] md:block" />
 
                 {/* Content */}
                 <div className="flex-1">
-                  <h3 className="font-serif text-xl font-semibold text-[#081426]">
+                  <h3 className="font-serif text-xl font-semibold text-[#0F1320]">
                     {item.title}
                   </h3>
-                  <p className="mt-2 max-w-2xl text-sm leading-7 text-[#4A74A7]">
+                  <p className="mt-2 max-w-2xl text-sm leading-7 text-[rgba(15,19,32,0.62)]">
                     {item.description}
                   </p>
                 </div>
 
                 <ArrowRight
-                  className="hidden shrink-0 text-[rgba(8,51,125,0.16)] transition-all duration-200 group-hover:translate-x-1 group-hover:text-[#08337D] md:block"
+                  className="hidden shrink-0 text-[rgba(15,19,32,0.20)] transition-all duration-200 group-hover:translate-x-1 group-hover:text-[#192B88] md:block"
                   size={18}
                 />
               </div>

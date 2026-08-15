@@ -17,11 +17,10 @@ export default function FinalCTASection() {
     <section
       id="quote"
       className="relative overflow-hidden px-6 py-24"
-      style={{ background: "linear-gradient(180deg, #0A1B38 0%, #081426 100%)" }}
+      style={{ background: "#0F1320" }}
     >
-      {/* Ambient glows */}
-      <div className="pointer-events-none absolute left-1/4 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-[#08337D]/20 blur-[80px]" />
-      <div className="pointer-events-none absolute bottom-0 right-1/4 h-72 w-72 rounded-full bg-[#114F99]/15 blur-[60px]" />
+      {/* Ambient glow -- one restrained source, not a stack */}
+      <div className="pointer-events-none absolute left-1/4 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-[#192B88]/12 blur-[80px]" />
 
       {/* Grid texture */}
       <div
@@ -35,7 +34,7 @@ export default function FinalCTASection() {
 
       <div className="relative z-10 mx-auto max-w-7xl">
         {/* Top divider line */}
-        <div className="mb-20 h-px bg-gradient-to-r from-transparent via-[rgba(220,234,247,0.15)] to-transparent" />
+        <div className="mb-20 h-px bg-gradient-to-r from-transparent via-[rgba(241,240,234,0.12)] to-transparent" />
 
         {/* Panel: fades and lifts as a unit */}
         <motion.div
@@ -43,10 +42,11 @@ export default function FinalCTASection() {
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
           viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-          className="relative overflow-hidden rounded-3xl border border-[rgba(220,234,247,0.10)] px-8 py-20 text-center shadow-[0_32px_100px_rgba(8,20,38,0.55)] md:px-16"
+          className="relative overflow-hidden rounded-3xl border border-[rgba(220,234,247,0.10)] px-8 py-20 text-center md:px-16"
           style={{
-            background:
-              "linear-gradient(145deg, #0D1E36 0%, #142A44 35%, #08337D 72%, #114F99 100%)",
+            background: "#192B88",
+            boxShadow:
+              "0 32px 100px rgba(8,20,38,0.55), inset 0 1px 0 rgba(241,240,234,0.10), inset 0 -70px 110px rgba(15,19,32,0.45)",
           }}
         >
           {/*
@@ -69,13 +69,9 @@ export default function FinalCTASection() {
             }}
           />
 
-          {/* Corner glows */}
-          <div className="absolute left-1/2 top-0 h-80 w-80 -translate-x-1/2 rounded-full bg-[#4A74A7]/20 blur-3xl" />
-          <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-[#DCEAF7]/10 blur-3xl" />
-
           {/* Accent lines */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(220,234,247,0.30)] to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[rgba(236,202,62,0.18)] to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(241,240,234,0.25)] to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[rgba(241,240,234,0.15)] to-transparent" />
 
           <div className="relative z-10 mx-auto max-w-3xl">
 
@@ -87,7 +83,7 @@ export default function FinalCTASection() {
               transition={{ duration: 0.65, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
               className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/14 bg-white/6 px-4 py-2"
             >
-              <span aria-hidden="true" className="h-1 w-1 shrink-0 rounded-full bg-[#ECCA3E]" />
+              <span aria-hidden="true" className="h-1 w-1 shrink-0 rounded-full bg-[#B6A17B]" />
               <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/65">
                 {finalCta.badge}
               </span>
@@ -110,7 +106,7 @@ export default function FinalCTASection() {
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.7, delay: 0.52 }}
-              className="mx-auto mt-6 max-w-xl text-base leading-8 text-[rgba(232,242,252,0.60)]"
+              className="mx-auto mt-6 max-w-xl text-base leading-8 text-[rgba(241,240,234,0.60)]"
             >
               {finalCta.description}
             </motion.p>
@@ -126,7 +122,7 @@ export default function FinalCTASection() {
               {finalCta.stats.map((stat) => (
                 <div key={stat.label} className="text-center">
                   <div className="font-serif text-2xl font-semibold text-white">{stat.num}</div>
-                  <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-[rgba(220,234,247,0.45)]">
+                  <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-[rgba(241,240,234,0.45)]">
                     {stat.label}
                   </div>
                 </div>
@@ -142,7 +138,7 @@ export default function FinalCTASection() {
               className="flex flex-col items-center justify-center gap-4 sm:flex-row"
             >
               <Link href="/products">
-                <Button className="bg-[#FFFFFF] text-[#08337D] hover:bg-[#DCEAF7] shadow-lg shadow-black/22">
+                <Button className="bg-[#F1F0EA] text-[#0F1320] hover:bg-white shadow-lg shadow-black/22">
                   {finalCta.primaryButton}
                   <ArrowRight className="ml-2" size={15} />
                 </Button>

@@ -9,7 +9,7 @@ export default function UseCaseSection() {
     <section
       id="applications"
       className="relative overflow-hidden px-6 py-20 md:py-28"
-      style={{ background: "linear-gradient(180deg, #081426 0%, #0A1B38 100%)" }}
+      style={{ background: "#0F1320" }}
     >
       {/* Grid texture */}
       <div
@@ -22,9 +22,8 @@ export default function UseCaseSection() {
         }}
       />
 
-      {/* Ambient glows */}
-      <div className="pointer-events-none absolute left-1/4 top-0 h-96 w-96 rounded-full bg-[#08337D]/15 blur-[80px]" />
-      <div className="pointer-events-none absolute bottom-0 right-1/4 h-72 w-72 rounded-full bg-[#114F99]/10 blur-[60px]" />
+      {/* Ambient glow -- one restrained source, not a stack */}
+      <div className="pointer-events-none absolute left-1/4 top-0 h-96 w-96 rounded-full bg-[#192B88]/10 blur-[80px]" />
 
       <div className="relative mx-auto max-w-7xl">
         {/* Section header */}
@@ -53,7 +52,7 @@ export default function UseCaseSection() {
           role="group"
           aria-label="Ứng dụng của Nan theo ngữ cảnh, cuộn ngang để xem thêm"
           tabIndex={0}
-          className="-mx-6 flex snap-x snap-proximity gap-5 overflow-x-auto px-6 pb-2 outline-none [scrollbar-width:none] focus-visible:ring-2 focus-visible:ring-[#ECCA3E]/50 [&::-webkit-scrollbar]:hidden"
+          className="-mx-6 flex snap-x snap-proximity gap-5 overflow-x-auto px-6 pb-2 outline-none [scrollbar-width:none] focus-visible:ring-2 focus-visible:ring-[#B6A17B]/50 [&::-webkit-scrollbar]:hidden"
         >
           {useCases.map((useCase, index) => (
             <motion.div
@@ -64,7 +63,7 @@ export default function UseCaseSection() {
               transition={{ duration: 0.6, delay: index * 0.06, ease: [0.16, 1, 0.3, 1] }}
               className="w-[260px] shrink-0 snap-start border-t border-[rgba(220,234,247,0.14)] pt-6 sm:w-[300px]"
             >
-              <span className="font-mono text-[11px] font-semibold text-[rgba(236,202,62,0.55)]">
+              <span className="font-mono text-[11px] font-semibold text-[rgba(182,161,123,0.65)]">
                 {String(index + 1).padStart(2, "0")}
               </span>
               <h3 className="mt-3 font-serif text-lg font-semibold text-white">

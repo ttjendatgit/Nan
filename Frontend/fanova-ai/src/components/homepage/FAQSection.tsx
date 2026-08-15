@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Plus, Minus } from "lucide-react";
 import { faqItems } from "@/data/homepageData";
+import EditorialGrid from "./EditorialGrid";
 
 export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -11,13 +12,9 @@ export default function FAQSection() {
   return (
     <section
       className="relative overflow-hidden px-6 py-20 md:py-28"
-      style={{ background: "#F7FAFF" }}
+      style={{ background: "#F1F0EA" }}
     >
-      {/* Grid */}
-      <div className="absolute inset-0 bg-grid-dots opacity-40" />
-
-      {/* Glows */}
-      <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full bg-[#DCEAF7]/45 blur-3xl" />
+      <EditorialGrid />
 
       <div className="relative mx-auto max-w-3xl">
 
@@ -27,15 +24,15 @@ export default function FAQSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.65 }}
-          className="mb-12 text-center"
+          className="mb-12"
         >
-          <h2 className="font-serif text-3xl font-semibold tracking-tight text-[#081426] md:text-4xl">
+          <h2 className="font-serif text-3xl font-semibold tracking-tight text-[#0F1320] md:text-4xl">
             Câu hỏi thường gặp
           </h2>
         </motion.div>
 
-        {/* FAQ items */}
-        <div className="space-y-3">
+        {/* FAQ rows — clean dividers, no card-per-question */}
+        <div className="border-t border-[rgba(15,19,32,0.14)]">
           {faqItems.map((item, index) => {
             const isOpen = openIndex === index;
             return (
@@ -44,28 +41,18 @@ export default function FAQSection() {
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.55, delay: index * 0.06 }}
-                className={`overflow-hidden rounded-2xl border transition-all duration-200 ${
-                  isOpen
-                    ? "border-[rgba(8,51,125,0.20)] bg-[#FFFFFF] shadow-[0_4px_24px_rgba(8,51,125,0.09)]"
-                    : "border-[rgba(8,51,125,0.09)] bg-[#FFFFFF] hover:border-[rgba(8,51,125,0.18)]"
-                }`}
+                transition={{ duration: 0.55, delay: index * 0.05 }}
+                className="border-b border-[rgba(15,19,32,0.14)]"
               >
                 <button
                   onClick={() => setOpenIndex(isOpen ? null : index)}
-                  className="flex w-full items-center justify-between px-6 py-5 text-left"
+                  className="flex w-full items-center justify-between gap-4 py-5 text-left"
                 >
-                  <span className="pr-4 text-sm font-semibold text-[#081426] md:text-base">
+                  <span className="text-[0.9375rem] font-semibold text-[#0F1320] md:text-base">
                     {item.q}
                   </span>
-                  <span
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-all duration-200 ${
-                      isOpen
-                        ? "border-[#08337D] bg-[#DCEAF7] text-[#08337D]"
-                        : "border-[rgba(8,51,125,0.14)] text-[rgba(8,51,125,0.45)]"
-                    }`}
-                  >
-                    {isOpen ? <Minus size={13} /> : <Plus size={13} />}
+                  <span className="shrink-0 text-[#192B88]">
+                    {isOpen ? <Minus size={16} /> : <Plus size={16} />}
                   </span>
                 </button>
 
@@ -78,9 +65,9 @@ export default function FAQSection() {
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.25, ease: "easeInOut" }}
                     >
-                      <div className="border-t border-[rgba(8,51,125,0.08)] px-6 pb-5 pt-4">
-                        <p className="text-sm leading-7 text-[#4A74A7]">{item.a}</p>
-                      </div>
+                      <p className="max-w-xl pb-5 text-sm leading-7 text-[rgba(15,19,32,0.62)]">
+                        {item.a}
+                      </p>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -97,11 +84,11 @@ export default function FAQSection() {
           transition={{ duration: 0.55, delay: 0.3 }}
           className="mt-10 text-center"
         >
-          <p className="text-sm text-[rgba(8,20,38,0.45)]">
+          <p className="text-sm text-[rgba(15,19,32,0.50)]">
             Vẫn còn thắc mắc?{" "}
             <a
               href="#quote"
-              className="font-semibold text-[#08337D] underline underline-offset-2 hover:text-[#114F99]"
+              className="font-semibold text-[#192B88] underline underline-offset-2 hover:text-[#0F1320]"
             >
               Liên hệ tư vấn miễn phí
             </a>
