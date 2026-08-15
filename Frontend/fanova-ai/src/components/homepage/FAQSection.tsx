@@ -29,9 +29,6 @@ export default function FAQSection() {
           transition={{ duration: 0.65 }}
           className="mb-12 text-center"
         >
-          <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.28em] text-[#08337D]">
-            06 / FAQ
-          </p>
           <h2 className="font-serif text-3xl font-semibold tracking-tight text-[#081426] md:text-4xl">
             Câu hỏi thường gặp
           </h2>

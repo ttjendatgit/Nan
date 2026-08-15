@@ -1,24 +1,10 @@
 "use client";
 
-import { motion } from "motion/react";
-import { Sparkles, Sun, Coffee, Briefcase, Megaphone } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { useCases } from "@/data/homepageData";
 
-type LucideIconComponent = React.ComponentType<{
-  size?: number;
-  className?: string;
-  strokeWidth?: number;
-}>;
-
-const ICONS: Record<string, LucideIconComponent> = {
-  Sparkles,
-  Sun,
-  Coffee,
-  Briefcase,
-  Megaphone,
-};
-
 export default function UseCaseSection() {
+  const reduce = useReducedMotion();
   return (
     <section
       id="applications"
@@ -41,14 +27,13 @@ export default function UseCaseSection() {
       <div className="pointer-events-none absolute bottom-0 right-1/4 h-72 w-72 rounded-full bg-[#114F99]/10 blur-[60px]" />
 
       <div className="relative mx-auto max-w-7xl">
-
         {/* Section header */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={reduce ? false : { opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.65 }}
-          className="mb-14"
+          className="mb-10 md:mb-14"
         >
           <h2 className="font-serif text-4xl font-semibold leading-[1.12] tracking-tight text-white md:text-5xl lg:max-w-xl">
             Nan phù hợp với{" "}
@@ -59,58 +44,48 @@ export default function UseCaseSection() {
             quạt phù hợp với từng mục đích và ngân sách.
           </p>
         </motion.div>
+      </div>
 
-        {/* Use case cards — 3-col large, 2-col medium, 1-col mobile */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {useCases.map((useCase, index) => {
-            const Icon = ICONS[useCase.icon];
-            const isLastOdd = index === useCases.length - 1 && useCases.length % 3 !== 0;
-            return (
-              <motion.div
-                key={useCase.id}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.65, delay: index * 0.07 }}
-                className={`relative overflow-hidden rounded-2xl border border-[rgba(220,234,247,0.08)] bg-[rgba(255,255,255,0.03)] p-6 transition-colors duration-300 hover:bg-[rgba(255,255,255,0.05)]${isLastOdd ? " sm:col-span-2 lg:col-span-1" : ""}`}
-              >
-                {/* Top accent */}
-                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(220,234,247,0.14)] to-transparent" />
-
-                {/* Icon */}
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(220,234,247,0.10)] bg-[rgba(220,234,247,0.07)]">
-                  {Icon && (
-                    <Icon
-                      size={17}
-                      className="text-[#DCEAF7]"
-                      strokeWidth={1.5}
-                    />
-                  )}
-                </div>
-
-                <h3 className="font-serif text-lg font-semibold text-white">
-                  {useCase.title}
-                </h3>
-                <p className="mt-2.5 text-sm leading-6 text-[rgba(220,234,247,0.50)]">
-                  {useCase.description}
-                </p>
-
-                {/* Context tags */}
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {useCase.examples.map((ex) => (
-                    <span
-                      key={ex}
-                      className="rounded-full border border-[rgba(220,234,247,0.10)] px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-[rgba(220,234,247,0.32)]"
-                    >
-                      {ex}
-                    </span>
-                  ))}
-                </div>
-              </motion.div>
-            );
-          })}
+      {/* Use cases as a horizontal editorial strip -- browse by scrolling,
+          not another centered heading + 3 equal cards row */}
+      <div className="relative mx-auto max-w-7xl">
+        <div
+          role="group"
+          aria-label="Ứng dụng của Nan theo ngữ cảnh, cuộn ngang để xem thêm"
+          tabIndex={0}
+          className="-mx-6 flex snap-x snap-proximity gap-5 overflow-x-auto px-6 pb-2 outline-none [scrollbar-width:none] focus-visible:ring-2 focus-visible:ring-[#ECCA3E]/50 [&::-webkit-scrollbar]:hidden"
+        >
+          {useCases.map((useCase, index) => (
+            <motion.div
+              key={useCase.id}
+              initial={reduce ? false : { opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: index * 0.06, ease: [0.16, 1, 0.3, 1] }}
+              className="w-[260px] shrink-0 snap-start border-t border-[rgba(220,234,247,0.14)] pt-6 sm:w-[300px]"
+            >
+              <span className="font-mono text-[11px] font-semibold text-[rgba(236,202,62,0.55)]">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <h3 className="mt-3 font-serif text-lg font-semibold text-white">
+                {useCase.title}
+              </h3>
+              <p className="mt-2.5 text-sm leading-6 text-[rgba(220,234,247,0.50)]">
+                {useCase.description}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {useCase.examples.map((ex) => (
+                  <span
+                    key={ex}
+                    className="rounded-full border border-[rgba(220,234,247,0.10)] px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-[rgba(220,234,247,0.32)]"
+                  >
+                    {ex}
+                  </span>
+                ))}
+              </div>
+            </motion.div>
+          ))}
         </div>
-
       </div>
     </section>
   );

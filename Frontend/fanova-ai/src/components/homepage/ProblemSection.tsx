@@ -34,28 +34,25 @@ export default function ProblemSection() {
             </p>
           </motion.div>
 
-          {/* Right — pain point cards */}
-          <div className="space-y-3.5">
+          {/* Right — pain points as a quiet divided list, not boxed cards */}
+          <div className="border-t border-[rgba(8,51,125,0.08)]">
             {problemSection.points.map((point, index) => (
               <motion.div
                 key={point}
-                initial={reduce ? false : { opacity: 0, x: 20, scale: 0.98 }}
-                whileInView={{ opacity: 1, x: 0, scale: 1 }}
+                initial={reduce ? false : { opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{
-                  duration: 0.75,
-                  delay: index * 0.12,
+                  duration: 0.7,
+                  delay: index * 0.1,
                   ease: [0.16, 1, 0.3, 1],
                 }}
-                className="relative overflow-hidden rounded-2xl border border-[rgba(8,51,125,0.08)] bg-white p-5 shadow-[0_2px_14px_rgba(8,51,125,0.04)]"
+                className="flex items-baseline gap-5 border-b border-[rgba(8,51,125,0.08)] py-5"
               >
-                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(8,51,125,0.14)] to-transparent" />
-                <div className="flex items-start gap-4">
-                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[rgba(8,51,125,0.06)]">
-                    <div className="h-2 w-2 rounded-full bg-[rgba(8,51,125,0.22)]" />
-                  </div>
-                  <p className="text-sm leading-6 text-[#2D4A6E]">{point}</p>
-                </div>
+                <span className="font-mono text-[11px] font-semibold text-[rgba(8,51,125,0.35)]">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <p className="text-sm leading-6 text-[#2D4A6E]">{point}</p>
               </motion.div>
             ))}
           </div>

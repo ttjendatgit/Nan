@@ -118,16 +118,7 @@ export default function ProductTypeSection() {
 
                 <div className={`relative flex h-52 items-center justify-center bg-gradient-to-br ${item.gradient} overflow-hidden`}>
                   <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(8,51,125,0.06)_0.7px,transparent_0.7px)] [background-size:10px_10px]" />
-                  <div className="relative flex h-32 w-32 items-center justify-center rounded-full bg-white shadow-[0_6px_28px_rgba(8,51,125,0.10)]">
-                    <div className="absolute inset-3 rounded-full bg-[radial-gradient(circle_at_35%_30%,rgba(255,255,255,0.96),rgba(220,234,247,0.5)_100%)]" />
-                    <div className="absolute h-[80%] w-px bg-slate-200/60" />
-                    <div className="absolute h-[80%] w-px rotate-30 bg-slate-200/60" />
-                    <div className="absolute h-[80%] w-px -rotate-30 bg-slate-200/60" />
-                    <div className="absolute h-[80%] w-px rotate-60 bg-slate-200/60" />
-                    <div className="absolute h-[80%] w-px -rotate-60 bg-slate-200/60" />
-                    <div className={`relative z-10 h-12 w-12 rounded-full ${item.accentColor} shadow-md`} />
-                    <div className="absolute -bottom-11 left-1/2 h-16 w-4 -translate-x-1/2 rounded-full bg-slate-300 shadow-md" />
-                  </div>
+                  <FanMockupFallback accentColor={item.accentColor} />
                   <div className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-[rgba(8,51,125,0.13)] bg-white/90 px-3 py-1 backdrop-blur">
                     <span aria-hidden="true" className="h-1 w-1 shrink-0 rounded-full bg-[#ECCA3E]" />
                     <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#08337D]">
@@ -197,28 +188,10 @@ function CategoryCard({
               {/* Dot texture fallback */}
               <div className="absolute inset-0 flex items-center justify-center opacity-100">
                 <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(8,51,125,0.06)_0.7px,transparent_0.7px)] [background-size:10px_10px]" />
-                {/* Fan mockup fallback */}
-                <div className="relative flex h-32 w-32 items-center justify-center rounded-full bg-white shadow-[0_6px_28px_rgba(8,51,125,0.10)]">
-                  <div className="absolute inset-3 rounded-full bg-[radial-gradient(circle_at_35%_30%,rgba(255,255,255,0.96),rgba(220,234,247,0.5)_100%)]" />
-                  <div className="absolute h-[80%] w-px bg-slate-200/60" />
-                  <div className="absolute h-[80%] w-px rotate-30 bg-slate-200/60" />
-                  <div className="absolute h-[80%] w-px -rotate-30 bg-slate-200/60" />
-                  <div className="absolute h-[80%] w-px rotate-60 bg-slate-200/60" />
-                  <div className="absolute h-[80%] w-px -rotate-60 bg-slate-200/60" />
-                  <div className="relative z-10 h-12 w-12 rounded-full bg-[#DCEAF7] shadow-md" />
-                  <div className="absolute -bottom-11 left-1/2 h-16 w-4 -translate-x-1/2 rounded-full bg-slate-300 shadow-md" />
-                </div>
+                <FanMockupFallback accentColor="bg-[#DCEAF7]" />
               </div>
             </>
           )}
-
-          {/* Category badge */}
-          <div className="absolute left-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-[rgba(8,51,125,0.13)] bg-white/90 px-3 py-1 backdrop-blur">
-            <span aria-hidden="true" className="h-1 w-1 shrink-0 rounded-full bg-[#ECCA3E]" />
-            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#08337D]">
-              Bộ sưu tập
-            </span>
-          </div>
         </div>
 
         {/* Card content */}
@@ -242,6 +215,23 @@ function CategoryCard({
         </div>
       </Link>
     </motion.div>
+  );
+}
+
+// ─── Fan mockup fallback (shown when a category/collection has no image) ─────
+
+function FanMockupFallback({ accentColor }: { accentColor: string }) {
+  return (
+    <div className="relative flex h-32 w-32 items-center justify-center rounded-full bg-white shadow-[0_6px_28px_rgba(8,51,125,0.10)]">
+      <div className="absolute inset-3 rounded-full bg-[radial-gradient(circle_at_35%_30%,rgba(255,255,255,0.96),rgba(220,234,247,0.5)_100%)]" />
+      <div className="absolute h-[80%] w-px bg-slate-200/60" />
+      <div className="absolute h-[80%] w-px rotate-30 bg-slate-200/60" />
+      <div className="absolute h-[80%] w-px -rotate-30 bg-slate-200/60" />
+      <div className="absolute h-[80%] w-px rotate-60 bg-slate-200/60" />
+      <div className="absolute h-[80%] w-px -rotate-60 bg-slate-200/60" />
+      <div className={`relative z-10 h-12 w-12 rounded-full ${accentColor} shadow-md`} />
+      <div className="absolute -bottom-11 left-1/2 h-16 w-4 -translate-x-1/2 rounded-full bg-slate-300 shadow-md" />
+    </div>
   );
 }
 

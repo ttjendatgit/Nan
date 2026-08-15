@@ -61,10 +61,6 @@ export default function AIDesignerSection() {
           transition={{ duration: 0.65 }}
           className="mb-14"
         >
-          <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.28em] text-[#08337D]">
-            02 / AI Designer
-          </p>
-
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <h2 className="font-serif text-4xl font-semibold tracking-tight text-[#081426] md:text-5xl lg:max-w-lg">
               Upload hình ảnh.{" "}

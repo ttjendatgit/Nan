@@ -32,10 +32,6 @@ export default function MaterialSection() {
           transition={{ duration: 0.65 }}
           className="mb-14"
         >
-          <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.28em] text-[#08337D]">
-            03 / Chất liệu
-          </p>
-
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <h2 className="font-serif text-4xl font-semibold tracking-tight text-[#081426] md:text-5xl lg:max-w-md">
               Cảm giác cao cấp{" "}

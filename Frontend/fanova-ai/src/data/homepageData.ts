@@ -410,7 +410,7 @@ export const faqItems = [
   },
   {
     q: "Có thể xem mockup trước khi in không?",
-    a: "Có. AI Designer cho phép bạn xem trực tiếp thiết kế trên mockup quạt với các tùy chọn màu nền, phong cách và vị trí logo — tất cả trước khi gửi yêu cầu sản xuất.",
+    a: "Có. AI Designer cho phép bạn xem trực tiếp thiết kế trên mockup quạt với các tùy chọn màu nền, phong cách và vị trí logo, tất cả trước khi gửi yêu cầu sản xuất.",
   },
   {
     q: "Có hỗ trợ thiết kế không?",
@@ -418,7 +418,7 @@ export const faqItems = [
   },
   {
     q: "Thời gian sản xuất bao lâu?",
-    a: "Thông thường 5–10 ngày làm việc sau khi xác nhận file. Đối với đơn số lượng lớn hoặc yêu cầu đặc biệt, thời gian có thể thay đổi — chúng tôi sẽ xác nhận cụ thể khi báo giá.",
+    a: "Thông thường 5-10 ngày làm việc sau khi xác nhận file. Đối với đơn số lượng lớn hoặc yêu cầu đặc biệt, thời gian có thể thay đổi, chúng tôi sẽ xác nhận cụ thể khi báo giá.",
   },
   {
     q: "Có nhận số lượng ít không?",
