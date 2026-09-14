@@ -6,6 +6,7 @@ import type {
   QuoteRequestListData,
   QuoteRequestQueryParams,
   QuoteRequestStatus,
+  SetFinalQuotedPriceInput,
 } from "@/types/quote";
 import { apiFetch, getAuthHeaders } from "./client";
 
@@ -66,6 +67,23 @@ export async function updateQuoteRequestStatus(
       method: "PUT",
       headers: { ...getAuthHeaders(token), "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
+    },
+  );
+  return res.data;
+}
+
+/** PUT /api/QuoteRequests/{id}/final-price — set a manual price override. Requires Staff or Manager token. */
+export async function setFinalQuotedPrice(
+  id: string,
+  input: SetFinalQuotedPriceInput,
+  token: string,
+): Promise<QuoteRequestDto> {
+  const res = await apiFetch<QuoteRequestApiResponse>(
+    `/api/QuoteRequests/${id}/final-price`,
+    {
+      method: "PUT",
+      headers: { ...getAuthHeaders(token), "Content-Type": "application/json" },
+      body: JSON.stringify(input),
     },
   );
   return res.data;

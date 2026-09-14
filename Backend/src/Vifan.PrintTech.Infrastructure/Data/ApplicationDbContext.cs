@@ -16,12 +16,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ProductCategory> ProductCategories => Set<ProductCategory>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<OptionDefinition> OptionDefinitions => Set<OptionDefinition>();
     public DbSet<ProductOption> ProductOptions => Set<ProductOption>();
     public DbSet<PricingRule> PricingRules => Set<PricingRule>();
     public DbSet<Cart> Carts => Set<Cart>();
     public DbSet<CartItem> CartItems => Set<CartItem>();
     public DbSet<DesignFile> DesignFiles => Set<DesignFile>();
     public DbSet<QuoteRequest> QuoteRequests => Set<QuoteRequest>();
+    public DbSet<QuoteRequestOption> QuoteRequestOptions => Set<QuoteRequestOption>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

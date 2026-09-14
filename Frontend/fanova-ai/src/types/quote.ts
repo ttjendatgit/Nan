@@ -19,6 +19,21 @@ export interface CreateQuoteRequestInput {
   neededDate?: string;
   useCase?: string;
   message?: string;
+  /** IDs of selected ProductOption values. Backend re-validates and recalculates price server-side. */
+  selectedOptionIds?: string[];
+}
+
+// ─── Structured option snapshot (immutable once the quote is submitted) ──────
+
+export interface QuoteRequestOptionDto {
+  id: string;
+  productOptionId?: string;
+  optionTypeSnapshot: string;
+  optionNameSnapshot: string;
+  optionValueSnapshot: string;
+  priceAdjustmentTypeSnapshot: string;
+  priceAdjustmentSnapshot: number;
+  calculatedAmountSnapshot: number;
 }
 
 // ─── DTO (single quote) ───────────────────────────────────────────────────────
@@ -37,8 +52,32 @@ export interface QuoteRequestDto {
   useCase?: string;
   message?: string;
   status: QuoteRequestStatus;
+
+  // Pricing snapshot -- set server-side at submission time, never recomputed afterward.
+  baseUnitPriceSnapshot?: number;
+  calculatedUnitPriceSnapshot?: number;
+  calculatedSubtotalSnapshot?: number;
+  additionalFeesSnapshot?: number;
+  discountAmountSnapshot?: number;
+  calculatedTotalSnapshot?: number;
+  appliedPricingRuleIdSnapshot?: string;
+  currency: string;
+
+  // Manual staff override -- additive, never overwrites the calculated snapshot above.
+  manualAdjustment?: number;
+  finalQuotedPrice?: number;
+  internalNote?: string;
+
+  options: QuoteRequestOptionDto[];
+
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SetFinalQuotedPriceInput {
+  finalQuotedPrice: number;
+  manualAdjustment?: number;
+  internalNote?: string;
 }
 
 // ─── API response wrappers ────────────────────────────────────────────────────

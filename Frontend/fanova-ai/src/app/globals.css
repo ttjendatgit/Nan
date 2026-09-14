@@ -97,6 +97,176 @@
   --highlight-blue: #DCEAF7;
 }
 
+:root {
+  /* ═══════════════════════════════════════════════════════
+     ADMIN WARM WORKSPACE DESIGN TOKENS (v2 — heritage craft)
+     Light + bright, but warm and branded rather than a cold
+     generic SaaS gray-scale. Neutrals are pulled from Nan's own
+     ivory/bamboo homepage tokens (--bg-ivory, --nan-material)
+     instead of a blue-gray scale, so the admin reads as the same
+     product as the storefront. Brand blue stays the one accent
+     for interactive/selected state; bamboo/champagne is the
+     secondary material accent, used sparingly.
+     ═══════════════════════════════════════════════════════ */
+
+  /* ── Canvas & Surfaces ── */
+  --admin-canvas:           #F7F2E6;  /* warm ivory paper — brighter than homepage's --bg-ivory since the workspace needs to read crisp, not atmospheric */
+  --admin-surface:          #FFFEFA;  /* card / form bg — warm white, never pure #fff */
+  --admin-surface-muted:    #F1E8D6;  /* soft champagne — table headers, nested/inset panels */
+
+  /* ── Borders ── */
+  --admin-border:           rgba(150, 119, 66, 0.16);   /* warm bamboo-taupe, replaces cool blue-gray */
+  --admin-border-strong:    rgba(150, 119, 66, 0.32);
+
+  /* ── Text ── */
+  --admin-text:             #081426;  /* reuses --text-primary — deep navy */
+  --admin-text-muted:       #2D4A6E;  /* reuses --text-secondary */
+  --admin-text-subtle:      #4A74A7;  /* reuses --text-muted */
+  --admin-text-placeholder: rgba(8, 20, 38, 0.38);
+
+  /* ── Primary action (Nan indigo — unchanged, the one brand accent) ── */
+  --admin-primary:          #08337D;  /* reuses --brand-primary */
+  --admin-primary-hover:    #114F99;  /* reuses --brand-secondary */
+  --admin-primary-soft:     rgba(8, 51, 125, 0.07);
+
+  /* ── Secondary material accent — bamboo / champagne, used sparingly ── */
+  --admin-accent:           #B6A17B;  /* reuses --nan-material */
+  --admin-accent-strong:    #8A7350;  /* darker bamboo — accent text needing contrast */
+  --admin-accent-soft:      rgba(182, 161, 123, 0.16);
+
+  /* ── Sidebar (stays dark navy — brand identity, aligned to Nan's dark palette) ── */
+  --admin-sidebar-bg:       #111335;
+  --admin-sidebar-border:   #1B1C4A;
+  --admin-sidebar-hover:    rgba(255, 255, 255, 0.06);
+  --admin-sidebar-active-bg:rgba(39, 52, 129, 0.22);
+  --admin-sidebar-accent:   #4A74A7;  /* active item accent bar */
+  --admin-sidebar-text:     rgba(182, 214, 242, 0.80);
+  --admin-sidebar-text-dim: rgba(182, 214, 242, 0.45);
+  --admin-sidebar-motif:    rgba(182, 214, 242, 0.06);  /* fan-rib tint on dark sidebar */
+
+  /* ── Semantic status ── */
+  --admin-success:          #15803d;
+  --admin-success-soft:     rgba(21, 128, 61, 0.10);
+  --admin-warning:          #b45309;
+  --admin-warning-soft:     rgba(180, 83, 9, 0.10);
+  --admin-danger:           #dc2626;
+  --admin-danger-soft:      rgba(220, 38, 38, 0.08);
+  --admin-info:             #08337D;
+  --admin-info-soft:        rgba(8, 51, 125, 0.07);
+
+  /* ── Toggle ── */
+  --admin-toggle-on:        #08337D;
+  --admin-toggle-off:       #DDD1B4;   /* warm taupe, replaces cool slate-300 */
+}
+
+/* ════════════════════════════════════════════════════════
+   ADMIN UTILITY CLASSES
+   Applied inside admin pages / components to avoid
+   repeating the same 8-token string in every file.
+   ════════════════════════════════════════════════════════ */
+
+/* Inputs / selects / textareas */
+.admin-input {
+  width: 100%;
+  border-radius: 0.5rem;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border-strong);
+  color: var(--admin-text);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.admin-input::placeholder {
+  color: var(--admin-text-placeholder);
+}
+.admin-input:hover {
+  border-color: rgba(8, 51, 125, 0.30);
+}
+.admin-input:focus {
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px var(--admin-primary-soft);
+}
+.admin-input:disabled {
+  background: var(--admin-surface-muted);
+  color: var(--admin-text-subtle);
+  cursor: not-allowed;
+}
+
+/* Card surface */
+.admin-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 1rem;
+  box-shadow: 0 1px 4px rgba(8, 51, 125, 0.06);
+}
+
+/* Skeleton shimmer for light backgrounds */
+.admin-skeleton {
+  background-color: #ECE1C9;
+  animation: admin-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes admin-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* ════════════════════════════════════════════════════════
+   ADMIN FAN MOTIF
+   A restrained, architectural nod to the fan/craft identity:
+   fine lines radiating from a corner pivot, like the ribs of
+   an opened fan. Extremely low-alpha, decorative only, and
+   applied sparingly (brand header + sidebar block) rather
+   than on every surface. Pure CSS, no image asset.
+   ════════════════════════════════════════════════════════ */
+.admin-fan-motif {
+  position: relative;
+  isolation: isolate;
+}
+.admin-fan-motif::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: repeating-conic-gradient(
+    from -16deg at 100% 0%,
+    rgba(8, 51, 125, 0.05) 0deg 0.55deg,
+    transparent 0.55deg 6deg
+  );
+}
+.admin-fan-motif > * {
+  position: relative;
+  z-index: 1;
+}
+.admin-fan-motif-dark::before {
+  background-image: repeating-conic-gradient(
+    from -16deg at 100% 0%,
+    var(--admin-sidebar-motif) 0deg 0.55deg,
+    transparent 0.55deg 6deg
+  );
+}
+
+/* Status badges — light-surface versions */
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.admin-badge-active   { background: rgba(21, 128, 61, 0.10);  color: #15803d; border-color: rgba(21, 128, 61, 0.25); }
+.admin-badge-inactive { background: rgba(120, 103, 74, 0.09); color: #78674A; border-color: rgba(120, 103, 74, 0.22); }
+.admin-badge-new      { background: rgba(37, 99, 235, 0.07);  color: #1d4ed8; border-color: rgba(37, 99, 235, 0.20); }
+.admin-badge-contact  { background: rgba(180, 83, 9, 0.08);   color: #b45309; border-color: rgba(180, 83, 9, 0.22); }
+.admin-badge-quoted   { background: rgba(99, 102, 241, 0.08); color: #4338ca; border-color: rgba(99, 102, 241, 0.20); }
+.admin-badge-closed   { background: rgba(21, 128, 61, 0.10);  color: #15803d; border-color: rgba(21, 128, 61, 0.25); }
+.admin-badge-cancelled{ background: rgba(220, 38, 38, 0.08);  color: #dc2626; border-color: rgba(220, 38, 38, 0.20); }
+.admin-badge-hidden   { background: rgba(120, 103, 74, 0.09); color: #78674A; border-color: rgba(120, 103, 74, 0.18); font-size: 0.5625rem; }
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

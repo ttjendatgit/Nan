@@ -1,10 +1,8 @@
 namespace Vifan.PrintTech.Application.DTOs.Options;
 
+/// <summary>Updates a Product's assignment of a catalog entry (display order / per-product active flag). Never changes catalog price/label data.</summary>
 public class UpdateProductOptionRequest
 {
-    public string OptionType { get; set; } = string.Empty;
-    public string OptionName { get; set; } = string.Empty;
-    public string OptionValue { get; set; } = string.Empty;
-    public decimal AdditionalPrice { get; set; }
+    public int SortOrder { get; set; }
     public bool IsActive { get; set; }
 }

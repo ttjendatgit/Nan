@@ -1,10 +1,12 @@
 namespace Vifan.PrintTech.Application.DTOs.Options;
 
+/// <summary>Assigns an existing catalog entry to a product. Does not create a new catalog entry.</summary>
 public class CreateProductOptionRequest
 {
-    public string OptionType { get; set; } = string.Empty;
-    public string OptionName { get; set; } = string.Empty;
-    public string OptionValue { get; set; } = string.Empty;
-    public decimal AdditionalPrice { get; set; }
+    public Guid OptionDefinitionId { get; set; }
+
+    /// <summary>Per-product display order. Omit to auto-append after the last option in the same OptionType group on this product.</summary>
+    public int? SortOrder { get; set; }
+
     public bool IsActive { get; set; } = true;
 }

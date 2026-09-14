@@ -16,32 +16,47 @@ public class ProductOptionRepository : Repository<ProductOption>, IProductOption
         bool activeOnly,
         CancellationToken cancellationToken = default)
     {
-        var query = DbSet.AsNoTracking().Where(x => x.ProductId == productId);
+        var query = DbSet
+            .AsNoTracking()
+            .Include(x => x.OptionDefinition)
+            .Where(x => x.ProductId == productId);
 
         if (activeOnly)
-            query = query.Where(x => x.IsActive);
+            query = query.Where(x => x.IsActive && x.OptionDefinition.IsActive);
 
         return await query
-            .OrderBy(x => x.OptionType)
-            .ThenBy(x => x.OptionName)
+            .OrderBy(x => x.OptionDefinition.OptionType)
+            .ThenBy(x => x.SortOrder)
+            .ThenBy(x => x.OptionDefinition.OptionName)
             .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<ProductOption>> GetByIdsForProductAsync(
         Guid productId,
-        IEnumerable<Guid> optionIds,
+        IEnumerable<Guid> assignmentIds,
         bool activeOnly,
         CancellationToken cancellationToken = default)
     {
-        var ids = optionIds.Distinct().ToList();
+        var ids = assignmentIds.Distinct().ToList();
         if (ids.Count == 0)
             return [];
 
-        var query = DbSet.Where(x => x.ProductId == productId && ids.Contains(x.Id));
+        var query = DbSet
+            .Include(x => x.OptionDefinition)
+            .Where(x => x.ProductId == productId && ids.Contains(x.Id));
 
         if (activeOnly)
-            query = query.Where(x => x.IsActive);
+            query = query.Where(x => x.IsActive && x.OptionDefinition.IsActive);
 
         return await query.ToListAsync(cancellationToken);
     }
+
+    public async Task<ProductOption?> GetByIdWithDefinitionAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await DbSet.Include(x => x.OptionDefinition).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+    public async Task<bool> ExistsAssignmentAsync(
+        Guid productId,
+        Guid optionDefinitionId,
+        CancellationToken cancellationToken = default) =>
+        await DbSet.AnyAsync(x => x.ProductId == productId && x.OptionDefinitionId == optionDefinitionId, cancellationToken);
 }

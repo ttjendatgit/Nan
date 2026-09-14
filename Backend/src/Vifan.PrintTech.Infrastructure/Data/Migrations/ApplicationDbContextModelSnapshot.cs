@@ -364,6 +364,55 @@ namespace Vifan.PrintTech.Infrastructure.Data.Migrations
                     b.ToTable("DesignFiles", (string)null);
                 });
 
+            modelBuilder.Entity("Vifan.PrintTech.Domain.Entities.OptionDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AdditionalPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("OptionName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("OptionType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("OptionValue")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PriceAdjustmentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OptionType", "OptionValue");
+
+                    b.ToTable("OptionDefinitions", (string)null);
+                });
+
             modelBuilder.Entity("Vifan.PrintTech.Domain.Entities.PricingRule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -528,40 +577,30 @@ namespace Vifan.PrintTech.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("AdditionalPrice")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("OptionName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("OptionType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("OptionValue")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                    b.Property<Guid>("OptionDefinitionId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProductId", "OptionType", "OptionValue");
+                    b.HasIndex("OptionDefinitionId");
+
+                    b.HasIndex("ProductId", "OptionDefinitionId")
+                        .IsUnique();
 
                     b.ToTable("ProductOptions", (string)null);
                 });
@@ -571,6 +610,29 @@ namespace Vifan.PrintTech.Infrastructure.Data.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<decimal?>("AdditionalFeesSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid?>("AppliedPricingRuleIdSnapshot")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("BaseUnitPriceSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal?>("CalculatedSubtotalSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal?>("CalculatedTotalSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal?>("CalculatedUnitPriceSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("CategoryNameSnapshot")
                         .HasMaxLength(200)
@@ -583,14 +645,35 @@ namespace Vifan.PrintTech.Infrastructure.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<decimal?>("DiscountAmountSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<string>("Email")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<decimal?>("FinalQuotedPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<string>("InternalNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<decimal?>("ManualAdjustment")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("Message")
                         .HasMaxLength(2000)
@@ -635,6 +718,61 @@ namespace Vifan.PrintTech.Infrastructure.Data.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("QuoteRequests", (string)null);
+                });
+
+            modelBuilder.Entity("Vifan.PrintTech.Domain.Entities.QuoteRequestOption", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("CalculatedAmountSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("OptionDefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OptionNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("OptionTypeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("OptionValueSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<decimal>("PriceAdjustmentSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("PriceAdjustmentTypeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("QuoteRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OptionDefinitionId");
+
+                    b.HasIndex("QuoteRequestId");
+
+                    b.ToTable("QuoteRequestOptions", (string)null);
                 });
 
             modelBuilder.Entity("Vifan.PrintTech.Domain.Entities.RefreshToken", b =>
@@ -802,13 +940,39 @@ namespace Vifan.PrintTech.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("Vifan.PrintTech.Domain.Entities.ProductOption", b =>
                 {
+                    b.HasOne("Vifan.PrintTech.Domain.Entities.OptionDefinition", "OptionDefinition")
+                        .WithMany("ProductAssignments")
+                        .HasForeignKey("OptionDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Vifan.PrintTech.Domain.Entities.Product", "Product")
                         .WithMany("Options")
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("OptionDefinition");
+
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("Vifan.PrintTech.Domain.Entities.QuoteRequestOption", b =>
+                {
+                    b.HasOne("Vifan.PrintTech.Domain.Entities.OptionDefinition", "OptionDefinition")
+                        .WithMany()
+                        .HasForeignKey("OptionDefinitionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Vifan.PrintTech.Domain.Entities.QuoteRequest", "QuoteRequest")
+                        .WithMany("Options")
+                        .HasForeignKey("QuoteRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OptionDefinition");
+
+                    b.Navigation("QuoteRequest");
                 });
 
             modelBuilder.Entity("Vifan.PrintTech.Domain.Entities.RefreshToken", b =>
@@ -827,6 +991,11 @@ namespace Vifan.PrintTech.Infrastructure.Data.Migrations
                     b.Navigation("Items");
                 });
 
+            modelBuilder.Entity("Vifan.PrintTech.Domain.Entities.OptionDefinition", b =>
+                {
+                    b.Navigation("ProductAssignments");
+                });
+
             modelBuilder.Entity("Vifan.PrintTech.Domain.Entities.Product", b =>
                 {
                     b.Navigation("Options");
@@ -837,6 +1006,11 @@ namespace Vifan.PrintTech.Infrastructure.Data.Migrations
             modelBuilder.Entity("Vifan.PrintTech.Domain.Entities.ProductCategory", b =>
                 {
                     b.Navigation("Products");
+                });
+
+            modelBuilder.Entity("Vifan.PrintTech.Domain.Entities.QuoteRequest", b =>
+                {
+                    b.Navigation("Options");
                 });
 #pragma warning restore 612, 618
         }

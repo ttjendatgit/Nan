@@ -39,13 +39,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Avoid hydration flash — render nothing until mounted
   if (!mounted) {
-    return <div className="min-h-[100dvh] bg-[#080C15]" aria-hidden="true" />;
+    return <div className="min-h-[100dvh]" style={{ background: "var(--admin-canvas)" }} aria-hidden="true" />;
   }
 
   // No session — render children bare so each admin page shows its own login form
   if (!token) {
     return (
-      <div className="min-h-[100dvh] bg-[#0D131F]">
+      <div className="min-h-[100dvh]" style={{ background: "var(--admin-canvas)" }}>
         {children}
       </div>
     );
@@ -53,17 +53,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Authenticated — full admin shell
   return (
-    <div className="min-h-[100dvh] bg-[#0D131F] text-white">
+    <div className="min-h-[100dvh]" style={{ background: "var(--admin-canvas)", color: "var(--admin-text)" }}>
       {/* Desktop sidebar (lg+) */}
       <div className="hidden lg:block">
         <AdminSidebar onLogout={handleLogout} />
       </div>
 
-      {/* Mobile top bar (< lg) */}
+      {/* Mobile top bar (< lg) — stays dark to match sidebar brand */}
       <header className="sticky top-0 z-[99] flex items-center justify-between border-b border-[#1B1C4A] bg-[#080C15] px-4 py-3 lg:hidden">
         <Link href="/admin" className="flex flex-col leading-tight">
           <span className="font-serif text-[16px] font-semibold tracking-wide text-white">Nan</span>
-          <span className="font-mono text-[7px] uppercase tracking-[0.24em] text-[#273481]">Admin</span>
+          <span className="font-mono text-[7px] uppercase tracking-[0.24em] text-[#4A74A7]">Admin</span>
         </Link>
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
@@ -74,7 +74,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </button>
       </header>
 
-      {/* Mobile nav overlay */}
+      {/* Mobile nav overlay — dark, matching sidebar */}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-[98] lg:hidden"

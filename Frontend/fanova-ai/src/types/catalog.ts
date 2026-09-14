@@ -150,14 +150,86 @@ export interface PaginationParams {
   pageSize?: number;
 }
 
-// ─── Product Option ───────────────────────────────────────────────────────────
+// ─── Option catalog ──────────────────────────────────────────────────────────
+// The central, product-independent catalog admins manage once at /admin/options.
+// Creating a catalog entry never, by itself, exposes it on any product -- it only
+// appears on a product after an explicit assignment (see ProductOption below).
+
+export type PriceAdjustmentType = "None" | "FixedPerUnit" | "FixedPerOrder";
+
+export interface OptionDefinition {
+  id: string;
+  optionType: string;
+  optionName: string;
+  optionValue: string;
+  priceAdjustmentType: PriceAdjustmentType;
+  additionalPrice: number;
+  sortOrder: number;
+  isActive: boolean;
+  /** Number of products this catalog entry is currently assigned to. Admin-only signal. */
+  productAssignmentCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOptionDefinitionInput {
+  optionType: string;
+  optionName: string;
+  optionValue: string;
+  priceAdjustmentType?: PriceAdjustmentType;
+  additionalPrice: number;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export type UpdateOptionDefinitionInput = CreateOptionDefinitionInput;
+
+// ─── Product option assignment ──────────────────────────────────────────────
+// One row = one Product's assignment of one catalog entry. Matches the backend
+// ProductOptionDto exactly: pricing/label fields are sourced live from the
+// assigned OptionDefinition, so `id` here is the ASSIGNMENT id (what
+// SelectedOptionIds must contain), and `optionDefinitionId` is the catalog entry
+// it points to. Grouped by optionType -- there is no separate group entity.
 
 export interface ProductOption {
+  /** The assignment id -- what CalculatePriceRequest.selectedOptionIds expects. */
   id: string;
   productId: string;
-  name: string;
-  type?: string;
-  values: string[];
-  isRequired?: boolean;
+  /** The catalog entry this assignment points to. */
+  optionDefinitionId: string;
+  optionType: string;
+  optionName: string;
+  optionValue: string;
+  priceAdjustmentType: PriceAdjustmentType;
+  additionalPrice: number;
+  /** Per-product display order (independent of the catalog's own SortOrder). */
+  sortOrder: number;
+  /** Per-product assignment active flag (independent of the catalog entry's own IsActive). */
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductOptionGroup {
+  optionType: string;
+  options: ProductOption[];
+}
+
+export interface ProductOptionsGrouped {
+  productId: string;
+  groups: ProductOptionGroup[];
+}
+
+/** Assigns an existing catalog entry to a product. Does not create a new catalog entry. */
+export interface AssignOptionInput {
+  optionDefinitionId: string;
+  /** Per-product display order. Omit to auto-append after the last option in the same group on this product. */
   sortOrder?: number;
+  isActive?: boolean;
+}
+
+/** Updates a Product's assignment (display order / per-product active flag). Never changes catalog price/label data. */
+export interface UpdateAssignmentInput {
+  sortOrder: number;
+  isActive: boolean;
 }

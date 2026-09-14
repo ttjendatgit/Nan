@@ -52,28 +52,28 @@ interface ContentBlockEditorProps {
   onSaved?: (product: Product) => void;
 }
 
-// -- Styles (reused across cards) ---------------------------------------------
+// -- Styles (reused across cards) — light admin workspace system ---------------
 
 const INPUT_CLS =
-  "w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white placeholder-[#B6D6F2]/30 px-3 py-2 text-sm outline-none focus:border-[#B6D6F2] transition-colors";
+  "admin-input";
 
 const SELECT_CLS =
-  "rounded-lg bg-[#1B1C4A] border border-[#273481] text-white text-xs px-2 py-1.5 outline-none focus:border-[#B6D6F2] transition-colors";
+  "rounded-lg text-xs px-2 py-1.5 outline-none transition-colors";
 
 const ICON_BTN =
-  "rounded-lg p-1.5 text-[#B6D6F2]/60 hover:text-white hover:bg-[#273481]/40 transition-colors disabled:opacity-30 disabled:pointer-events-none";
+  "rounded-lg p-1.5 transition-colors disabled:opacity-30 disabled:pointer-events-none";
 
 const TYPE_BADGE =
   "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider";
 
 const PRIMARY_BTN =
-  "flex items-center justify-center gap-2 rounded-lg bg-[#273481] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 hover:opacity-90 transition-opacity";
+  "flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 hover:opacity-90 transition-opacity";
 
 const SECONDARY_BTN =
-  "flex items-center justify-center gap-2 rounded-lg border border-[#1B1C4A] px-4 py-2 text-sm text-[#B6D6F2]/70 hover:border-[#273481] hover:text-white transition-all";
+  "flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm transition-all";
 
 const ADD_BLOCK_BTN =
-  "flex items-center gap-1.5 rounded-lg border border-[#1B1C4A] bg-[#111335] px-3 py-2 text-xs text-[#B6D6F2]/70 hover:border-[#273481] hover:text-white transition-all disabled:opacity-40";
+  "flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-all disabled:opacity-40";
 
 // -- Style option tables (Vietnamese labels) -----------------------------------
 
@@ -207,18 +207,18 @@ function AlignButtons({
     { value: "right" as const, icon: AlignRight, label: "Căn phải" },
   ];
   return (
-    <div className="flex items-center gap-0.5 rounded-lg border border-[#1B1C4A] p-0.5">
+    <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ border: "1px solid var(--admin-border-strong)" }}>
       {options.map(({ value: v, icon: Icon, label }) => (
         <button
           key={v}
           type="button"
           title={label}
           onClick={() => onChange(v)}
-          className={`rounded-md p-1.5 transition-colors ${
-            current === v
-              ? "bg-[#273481] text-white"
-              : "text-[#B6D6F2]/40 hover:text-white hover:bg-[#273481]/30"
-          }`}
+          className="rounded-md p-1.5 transition-colors"
+          style={current === v
+            ? { background: "var(--admin-primary)", color: "white" }
+            : { color: "var(--admin-text-subtle)" }
+          }
         >
           <Icon className="h-3.5 w-3.5" />
         </button>
@@ -239,11 +239,11 @@ function ItalicToggle({
       type="button"
       title="In nghiêng"
       onClick={onToggle}
-      className={`rounded-lg border p-1.5 transition-colors ${
-        active
-          ? "border-[#273481] bg-[#273481] text-white"
-          : "border-[#1B1C4A] text-[#B6D6F2]/40 hover:text-white hover:bg-[#273481]/30"
-      }`}
+      className="rounded-lg border p-1.5 transition-colors"
+      style={active
+        ? { borderColor: "var(--admin-primary)", background: "var(--admin-primary)", color: "white" }
+        : { borderColor: "var(--admin-border-strong)", color: "var(--admin-text-subtle)" }
+      }
     >
       <Italic className="h-3.5 w-3.5" />
     </button>
@@ -316,7 +316,7 @@ function Modal({
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-black/72 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -326,7 +326,8 @@ function Modal({
         aria-modal="true"
         aria-labelledby={labelledBy}
         tabIndex={-1}
-        className={`relative z-10 w-full ${maxWidthClassName} max-h-[85vh] overflow-y-auto rounded-2xl border border-[#1B1C4A] bg-[#0D131F] shadow-[0_24px_80px_rgba(0,0,0,0.85)] outline-none`}
+        className={`relative z-10 w-full ${maxWidthClassName} max-h-[85vh] overflow-y-auto rounded-2xl outline-none`}
+        style={{ background: "var(--admin-surface)", border: "1px solid var(--admin-border)", boxShadow: "0 20px 60px rgba(8,51,125,0.12)" }}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
@@ -612,8 +613,8 @@ export default function ContentBlockEditor({
   }
 
   function statusTextClass(): string {
-    if (saving || uploadingImage || isDirty) return "text-[#B6D6F2]/70";
-    return "text-green-400/80";
+    if (saving || uploadingImage || isDirty) return "";
+    return "text-green-600/80";
   }
 
   // -- Render -----------------------------------------------------------------
@@ -622,14 +623,14 @@ export default function ContentBlockEditor({
     <div className="space-y-4">
       {/* Block list / empty state */}
       {blocks.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#1B1C4A] bg-[#0D131F]/60 px-6 py-10 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#1B1C4A]">
-            <PenLine className="h-5 w-5 text-[#B6D6F2]/50" />
+        <div className="rounded-2xl px-6 py-10 text-center" style={{ border: "1px dashed var(--admin-border-strong)", background: "var(--admin-surface-muted)" }}>
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "var(--admin-info-soft)" }}>
+            <PenLine className="h-5 w-5" style={{ color: "var(--admin-primary)" }} />
           </div>
-          <p className="text-sm font-semibold text-white mb-1.5">
+          <p className="text-sm font-semibold mb-1.5" style={{ color: "var(--admin-text)" }}>
             Chưa có nội dung chi tiết
           </p>
-          <p className="text-xs text-[#B6D6F2]/45 leading-relaxed mb-5 max-w-sm mx-auto">
+          <p className="text-xs leading-relaxed mb-5 max-w-sm mx-auto" style={{ color: "var(--admin-text-subtle)" }}>
             Bắt đầu bằng tiêu đề, đoạn văn hoặc ảnh để xây dựng phần nội dung
             hiển thị ở cuối trang sản phẩm.
           </p>
@@ -658,38 +659,39 @@ export default function ContentBlockEditor({
           {blocks.map((block, index) => (
             <div
               key={index}
-              className="rounded-xl border border-[#1B1C4A] bg-[#0D131F] p-3.5 space-y-2.5"
+              className="rounded-xl p-3.5 space-y-2.5"
+              style={{ border: "1px solid var(--admin-border)", background: "var(--admin-surface)", boxShadow: "0 1px 3px rgba(8,51,125,0.04)" }}
             >
               {/* Card header */}
               <div className="flex items-center gap-2">
-                {/* Type badge */}
+                {/* Type badge — light-surface semantic colors */}
                 {block.type === "heading" && (
-                  <span className={`${TYPE_BADGE} bg-[#273481]/30 text-[#B6D6F2]/70`}>
+                  <span className={`${TYPE_BADGE} bg-blue-50 text-blue-700 border border-blue-200`}>
                     Tiêu đề
                   </span>
                 )}
                 {block.type === "paragraph" && (
-                  <span className={`${TYPE_BADGE} bg-[#1B1C4A] text-[#B6D6F2]/50`}>
+                  <span className={`${TYPE_BADGE} bg-slate-100 text-slate-600 border border-slate-200`}>
                     Đoạn văn
                   </span>
                 )}
                 {block.type === "image" && (
-                  <span className={`${TYPE_BADGE} bg-green-900/30 text-green-400/70`}>
+                  <span className={`${TYPE_BADGE} bg-green-50 text-green-700 border border-green-200`}>
                     Ảnh
                   </span>
                 )}
                 {block.type === "list" && (
-                  <span className={`${TYPE_BADGE} bg-purple-900/25 text-purple-300/70`}>
+                  <span className={`${TYPE_BADGE} bg-purple-50 text-purple-700 border border-purple-200`}>
                     Danh sách
                   </span>
                 )}
                 {block.type === "quote" && (
-                  <span className={`${TYPE_BADGE} bg-amber-900/20 text-amber-300/70`}>
+                  <span className={`${TYPE_BADGE} bg-amber-50 text-amber-700 border border-amber-200`}>
                     Trích dẫn
                   </span>
                 )}
                 {block.type === "divider" && (
-                  <span className={`${TYPE_BADGE} bg-[#1B1C4A] text-[#B6D6F2]/35`}>
+                  <span className={`${TYPE_BADGE} bg-slate-100 text-slate-500 border border-slate-200`}>
                     Đường ngăn
                   </span>
                 )}
@@ -725,9 +727,12 @@ export default function ContentBlockEditor({
                 </button>
                 <button
                   type="button"
-                  className={`${ICON_BTN} hover:text-red-400 hover:bg-red-900/20`}
+                  className={`${ICON_BTN}`}
+                  style={{ color: "var(--admin-text-subtle)" }}
                   onClick={() => removeBlock(index)}
                   title="Xóa"
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--admin-danger)"; (e.currentTarget as HTMLElement).style.background = "var(--admin-danger-soft)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--admin-text-subtle)"; (e.currentTarget as HTMLElement).style.background = ""; }}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -843,7 +848,7 @@ export default function ContentBlockEditor({
                 <div className="space-y-2">
                   {/* Image preview */}
                   {block.secureUrl && (
-                    <div className="relative aspect-video w-full max-w-[240px] overflow-hidden rounded-lg border border-[#1B1C4A] bg-[#0A0B24]">
+                    <div className="relative aspect-video w-full max-w-[240px] overflow-hidden rounded-lg" style={{ border: "1px solid var(--admin-border)", background: "var(--admin-surface-muted)" }}>
                       <Image
                         src={block.secureUrl}
                         alt={block.alt || "Preview"}
@@ -862,7 +867,10 @@ export default function ContentBlockEditor({
                     type="button"
                     onClick={() => triggerReplaceImage(index)}
                     disabled={busy}
-                    className="flex items-center gap-1.5 rounded-lg border border-[#1B1C4A] px-2.5 py-1.5 text-xs text-[#B6D6F2]/60 hover:border-[#273481] hover:text-white transition-all disabled:opacity-40"
+                    className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-all disabled:opacity-40"
+                    style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-subtle)" }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--admin-primary)"; (e.currentTarget as HTMLElement).style.color = "var(--admin-primary)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--admin-border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--admin-text-subtle)"; }}
                   >
                     {replacingIndex === index ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -889,7 +897,7 @@ export default function ContentBlockEditor({
                     placeholder="Chú thích ảnh..."
                     className={INPUT_CLS}
                   />
-                  <p className="text-[10px] text-[#B6D6F2]/30 leading-relaxed">
+                  <p className="text-[10px] leading-relaxed" style={{ color: "var(--admin-text-subtle)" }}>
                     Xóa block này chỉ gỡ ảnh khỏi nội dung sản phẩm, không xóa
                     tệp ảnh trên Cloudinary.
                   </p>
@@ -933,25 +941,31 @@ export default function ContentBlockEditor({
                           className={INPUT_CLS}
                         />
                         <button
-                          type="button"
-                          className={`${ICON_BTN} hover:text-red-400 hover:bg-red-900/20 shrink-0`}
-                          onClick={() => removeListItem(index, itemIndex)}
-                          disabled={block.items.length === 1}
-                          title="Xóa dòng"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <button
                     type="button"
-                    onClick={() => addListItem(index)}
-                    className="flex items-center gap-1.5 rounded-lg border border-[#1B1C4A] px-2.5 py-1.5 text-xs text-[#B6D6F2]/60 hover:border-[#273481] hover:text-white transition-all"
+                    onClick={() => removeListItem(index, itemIndex)}
+                    disabled={block.items.length === 1}
+                    title="Xóa dòng"
+                    className={`${ICON_BTN} shrink-0`}
+                    style={{ color: "var(--admin-text-subtle)" }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--admin-danger)"; (e.currentTarget as HTMLElement).style.background = "var(--admin-danger-soft)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--admin-text-subtle)"; (e.currentTarget as HTMLElement).style.background = ""; }}
                   >
-                    <Plus className="h-3.5 w-3.5" />
-                    Thêm dòng
+                    <X className="h-3.5 w-3.5" />
                   </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => addListItem(index)}
+              className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-all"
+              style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-subtle)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--admin-primary)"; (e.currentTarget as HTMLElement).style.color = "var(--admin-primary)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--admin-border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--admin-text-subtle)"; }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Thêm dòng
+            </button>
                 </div>
               )}
 
@@ -992,7 +1006,7 @@ export default function ContentBlockEditor({
 
               {block.type === "divider" && (
                 <div className="py-1">
-                  <div className="h-px w-full bg-gradient-to-r from-transparent via-[#273481]/60 to-transparent" />
+                  <div className="h-px w-full" style={{ background: "var(--admin-border)" }} />
                 </div>
               )}
             </div>
@@ -1057,9 +1071,8 @@ export default function ContentBlockEditor({
       {/* Inline status -- secondary feedback for uploads only; sticky bar + modals are primary */}
       {message && (
         <p
-          className={`text-xs ${
-            message.type === "success" ? "text-green-400/80" : "text-red-400/80"
-          }`}
+          className="text-xs"
+          style={{ color: message.type === "success" ? "var(--admin-success)" : "var(--admin-danger)" }}
         >
           {message.text}
         </p>
@@ -1067,13 +1080,16 @@ export default function ContentBlockEditor({
 
       {/* ── Sticky action bar ────────────────────────────────────────────────── */}
       <div className="sticky bottom-0 z-20 pt-2">
-        <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl border border-[#1B1C4A] bg-[#111335]/95 backdrop-blur px-4 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.4)]">
+        <div
+          className="flex items-center justify-between gap-3 flex-wrap rounded-xl px-4 py-3 backdrop-blur"
+          style={{ border: "1px solid var(--admin-border)", background: "rgba(255,255,255,0.92)", boxShadow: "0 -4px 16px rgba(8,51,125,0.08)" }}
+        >
           <div className="flex items-center gap-2">
             <span
               aria-hidden="true"
               className={`h-1.5 w-1.5 rounded-full ${statusDotClass()}`}
             />
-            <span className={`text-xs font-medium ${statusTextClass()}`}>
+            <span className={`text-xs font-medium ${statusTextClass()}`} style={{ color: "var(--admin-text-muted)" }}>
               {statusLabel()}
             </span>
           </div>
@@ -1083,7 +1099,8 @@ export default function ContentBlockEditor({
                 href={`/products/${productId}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 rounded-lg border border-[#1B1C4A] px-3 py-2 text-xs text-[#B6D6F2]/60 hover:border-[#273481] hover:text-white transition-all"
+                className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-all"
+                style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-subtle)" }}
               >
                 <ExternalLink className="h-3.5 w-3.5" />
                 Xem trang sản phẩm
@@ -1092,7 +1109,8 @@ export default function ContentBlockEditor({
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-[#1B1C4A] px-3 py-2 text-xs text-[#B6D6F2]/60 hover:border-[#273481] hover:text-white transition-all"
+              className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-all"
+              style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-subtle)" }}
             >
               <Eye className="h-3.5 w-3.5" />
               Xem trước
@@ -1102,10 +1120,10 @@ export default function ContentBlockEditor({
                 type="button"
                 onClick={requestSave}
                 disabled={busy}
-                className={
-                  isDirty
-                    ? `${PRIMARY_BTN} shadow-[0_0_0_3px_rgba(182,214,242,0.18)]`
-                    : "flex items-center justify-center gap-2 rounded-lg border border-[#1B1C4A] px-4 py-2 text-sm font-medium text-[#B6D6F2]/55 hover:border-[#273481] hover:text-white transition-all disabled:opacity-50"
+                className={isDirty ? `${PRIMARY_BTN}` : SECONDARY_BTN}
+                style={isDirty
+                  ? { background: "var(--admin-primary)", boxShadow: "0 0 0 3px var(--admin-primary-soft)" }
+                  : { borderColor: "var(--admin-border-strong)", color: "var(--admin-text-subtle)" }
                 }
               >
                 {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -1117,27 +1135,18 @@ export default function ContentBlockEditor({
       </div>
 
       {/* ── Confirm save modal ──────────────────────────────────────────────── */}
-      <Modal
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        labelledBy="confirm-save-title"
-        maxWidthClassName="max-w-md"
-      >
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} labelledBy="confirm-save-title" maxWidthClassName="max-w-md">
         <div className="p-5">
-          <h2 id="confirm-save-title" className="text-base font-semibold text-white mb-2">
+          <h2 id="confirm-save-title" className="text-base font-semibold mb-2" style={{ color: "var(--admin-text)" }}>
             Xác nhận lưu nội dung
           </h2>
-          <p className="text-sm text-[#B6D6F2]/60 leading-relaxed mb-5">
+          <p className="text-sm leading-relaxed mb-5" style={{ color: "var(--admin-text-subtle)" }}>
             Nội dung này sẽ được hiển thị trên trang chi tiết sản phẩm. Bạn có
             chắc muốn lưu thay đổi?
           </p>
           <div className="flex items-center justify-end gap-3">
-            <button type="button" onClick={() => setConfirmOpen(false)} className={SECONDARY_BTN}>
-              Hủy
-            </button>
-            <button type="button" onClick={handleConfirmSave} className={PRIMARY_BTN}>
-              Lưu thay đổi
-            </button>
+            <button type="button" onClick={() => setConfirmOpen(false)} className={SECONDARY_BTN} style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-muted)" }}>Hủy</button>
+            <button type="button" onClick={handleConfirmSave} className={PRIMARY_BTN} style={{ background: "var(--admin-primary)" }}>Lưu thay đổi</button>
           </div>
         </div>
       </Modal>

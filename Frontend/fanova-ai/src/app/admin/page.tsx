@@ -8,7 +8,7 @@ interface Module {
   label: string;
   description: string;
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   available: boolean;
 }
 
@@ -70,17 +70,25 @@ export default function AdminDashboardPage() {
   }, []);
 
   if (!ready) {
-    return <div className="min-h-[100dvh] bg-[#0D131F]" />;
+    return <div className="min-h-[100dvh]" style={{ background: "var(--admin-canvas)" }} />;
   }
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-10">
-      {/* Page header */}
-      <div className="mb-10">
-        <h1 className="text-2xl font-semibold text-white tracking-tight">
+      {/* Page header -- fan-rib motif radiates from the top-right corner, a restrained nod to the fan identity */}
+      <div
+        className="admin-fan-motif mb-10 overflow-hidden rounded-2xl px-7 py-6"
+        style={{
+          background: "var(--admin-surface)",
+          border: "1px solid var(--admin-border)",
+          boxShadow: "0 1px 4px rgba(8, 51, 125, 0.05)",
+        }}
+      >
+        <div className="mb-3 h-[2px] w-9 rounded-full" style={{ background: "var(--admin-accent)" }} aria-hidden="true" />
+        <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: "var(--admin-text)" }}>
           Admin Console
         </h1>
-        <p className="mt-2 text-sm text-[#B6D6F2]/50 leading-relaxed max-w-[56ch]">
+        <p className="mt-2 text-sm leading-relaxed max-w-[56ch]" style={{ color: "var(--admin-text-subtle)" }}>
           Quản lý sản phẩm, danh mục, yêu cầu báo giá và dữ liệu vận hành của Nan.
         </p>
       </div>
@@ -94,20 +102,30 @@ export default function AdminDashboardPage() {
             return (
               <div
                 key={mod.href}
-                className="flex flex-col gap-3 rounded-2xl border border-[#1B1C4A] bg-[#111335]/60 p-5 opacity-45"
+                className="flex flex-col gap-3 rounded-2xl p-5 opacity-50"
+                style={{
+                  background: "var(--admin-surface-muted)",
+                  border: "1px solid var(--admin-border)",
+                }}
                 aria-disabled="true"
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1B1C4A]">
-                    <Icon className="h-4 w-4 text-[#B6D6F2]/60" />
+                  <div
+                    className="flex h-9 w-9 items-center justify-center rounded-xl"
+                    style={{ background: "var(--admin-info-soft)" }}
+                  >
+                    <Icon className="h-4 w-4" style={{ color: "var(--admin-text-subtle)" }} />
                   </div>
-                  <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#B6D6F2]/40">
+                  <span
+                    className="font-mono text-[9px] uppercase tracking-[0.12em]"
+                    style={{ color: "var(--admin-text-subtle)" }}
+                  >
                     Sắp triển khai
                   </span>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white">{mod.label}</p>
-                  <p className="mt-1 text-xs text-[#B6D6F2]/45 leading-relaxed">
+                  <p className="text-sm font-medium" style={{ color: "var(--admin-text)" }}>{mod.label}</p>
+                  <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--admin-text-subtle)" }}>
                     {mod.description}
                   </p>
                 </div>
@@ -119,19 +137,42 @@ export default function AdminDashboardPage() {
             <Link
               key={mod.href}
               href={mod.href}
-              className="group flex flex-col gap-3 rounded-2xl border border-[#1B1C4A] bg-[#111335] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#273481]/50 hover:shadow-[0_6px_24px_rgba(39,52,129,0.18)]"
+              className="group flex flex-col gap-3 rounded-2xl p-5 transition-all duration-200 hover:-translate-y-0.5"
+              style={{
+                background: "var(--admin-surface)",
+                border: "1px solid var(--admin-border)",
+                boxShadow: "0 1px 4px rgba(8, 51, 125, 0.06)",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.boxShadow =
+                  "0 6px 20px rgba(8, 51, 125, 0.12)";
+                (e.currentTarget as HTMLElement).style.borderColor =
+                  "rgba(8, 51, 125, 0.28)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.boxShadow =
+                  "0 1px 4px rgba(8, 51, 125, 0.06)";
+                (e.currentTarget as HTMLElement).style.borderColor =
+                  "rgba(8, 51, 125, 0.12)";
+              }}
             >
               <div className="flex items-start justify-between">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1B1C4A] transition-colors group-hover:bg-[#273481]/30">
-                  <Icon className="h-4 w-4 text-[#B6D6F2]/70 transition-colors group-hover:text-[#B6D6F2]" />
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors"
+                  style={{ background: "var(--admin-info-soft)" }}
+                >
+                  <Icon className="h-4 w-4" style={{ color: "var(--admin-primary)" }} />
                 </div>
-                <span className="text-xs text-[#B6D6F2]/30 transition-colors group-hover:text-[#B6D6F2]/60">
-                  Mở &rarr;
+                <span
+                  className="text-xs transition-colors"
+                  style={{ color: "var(--admin-text-subtle)" }}
+                >
+                  Mở →
                 </span>
               </div>
               <div>
-                <p className="text-sm font-medium text-white">{mod.label}</p>
-                <p className="mt-1 text-xs text-[#B6D6F2]/45 leading-relaxed">
+                <p className="text-sm font-medium" style={{ color: "var(--admin-text)" }}>{mod.label}</p>
+                <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--admin-text-subtle)" }}>
                   {mod.description}
                 </p>
               </div>
@@ -141,12 +182,13 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* View public site link */}
-      <div className="mt-10 pt-6 border-t border-[#1B1C4A]/60">
+      <div className="mt-10 pt-6" style={{ borderTop: "1px solid var(--admin-border)" }}>
         <Link
           href="/"
-          className="text-xs text-[#B6D6F2]/60 hover:text-[#B6D6F2] transition-colors"
+          className="text-xs transition-colors hover:underline"
+          style={{ color: "var(--admin-text-subtle)" }}
         >
-          &larr; Về trang chủ Nan
+          ← Về trang chủ Nan
         </Link>
       </div>
     </div>

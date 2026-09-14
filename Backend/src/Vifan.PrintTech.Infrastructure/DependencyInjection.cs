@@ -80,6 +80,7 @@ public static class DependencyInjection
         services.AddScoped<IProductCategoryService, ProductCategoryService>();
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IProductOptionService, ProductOptionService>();
+        services.AddScoped<IOptionDefinitionService, OptionDefinitionService>();
         services.AddScoped<IPricingRuleService, PricingRuleService>();
         services.AddScoped<IPricingService, PricingService>();
         services.AddScoped<ICartService, CartService>();
@@ -91,6 +92,7 @@ public static class DependencyInjection
         services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IProductOptionRepository, ProductOptionRepository>();
+        services.AddScoped<IOptionDefinitionRepository, OptionDefinitionRepository>();
         services.AddScoped<IPricingRuleRepository, PricingRuleRepository>();
         services.AddScoped<ICartRepository, CartRepository>();
         services.AddScoped<ICartItemRepository, CartItemRepository>();

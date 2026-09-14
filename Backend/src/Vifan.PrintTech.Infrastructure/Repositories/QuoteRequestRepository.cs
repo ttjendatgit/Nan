@@ -13,6 +13,11 @@ public class QuoteRequestRepository : Repository<QuoteRequest>, IQuoteRequestRep
     {
     }
 
+    public override async Task<QuoteRequest?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await DbSet
+            .Include(x => x.Options)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
     public async Task<PagedResult<QuoteRequest>> GetPagedAsync(
         string? status,
         string? search,

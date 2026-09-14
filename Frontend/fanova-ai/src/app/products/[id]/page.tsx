@@ -17,12 +17,8 @@ import QuoteRequestForm from "@/components/quote/QuoteRequestForm";
 import ContentBlocksRenderer from "@/components/product/ContentBlocksRenderer";
 import ProductOptionSelector from "@/components/product/ProductOptionSelector";
 import EditorialGrid from "@/components/homepage/EditorialGrid";
-import {
-  getProduct,
-  getProductOptions,
-  getProductsByCategory,
-} from "@/lib/api/products";
-import type { Product, ProductOption } from "@/types/catalog";
+import { getProduct, getProductsByCategory } from "@/lib/api/products";
+import type { Product } from "@/types/catalog";
 
 export default function ProductDetailPage({
   params,
@@ -32,12 +28,11 @@ export default function ProductDetailPage({
   const { id } = use(params);
 
   const [product, setProduct] = useState<Product | null>(null);
-  const [options, setOptions] = useState<ProductOption[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showQuoteForm, setShowQuoteForm] = useState(false);
-  const [pendingQuote, setPendingQuote] = useState<{ message: string; quantity: number } | null>(null);
+  const [pendingQuote, setPendingQuote] = useState<{ selectedOptionIds: string[]; quantity: number } | null>(null);
   const prefersReducedMotion = useReducedMotion();
 
   function openPlainQuoteForm() {
@@ -50,8 +45,8 @@ export default function ProductDetailPage({
     setPendingQuote(null);
   }
 
-  function handleOptionSelectorQuote(summaryText: string, quantity: number) {
-    setPendingQuote({ message: summaryText, quantity });
+  function handleOptionSelectorQuote(selectedOptionIds: string[], quantity: number) {
+    setPendingQuote({ selectedOptionIds, quantity });
     setShowQuoteForm(true);
   }
 
@@ -63,7 +58,6 @@ export default function ProductDetailPage({
       setLoading(true);
       setError(null);
       setProduct(null);
-      setOptions([]);
       setRelatedProducts([]);
 
       let p: Product;
@@ -83,24 +77,12 @@ export default function ProductDetailPage({
       if (cancelled) return;
       setLoading(false);
 
-      // Load optional data without blocking the product render
-      const [optData, relatedData] = await Promise.allSettled([
-        getProductOptions(p.id),
-        p.categoryId
-          ? getProductsByCategory(p.categoryId, { pageSize: 5 })
-          : Promise.resolve(null),
-      ]);
-
-      if (cancelled) return;
-
-      if (optData.status === "fulfilled") {
-        setOptions(optData.value);
-      }
-      if (relatedData.status === "fulfilled" && relatedData.value) {
-        setRelatedProducts(
-          relatedData.value.items.filter((item) => item.id !== p.id)
-        );
-      }
+      // Load related products without blocking the product render. Option data is
+      // fetched separately by ProductOptionSelector, which also owns pricing.
+      if (!p.categoryId) return;
+      const relatedData = await getProductsByCategory(p.categoryId, { pageSize: 5 }).catch(() => null);
+      if (cancelled || !relatedData) return;
+      setRelatedProducts(relatedData.items.filter((item) => item.id !== p.id));
     }
 
     load();
@@ -305,41 +287,11 @@ export default function ProductDetailPage({
               </div>
             </div>
 
-            {/* ── PART C: Below-fold (dark) -- real API options, long-form
-                content, related products. Below sections that duplicated the
-                intro's already-shown price/min-qty/production-time metadata
-                were removed rather than repeated a third time. ── */}
+            {/* ── PART C: Below-fold (dark) -- long-form content, related
+                products. The interactive configurator above (backed by the
+                same live per-product option data) already covers what a
+                read-only options listing here would have duplicated. ── */}
             <div className="max-w-7xl mx-auto px-6 py-14 md:py-16">
-
-              {/* Real per-product options from the backend (read-only display,
-                  distinct from the interactive configurator above). */}
-              {options.length > 0 && (
-                <div className="border-t border-white/10 pt-10">
-                  <h2 className="font-serif text-xl font-semibold text-[#F1F0EA] mb-6">
-                    Tùy chọn sản phẩm
-                  </h2>
-                  <div className="grid grid-cols-1 gap-x-10 gap-y-6 sm:grid-cols-2">
-                    {options
-                      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-                      .map((option) => (
-                        <div key={option.id}>
-                          <p className="text-[10px] font-mono uppercase tracking-[0.14em] text-[rgba(241,240,234,0.40)] mb-2.5">
-                            {option.name}
-                            {option.isRequired ? " *" : ""}
-                          </p>
-                          <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-sm text-[rgba(241,240,234,0.65)]">
-                            {option.values.map((value, i) => (
-                              <span key={value}>
-                                {value}
-                                {i < option.values.length - 1 && <span className="text-white/20">,</span>}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
 
               {/* Nội dung chi tiết sản phẩm */}
               {product.contentBlocks && product.contentBlocks.length > 0 && (
@@ -417,7 +369,7 @@ export default function ProductDetailPage({
                 categoryName={product.categoryName}
                 minQuantity={product.minQuantity}
                 initialQuantity={pendingQuote?.quantity}
-                initialMessage={pendingQuote?.message}
+                selectedOptionIds={pendingQuote?.selectedOptionIds}
                 onSuccess={closeQuoteForm}
                 onCancel={closeQuoteForm}
               />

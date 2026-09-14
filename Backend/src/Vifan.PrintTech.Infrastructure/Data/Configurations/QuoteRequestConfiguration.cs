@@ -18,6 +18,17 @@ public class QuoteRequestConfiguration : IEntityTypeConfiguration<QuoteRequest>
         builder.Property(x => x.CategoryNameSnapshot).HasMaxLength(200);
         builder.Property(x => x.UseCase).HasMaxLength(500);
         builder.Property(x => x.Message).HasMaxLength(2000);
+        builder.Property(x => x.InternalNote).HasMaxLength(2000);
+        builder.Property(x => x.Currency).HasMaxLength(10).IsRequired();
+
+        builder.Property(x => x.BaseUnitPriceSnapshot).HasPrecision(18, 2);
+        builder.Property(x => x.CalculatedUnitPriceSnapshot).HasPrecision(18, 2);
+        builder.Property(x => x.CalculatedSubtotalSnapshot).HasPrecision(18, 2);
+        builder.Property(x => x.AdditionalFeesSnapshot).HasPrecision(18, 2);
+        builder.Property(x => x.DiscountAmountSnapshot).HasPrecision(18, 2);
+        builder.Property(x => x.CalculatedTotalSnapshot).HasPrecision(18, 2);
+        builder.Property(x => x.ManualAdjustment).HasPrecision(18, 2);
+        builder.Property(x => x.FinalQuotedPrice).HasPrecision(18, 2);
 
         builder.Property(x => x.Status)
             .HasConversion<string>()

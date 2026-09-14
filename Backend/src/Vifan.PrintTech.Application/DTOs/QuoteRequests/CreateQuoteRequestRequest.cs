@@ -24,4 +24,11 @@ public class CreateQuoteRequestRequest
     public string? UseCase { get; set; }
 
     public string? Message { get; set; }
+
+    /// <summary>
+    /// IDs of the ProductOption values selected by the customer, if any. Only meaningful when
+    /// <see cref="ProductId"/> is set. The server re-validates every ID against the product and
+    /// recalculates price via PricingService — any client-supplied price is never trusted or accepted.
+    /// </summary>
+    public IReadOnlyList<Guid> SelectedOptionIds { get; set; } = [];
 }

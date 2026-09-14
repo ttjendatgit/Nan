@@ -14,8 +14,8 @@ interface QuoteRequestFormProps {
   minQuantity?: number;
   /** Pre-fills the quantity field, e.g. from a product option selector. Falls back to minQuantity. */
   initialQuantity?: number;
-  /** Pre-fills the message/note field, e.g. with a selected-options summary. */
-  initialMessage?: string;
+  /** IDs of ProductOption values selected in the configurator, if any. Sent as-is; the backend recalculates price server-side. */
+  selectedOptionIds?: string[];
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -57,7 +57,7 @@ export default function QuoteRequestForm({
   categoryName,
   minQuantity,
   initialQuantity,
-  initialMessage,
+  selectedOptionIds,
   onSuccess,
   onCancel,
 }: QuoteRequestFormProps) {
@@ -69,7 +69,7 @@ export default function QuoteRequestForm({
     quantity: String(initialQuantity ?? minQuantity ?? 1),
     neededDate: "",
     useCase: "",
-    message: initialMessage ?? "",
+    message: "",
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -103,6 +103,7 @@ export default function QuoteRequestForm({
         neededDate: fields.neededDate || undefined,
         useCase: fields.useCase.trim() || undefined,
         message: fields.message.trim() || undefined,
+        selectedOptionIds: selectedOptionIds?.length ? selectedOptionIds : undefined,
       };
       await createQuoteRequest(input);
       setSubmitted(true);

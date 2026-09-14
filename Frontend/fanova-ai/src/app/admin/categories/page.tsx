@@ -22,7 +22,7 @@ function slugify(name: string): string {
   return name
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/đ/g, "d")
     .replace(/[^a-z0-9\s-]/g, "")
     .trim()
@@ -36,6 +36,9 @@ const EMPTY_FORM = {
   isActive: true,
   imageUrl: "",
 };
+
+const PRIMARY_BTN =
+  "flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition-all duration-150";
 
 export default function AdminCategoriesPage() {
   // Auth
@@ -181,15 +184,15 @@ export default function AdminCategoriesPage() {
         setSelectedFile(null);
         if (localPreview) URL.revokeObjectURL(localPreview);
         setLocalPreview(null);
-        setFormSuccess("Category updated.");
+        setFormSuccess("Đã cập nhật danh mục.");
       } else {
         await createCategoryWithImage(fd, token);
-        setFormSuccess("Category created.");
+        setFormSuccess("Đã tạo danh mục.");
         startNew();
       }
       await loadCategories();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Operation failed");
+      setFormError(err instanceof Error ? err.message : "Thao tác thất bại");
     } finally {
       setFormLoading(false);
     }
@@ -197,356 +200,320 @@ export default function AdminCategoriesPage() {
 
   async function handleDelete(id: string, name: string) {
     if (!token) return;
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    if (!confirm(`Xóa "${name}"? Thao tác này không thể hoàn tác.`)) return;
     try {
       await deleteCategory(id, token);
       await loadCategories();
       if (editing === id) startNew();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Delete failed");
+      alert(err instanceof Error ? err.message : "Xóa thất bại");
     }
   }
 
+  // Suppress unused warning for handleLogout
+  void handleLogout;
+
   if (!token) {
     return (
-      <div className="min-h-screen bg-[#0D131F] flex items-center justify-center p-4">
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{ background: "var(--admin-canvas)" }}
+      >
         <form
           onSubmit={handleLogin}
-          className="w-full max-w-sm bg-[#111335] rounded-2xl p-8 border border-[#1B1C4A] space-y-5"
+          className="w-full max-w-sm rounded-2xl p-8 space-y-5"
+          style={{
+            background: "var(--admin-surface)",
+            border: "1px solid var(--admin-border)",
+            boxShadow: "0 4px 16px rgba(8,51,125,0.08)",
+          }}
         >
           <div>
-            <h1 className="text-xl font-semibold text-white">Admin Login</h1>
-            <p className="text-xs text-[#B6D6F2]/60 mt-1">Categories management</p>
+            <h1 className="text-xl font-semibold" style={{ color: "var(--admin-text)" }}>
+              Đăng nhập Admin
+            </h1>
+            <p className="text-xs mt-1" style={{ color: "var(--admin-text-subtle)" }}>
+              Quản lý danh mục
+            </p>
           </div>
           {loginError && (
-            <p className="text-sm text-red-400 bg-red-900/20 rounded-lg px-3 py-2">
+            <p
+              className="text-sm rounded-lg px-3 py-2"
+              style={{
+                color: "var(--admin-danger)",
+                background: "var(--admin-danger-soft)",
+                border: "1px solid rgba(220,38,38,0.20)",
+              }}
+            >
               {loginError}
             </p>
           )}
           <div className="space-y-3">
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white placeholder-[#B6D6F2]/40 px-4 py-2.5 text-sm outline-none focus:border-[#B6D6F2] transition-colors"
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white placeholder-[#B6D6F2]/40 px-4 py-2.5 text-sm outline-none focus:border-[#B6D6F2] transition-colors"
-            />
+            <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required className="admin-input" />
+            <input type="password" placeholder="Mật khẩu" value={password} onChange={(e) => setPassword(e.target.value)} required className="admin-input" />
           </div>
-          <button
-            type="submit"
-            disabled={loginLoading}
-            className="w-full rounded-lg bg-[#273481] text-white py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 transition-opacity"
-          >
+          <button type="submit" disabled={loginLoading} className={PRIMARY_BTN} style={{ background: "var(--admin-primary)" }}>
             {loginLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-            Sign In
+            Đăng nhập
           </button>
-          <p className="text-xs text-[#B6D6F2]/40 text-center">
-            Đăng nhập bằng tài khoản quản trị được cấp.
-          </p>
         </form>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* Form panel */}
-        <div className="lg:col-span-2">
-          <div className="bg-[#111335] rounded-2xl border border-[#1B1C4A] p-6 space-y-5 sticky top-6">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-white">
-                {editing ? "Edit Category" : "New Category"}
-              </h2>
-              {editing && (
-                <button
-                  onClick={startNew}
-                  className="text-xs text-[#B6D6F2] hover:text-white transition-colors"
-                >
-                  + New
-                </button>
-              )}
+    <div
+      className="max-w-6xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-5 gap-8"
+      style={{ color: "var(--admin-text)" }}
+    >
+      {/* Form panel */}
+      <div className="lg:col-span-2">
+        <div
+          className="rounded-2xl p-6 space-y-5 sticky top-6"
+          style={{
+            background: "var(--admin-surface)",
+            border: "1px solid var(--admin-border)",
+            boxShadow: "0 1px 4px rgba(8,51,125,0.06)",
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold" style={{ color: "var(--admin-text)" }}>
+              {editing ? "Chỉnh sửa danh mục" : "Danh mục mới"}
+            </h2>
+            {editing && (
+              <button
+                onClick={startNew}
+                className="text-xs transition-colors hover:underline"
+                style={{ color: "var(--admin-primary)" }}
+              >
+                + Mới
+              </button>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--admin-text-muted)" }}>
+                Tên danh mục <span style={{ color: "var(--admin-danger)" }}>*</span>
+              </label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                required
+                placeholder="Quạt giấy truyền thống"
+                className="admin-input"
+              />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs text-[#B6D6F2]/70 mb-1.5">
-                  Name <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  required
-                  placeholder="Quạt giấy truyền thống"
-                  className="w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white placeholder-[#B6D6F2]/30 px-3 py-2 text-sm outline-none focus:border-[#B6D6F2] transition-colors"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--admin-text-muted)" }}>
+                Slug
+              </label>
+              <input
+                type="text"
+                value={form.slug}
+                onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
+                placeholder="quat-giay-truyen-thong"
+                className="admin-input"
+              />
+            </div>
 
-              <div>
-                <label className="block text-xs text-[#B6D6F2]/70 mb-1.5">
-                  Slug
-                </label>
-                <input
-                  type="text"
-                  value={form.slug}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, slug: e.target.value }))
-                  }
-                  placeholder="quat-giay-truyen-thong"
-                  className="w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white placeholder-[#B6D6F2]/30 px-3 py-2 text-sm outline-none focus:border-[#B6D6F2] transition-colors"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--admin-text-muted)" }}>
+                Mô tả
+              </label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                rows={3}
+                placeholder="Mô tả danh mục..."
+                className="admin-input resize-none"
+              />
+            </div>
 
-              <div>
-                <label className="block text-xs text-[#B6D6F2]/70 mb-1.5">
-                  Description
-                </label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, description: e.target.value }))
-                  }
-                  rows={3}
-                  placeholder="Mô tả danh mục..."
-                  className="w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white placeholder-[#B6D6F2]/30 px-3 py-2 text-sm outline-none focus:border-[#B6D6F2] transition-colors resize-none"
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, isActive: !prev.isActive }))}
+                className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                style={{ background: form.isActive ? "var(--admin-toggle-on)" : "var(--admin-toggle-off)" }}
+                aria-label="Toggle active"
+                aria-checked={form.isActive}
+                role="switch"
+              >
+                <span
+                  className="inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform shadow-sm"
+                  style={{ transform: form.isActive ? "translateX(18px)" : "translateX(2px)" }}
                 />
-              </div>
+              </button>
+              <span className="text-sm" style={{ color: "var(--admin-text-muted)" }}>
+                {form.isActive ? "Hiển thị" : "Ẩn"}
+              </span>
+            </div>
 
-              <div className="flex items-center gap-3">
+            {/* Image section */}
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--admin-text-muted)" }}>
+                Hình ảnh
+              </label>
+
+              {localPreview && (
+                <div className="relative mb-2 aspect-video w-full overflow-hidden rounded-lg" style={{ border: "2px dashed var(--admin-primary)" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={localPreview} alt="Preview" className="h-full w-full object-cover" />
+                  <button type="button" onClick={clearImage} className="absolute right-2 top-2 rounded-full bg-black/50 p-1 hover:bg-black/70 transition-colors" aria-label="Xóa ảnh">
+                    <X className="h-3.5 w-3.5 text-white" />
+                  </button>
+                  <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-xs text-white">
+                    Sẽ được tải lên khi lưu
+                  </div>
+                </div>
+              )}
+
+              {form.imageUrl && !localPreview && (
+                <div className="relative mb-2 aspect-video w-full overflow-hidden rounded-lg" style={{ border: "1px solid var(--admin-border-strong)" }}>
+                  <Image src={form.imageUrl} alt="Current image" fill className="object-cover" sizes="400px" />
+                  <button type="button" onClick={clearImage} className="absolute right-2 top-2 rounded-full bg-black/50 p-1 hover:bg-black/70 transition-colors" aria-label="Xóa ảnh">
+                    <X className="h-3.5 w-3.5 text-white" />
+                  </button>
+                </div>
+              )}
+
+              {!form.imageUrl && !localPreview && (
                 <button
                   type="button"
-                  onClick={() =>
-                    setForm((prev) => ({ ...prev, isActive: !prev.isActive }))
-                  }
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                    form.isActive ? "bg-[#273481]" : "bg-[#1B1C4A] border border-[#273481]"
-                  }`}
-                  aria-label="Toggle active"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm transition-colors"
+                  style={{ border: "2px dashed var(--admin-border-strong)", color: "var(--admin-text-subtle)" }}
                 >
-                  <span
-                    className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
-                      form.isActive ? "translate-x-4" : "translate-x-0.5"
-                    }`}
-                  />
+                  <Upload className="h-4 w-4" />
+                  Chọn ảnh từ máy tính
                 </button>
-                <span className="text-sm text-[#B6D6F2]">
-                  {form.isActive ? "Active" : "Inactive"}
-                </span>
-              </div>
-
-              {/* Image section */}
-              <div>
-                <label className="block text-xs text-[#B6D6F2]/70 mb-1.5">
-                  Image
-                </label>
-
-                {/* Local preview (selected, will upload on save) */}
-                {localPreview && (
-                  <div className="relative mb-2 aspect-video w-full overflow-hidden rounded-lg border border-dashed border-[#273481]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={localPreview}
-                      alt="Preview"
-                      className="h-full w-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={clearImage}
-                      className="absolute right-2 top-2 rounded-full bg-black/60 p-1 hover:bg-black/80 transition-colors"
-                    >
-                      <X className="h-3.5 w-3.5 text-white" />
-                    </button>
-                    <div className="absolute bottom-2 left-2 rounded-md bg-black/60 px-2 py-1 text-xs text-[#B6D6F2]">
-                      Will be uploaded on save
-                    </div>
-                  </div>
-                )}
-
-                {/* Existing imageUrl (no new file selected) */}
-                {form.imageUrl && !localPreview && (
-                  <div className="relative mb-2 aspect-video w-full overflow-hidden rounded-lg border border-[#273481]">
-                    <Image
-                      src={form.imageUrl}
-                      alt="Current image"
-                      fill
-                      className="object-cover"
-                      sizes="400px"
-                    />
-                    <button
-                      type="button"
-                      onClick={clearImage}
-                      className="absolute right-2 top-2 rounded-full bg-black/60 p-1 hover:bg-black/80 transition-colors"
-                    >
-                      <X className="h-3.5 w-3.5 text-white" />
-                    </button>
-                  </div>
-                )}
-
-                {/* File picker (no image set yet) */}
-                {!form.imageUrl && !localPreview && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[#273481] py-3 text-sm text-[#B6D6F2]/70 hover:border-[#B6D6F2] hover:text-white transition-colors"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Select image from computer
-                  </button>
-                )}
-
-                {/* Replace image button (existing image, no local file yet) */}
-                {form.imageUrl && !localPreview && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[#273481] py-2 text-xs text-[#B6D6F2]/70 hover:border-[#B6D6F2] hover:text-white transition-colors"
-                  >
-                    <Upload className="h-3.5 w-3.5" />
-                    Replace image
-                  </button>
-                )}
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/avif"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                />
-              </div>
-
-              {formError && (
-                <p className="text-sm text-red-400 bg-red-900/20 rounded-lg px-3 py-2">
-                  {formError}
-                </p>
-              )}
-              {formSuccess && (
-                <p className="text-sm text-green-400 bg-green-900/20 rounded-lg px-3 py-2">
-                  {formSuccess}
-                </p>
               )}
 
-              <button
-                type="submit"
-                disabled={formLoading}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#273481] py-2.5 text-sm font-semibold text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
-              >
-                {formLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                {editing ? "Update Category" : "Create Category"}
-              </button>
-            </form>
-          </div>
+              {form.imageUrl && !localPreview && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs transition-colors"
+                  style={{ border: "1px dashed var(--admin-border-strong)", color: "var(--admin-text-subtle)" }}
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Thay ảnh khác
+                </button>
+              )}
+
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden" onChange={handleFileSelect} />
+            </div>
+
+            {formError && (
+              <p className="text-sm rounded-lg px-3 py-2" style={{ color: "var(--admin-danger)", background: "var(--admin-danger-soft)", border: "1px solid rgba(220,38,38,0.20)" }}>
+                {formError}
+              </p>
+            )}
+            {formSuccess && (
+              <p className="text-sm rounded-lg px-3 py-2" style={{ color: "var(--admin-success)", background: "var(--admin-success-soft)", border: "1px solid rgba(21,128,61,0.20)" }}>
+                {formSuccess}
+              </p>
+            )}
+
+            <button type="submit" disabled={formLoading} className={PRIMARY_BTN} style={{ background: "var(--admin-primary)" }}>
+              {formLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {editing ? "Cập nhật danh mục" : "Tạo danh mục"}
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {/* List panel */}
+      <div className="lg:col-span-3">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold" style={{ color: "var(--admin-text)" }}>
+            Danh mục ({categories.length})
+          </h2>
+          <button onClick={loadCategories} className="text-sm transition-colors hover:underline" style={{ color: "var(--admin-text-subtle)" }}>
+            Làm mới
+          </button>
         </div>
 
-        {/* List panel */}
-        <div className="lg:col-span-3">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-white">
-              Categories ({categories.length})
-            </h2>
-            <button
-              onClick={loadCategories}
-              className="text-sm text-[#B6D6F2]/60 hover:text-white transition-colors"
-            >
-              Refresh
-            </button>
+        {listLoading && (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--admin-text-subtle)" }} />
           </div>
+        )}
 
-          {listLoading && (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-[#B6D6F2]" />
-            </div>
-          )}
+        {listError && (
+          <p className="text-sm rounded-lg px-4 py-3" style={{ color: "var(--admin-danger)", background: "var(--admin-danger-soft)", border: "1px solid rgba(220,38,38,0.20)" }}>
+            {listError}
+          </p>
+        )}
 
-          {listError && (
-            <p className="text-sm text-red-400 bg-red-900/20 rounded-lg px-4 py-3">
-              {listError}
-            </p>
-          )}
+        {!listLoading && categories.length === 0 && !listError && (
+          <p className="text-sm py-12 text-center" style={{ color: "var(--admin-text-subtle)" }}>
+            Chưa có danh mục nào. Tạo danh mục đầu tiên.
+          </p>
+        )}
 
-          {!listLoading && categories.length === 0 && !listError && (
-            <p className="text-sm text-[#B6D6F2]/40 py-12 text-center">
-              No categories yet. Create your first one.
-            </p>
-          )}
-
-          <div className="space-y-3">
-            {categories.map((cat) => (
+        <div className="space-y-3">
+          {categories.map((cat) => {
+            const isEditing = editing === cat.id;
+            return (
               <div
                 key={cat.id}
-                className={`flex items-center gap-4 rounded-xl border p-4 transition-colors ${
-                  editing === cat.id
-                    ? "border-[#273481] bg-[#1B1C4A]"
-                    : "border-[#1B1C4A] bg-[#111335]"
-                }`}
+                className="flex items-center gap-4 rounded-xl p-4 transition-colors"
+                style={{
+                  border: isEditing ? "1px solid rgba(8,51,125,0.35)" : "1px solid var(--admin-border)",
+                  background: isEditing ? "var(--admin-primary-soft)" : "var(--admin-surface)",
+                  boxShadow: isEditing ? "none" : "0 1px 3px rgba(8,51,125,0.04)",
+                }}
               >
-                <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-[#1B1C4A]">
+                {/* Thumbnail */}
+                <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg" style={{ background: "var(--admin-surface-muted)" }}>
                   {cat.imageUrl ? (
-                    <Image
-                      src={cat.imageUrl}
-                      alt={cat.name}
-                      fill
-                      className="object-cover"
-                      sizes="56px"
-                    />
+                    <Image src={cat.imageUrl} alt={cat.name} fill className="object-cover" sizes="56px" />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-[#273481]/60">
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={1.5}
-                        className="h-6 w-6"
-                      >
+                    <div className="flex h-full items-center justify-center" style={{ color: "var(--admin-border-strong)" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-6 w-6">
                         <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 20M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                     </div>
                   )}
                 </div>
 
+                {/* Info */}
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-white truncate">{cat.name}</p>
-                  <p className="text-xs text-[#B6D6F2]/50 truncate">{cat.slug}</p>
-                  <span
-                    className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                      cat.isActive
-                        ? "bg-green-900/30 text-green-400"
-                        : "bg-[#273481]/20 text-[#B6D6F2]/50"
-                    }`}
-                  >
-                    {cat.isActive ? "Active" : "Inactive"}
+                  <p className="font-medium truncate" style={{ color: "var(--admin-text)" }}>{cat.name}</p>
+                  <p className="text-xs truncate mt-0.5" style={{ color: "var(--admin-text-subtle)" }}>{cat.slug}</p>
+                  <span className={`mt-1 inline-block admin-badge ${cat.isActive ? "admin-badge-active" : "admin-badge-inactive"}`}>
+                    {cat.isActive ? "Hiển thị" : "Ẩn"}
                   </span>
                 </div>
 
+                {/* Actions */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={() => startEdit(cat)}
-                    className="rounded-lg bg-[#273481]/30 p-2 text-[#B6D6F2] hover:bg-[#273481] hover:text-white transition-colors"
-                    aria-label="Edit"
+                    className="rounded-lg p-2 transition-colors"
+                    style={{ color: "var(--admin-primary)", background: "var(--admin-primary-soft)" }}
+                    aria-label="Chỉnh sửa"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(cat.id, cat.name)}
-                    className="rounded-lg bg-red-900/20 p-2 text-red-400 hover:bg-red-900/40 transition-colors"
-                    aria-label="Delete"
+                    className="rounded-lg p-2 transition-colors"
+                    style={{ color: "var(--admin-danger)", background: "var(--admin-danger-soft)" }}
+                    aria-label="Xóa"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
+    </div>
   );
 }

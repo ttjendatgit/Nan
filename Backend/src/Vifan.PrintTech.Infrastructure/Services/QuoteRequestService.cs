@@ -1,4 +1,5 @@
 using Vifan.PrintTech.Application.Common;
+using Vifan.PrintTech.Application.DTOs.Pricing;
 using Vifan.PrintTech.Application.DTOs.QuoteRequests;
 using Vifan.PrintTech.Application.Exceptions;
 using Vifan.PrintTech.Application.Interfaces.Repositories;
@@ -12,15 +13,18 @@ public class QuoteRequestService : IQuoteRequestService
 {
     private readonly IQuoteRequestRepository _quoteRequestRepository;
     private readonly IProductRepository _productRepository;
+    private readonly IPricingService _pricingService;
     private readonly IUnitOfWork _unitOfWork;
 
     public QuoteRequestService(
         IQuoteRequestRepository quoteRequestRepository,
         IProductRepository productRepository,
+        IPricingService pricingService,
         IUnitOfWork unitOfWork)
     {
         _quoteRequestRepository = quoteRequestRepository;
         _productRepository = productRepository;
+        _pricingService = pricingService;
         _unitOfWork = unitOfWork;
     }
 
@@ -30,6 +34,7 @@ public class QuoteRequestService : IQuoteRequestService
     {
         string? productNameSnapshot = null;
         string? categoryNameSnapshot = null;
+        PriceBreakdownDto? pricing = null;
 
         if (request.ProductId.HasValue)
         {
@@ -39,6 +44,15 @@ public class QuoteRequestService : IQuoteRequestService
 
             productNameSnapshot = product.Name;
             categoryNameSnapshot = product.Category?.Name;
+
+            // Server is the sole pricing authority: any price implied by the client is ignored.
+            // This call also enforces cross-product option validation and the product's MinQuantity.
+            pricing = await _pricingService.CalculateAsync(new CalculatePriceRequest
+            {
+                ProductId = request.ProductId.Value,
+                Quantity = request.Quantity,
+                SelectedOptionIds = request.SelectedOptionIds
+            }, ct);
         }
 
         var entity = new QuoteRequest
@@ -56,6 +70,33 @@ public class QuoteRequestService : IQuoteRequestService
             Message = request.Message?.Trim(),
             Status = QuoteRequestStatus.New
         };
+
+        if (pricing is not null)
+        {
+            entity.BaseUnitPriceSnapshot = pricing.BaseUnitPrice;
+            entity.CalculatedUnitPriceSnapshot = pricing.UnitPrice;
+            entity.CalculatedSubtotalSnapshot = pricing.Subtotal;
+            entity.AdditionalFeesSnapshot = pricing.AdditionalCost + pricing.OrderAdjustmentsTotal;
+            entity.DiscountAmountSnapshot = pricing.DiscountAmount;
+            entity.CalculatedTotalSnapshot = pricing.CalculatedTotal;
+            entity.AppliedPricingRuleIdSnapshot = pricing.AppliedPricingRuleId;
+            entity.Currency = pricing.Currency;
+
+            entity.Options = pricing.SelectedOptions.Select(o => new QuoteRequestOption
+            {
+                OptionDefinitionId = o.OptionDefinitionId,
+                OptionTypeSnapshot = o.OptionType,
+                OptionNameSnapshot = o.OptionName,
+                OptionValueSnapshot = o.OptionValue,
+                PriceAdjustmentTypeSnapshot = o.PriceAdjustmentType,
+                PriceAdjustmentSnapshot = o.AdditionalPrice,
+                CalculatedAmountSnapshot = o.PriceAdjustmentType == nameof(PriceAdjustmentType.FixedPerUnit)
+                    ? o.AdditionalPrice * request.Quantity
+                    : o.PriceAdjustmentType == nameof(PriceAdjustmentType.FixedPerOrder)
+                        ? o.AdditionalPrice
+                        : 0m
+            }).ToList();
+        }
 
         await _quoteRequestRepository.AddAsync(entity, ct);
         await _unitOfWork.SaveChangesAsync(ct);
@@ -110,6 +151,26 @@ public class QuoteRequestService : IQuoteRequestService
         return MapToDto(entity);
     }
 
+    public async Task<QuoteRequestDto> SetFinalQuotedPriceAsync(
+        Guid id,
+        SetFinalQuotedPriceRequest request,
+        CancellationToken ct = default)
+    {
+        var entity = await _quoteRequestRepository.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException("Quote request not found.");
+
+        // Additive override only: CalculatedTotalSnapshot (what the pricing engine actually
+        // computed at submission time) is never touched or overwritten here.
+        entity.FinalQuotedPrice = request.FinalQuotedPrice;
+        entity.ManualAdjustment = request.ManualAdjustment;
+        entity.InternalNote = request.InternalNote?.Trim();
+
+        _quoteRequestRepository.Update(entity);
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        return MapToDto(entity);
+    }
+
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var entity = await _quoteRequestRepository.GetByIdAsync(id, ct)
@@ -134,6 +195,28 @@ public class QuoteRequestService : IQuoteRequestService
         UseCase = q.UseCase,
         Message = q.Message,
         Status = q.Status.ToString(),
+        BaseUnitPriceSnapshot = q.BaseUnitPriceSnapshot,
+        CalculatedUnitPriceSnapshot = q.CalculatedUnitPriceSnapshot,
+        CalculatedSubtotalSnapshot = q.CalculatedSubtotalSnapshot,
+        AdditionalFeesSnapshot = q.AdditionalFeesSnapshot,
+        DiscountAmountSnapshot = q.DiscountAmountSnapshot,
+        CalculatedTotalSnapshot = q.CalculatedTotalSnapshot,
+        AppliedPricingRuleIdSnapshot = q.AppliedPricingRuleIdSnapshot,
+        Currency = q.Currency,
+        ManualAdjustment = q.ManualAdjustment,
+        FinalQuotedPrice = q.FinalQuotedPrice,
+        InternalNote = q.InternalNote,
+        Options = q.Options.Select(o => new QuoteRequestOptionDto
+        {
+            Id = o.Id,
+            OptionDefinitionId = o.OptionDefinitionId,
+            OptionTypeSnapshot = o.OptionTypeSnapshot,
+            OptionNameSnapshot = o.OptionNameSnapshot,
+            OptionValueSnapshot = o.OptionValueSnapshot,
+            PriceAdjustmentTypeSnapshot = o.PriceAdjustmentTypeSnapshot,
+            PriceAdjustmentSnapshot = o.PriceAdjustmentSnapshot,
+            CalculatedAmountSnapshot = o.CalculatedAmountSnapshot
+        }).ToList(),
         CreatedAt = q.CreatedAt,
         UpdatedAt = q.UpdatedAt
     };

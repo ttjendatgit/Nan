@@ -18,13 +18,14 @@ import {
 } from "@/lib/api/products";
 import { getCategories } from "@/lib/api/categories";
 import ContentBlockEditor from "@/components/product/ContentBlockEditor";
+import ProductOptionAssignments from "@/components/admin/ProductOptionAssignments";
 import type { Product, ProductCategory } from "@/types/catalog";
 
 function slugify(name: string): string {
   return name
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/đ/g, "d")
     .replace(/[^a-z0-9\s-]/g, "")
     .trim()
@@ -43,6 +44,18 @@ const EMPTY_FORM = {
   isActive: true,
   imageUrl: "",
 };
+
+// ─── Shared inline styles (light admin system) ─────────────────────────────
+const INPUT_CLS =
+  "admin-input";
+const LABEL_CLS =
+  "block text-xs font-medium mb-1.5";
+const PRIMARY_BTN =
+  "flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition-all duration-150";
+const ICON_BTN_EDIT =
+  "rounded-lg p-2 transition-colors focus-visible:outline-none focus-visible:ring-2";
+const ICON_BTN_DEL =
+  "rounded-lg p-2 transition-colors focus-visible:outline-none focus-visible:ring-2";
 
 export default function AdminProductsPage() {
   // Auth
@@ -212,15 +225,15 @@ export default function AdminProductsPage() {
         setSelectedFile(null);
         if (localPreview) URL.revokeObjectURL(localPreview);
         setLocalPreview(null);
-        setFormSuccess("Product updated.");
+        setFormSuccess("Đã cập nhật sản phẩm.");
       } else {
         await createProductWithImage(fd, token);
-        setFormSuccess("Product created.");
+        setFormSuccess("Đã tạo sản phẩm.");
         startNew();
       }
       await loadProducts();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Operation failed");
+      setFormError(err instanceof Error ? err.message : "Thao tác thất bại");
     } finally {
       setFormLoading(false);
     }
@@ -228,29 +241,48 @@ export default function AdminProductsPage() {
 
   async function handleDelete(id: string, name: string) {
     if (!token) return;
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    if (!confirm(`Xóa "${name}"? Thao tác này không thể hoàn tác.`)) return;
     try {
       await deleteProduct(id, token);
       await loadProducts();
       if (editing === id) startNew();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Delete failed");
+      alert(err instanceof Error ? err.message : "Xóa thất bại");
     }
   }
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-[#0D131F] flex items-center justify-center p-4">
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{ background: "var(--admin-canvas)" }}
+      >
         <form
           onSubmit={handleLogin}
-          className="w-full max-w-sm bg-[#111335] rounded-2xl p-8 border border-[#1B1C4A] space-y-5"
+          className="w-full max-w-sm rounded-2xl p-8 space-y-5"
+          style={{
+            background: "var(--admin-surface)",
+            border: "1px solid var(--admin-border)",
+            boxShadow: "0 4px 16px rgba(8,51,125,0.08)",
+          }}
         >
           <div>
-            <h1 className="text-xl font-semibold text-white">Admin Login</h1>
-            <p className="text-xs text-[#B6D6F2]/60 mt-1">Products management</p>
+            <h1 className="text-xl font-semibold" style={{ color: "var(--admin-text)" }}>
+              Đăng nhập Admin
+            </h1>
+            <p className="text-xs mt-1" style={{ color: "var(--admin-text-subtle)" }}>
+              Quản lý sản phẩm
+            </p>
           </div>
           {loginError && (
-            <p className="text-sm text-red-400 bg-red-900/20 rounded-lg px-3 py-2">
+            <p
+              className="text-sm rounded-lg px-3 py-2"
+              style={{
+                color: "var(--admin-danger)",
+                background: "var(--admin-danger-soft)",
+                border: "1px solid rgba(220,38,38,0.20)",
+              }}
+            >
               {loginError}
             </p>
           )}
@@ -261,405 +293,523 @@ export default function AdminProductsPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white placeholder-[#B6D6F2]/40 px-4 py-2.5 text-sm outline-none focus:border-[#B6D6F2] transition-colors"
+              className="admin-input"
             />
             <input
               type="password"
-              placeholder="Password"
+              placeholder="Mật khẩu"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white placeholder-[#B6D6F2]/40 px-4 py-2.5 text-sm outline-none focus:border-[#B6D6F2] transition-colors"
+              className="admin-input"
             />
           </div>
           <button
             type="submit"
             disabled={loginLoading}
-            className="w-full rounded-lg bg-[#273481] text-white py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 transition-opacity"
+            className={PRIMARY_BTN}
+            style={{ background: "var(--admin-primary)" }}
           >
             {loginLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-            Sign In
+            Đăng nhập
           </button>
-          <p className="text-xs text-[#B6D6F2]/40 text-center">
-            Đăng nhập bằng tài khoản quản trị được cấp.
-          </p>
         </form>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* Form panel */}
-        <div className="lg:col-span-2">
-          <div className="bg-[#111335] rounded-2xl border border-[#1B1C4A] p-6 space-y-4 sticky top-6">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-white">
-                {editing ? "Edit Product" : "New Product"}
-              </h2>
-              {editing && (
-                <button
-                  onClick={startNew}
-                  className="text-xs text-[#B6D6F2] hover:text-white transition-colors"
-                >
-                  + New
-                </button>
-              )}
+    <div
+      className="max-w-6xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-5 gap-8"
+      style={{ color: "var(--admin-text)" }}
+    >
+      {/* Form panel */}
+      <div className="lg:col-span-2">
+        <div
+          className="rounded-2xl p-6 space-y-4 sticky top-6"
+          style={{
+            background: "var(--admin-surface)",
+            border: "1px solid var(--admin-border)",
+            boxShadow: "0 1px 4px rgba(8,51,125,0.06)",
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold" style={{ color: "var(--admin-text)" }}>
+              {editing ? "Chỉnh sửa sản phẩm" : "Sản phẩm mới"}
+            </h2>
+            {editing && (
+              <button
+                onClick={startNew}
+                className="text-xs transition-colors hover:underline"
+                style={{ color: "var(--admin-primary)" }}
+              >
+                + Mới
+              </button>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {/* Category */}
+            <div>
+              <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+                Danh mục <span style={{ color: "var(--admin-danger)" }}>*</span>
+              </label>
+              <select
+                value={form.categoryId}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, categoryId: e.target.value }))
+                }
+                required
+                className="admin-input"
+              >
+                <option value="">Chọn danh mục…</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3">
-              {/* Category */}
-              <div>
-                <label className="block text-xs text-[#B6D6F2]/70 mb-1.5">
-                  Category <span className="text-red-400">*</span>
-                </label>
-                <select
-                  value={form.categoryId}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, categoryId: e.target.value }))
-                  }
-                  required
-                  className="w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white px-3 py-2 text-sm outline-none focus:border-[#B6D6F2] transition-colors"
-                >
-                  <option value="">Select category…</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {/* Name */}
+            <div>
+              <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+                Tên sản phẩm <span style={{ color: "var(--admin-danger)" }}>*</span>
+              </label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                required
+                placeholder="Quạt giấy in logo"
+                className="admin-input"
+              />
+            </div>
 
-              {/* Name */}
+            {/* Slug */}
+            <div>
+              <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+                Slug
+              </label>
+              <input
+                type="text"
+                value={form.slug}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, slug: e.target.value }))
+                }
+                placeholder="quat-giay-in-logo"
+                className="admin-input"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+                Mô tả
+              </label>
+              <textarea
+                value={form.description}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, description: e.target.value }))
+                }
+                rows={2}
+                placeholder="Mô tả sản phẩm..."
+                className="admin-input resize-none"
+              />
+            </div>
+
+            {/* Price row */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-[#B6D6F2]/70 mb-1.5">
-                  Name <span className="text-red-400">*</span>
+                <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+                  Giá gốc (VND) <span style={{ color: "var(--admin-danger)" }}>*</span>
                 </label>
                 <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => handleNameChange(e.target.value)}
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={form.basePrice}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, basePrice: e.target.value }))
+                  }
                   required
-                  placeholder="Quạt giấy in logo"
-                  className="w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white placeholder-[#B6D6F2]/30 px-3 py-2 text-sm outline-none focus:border-[#B6D6F2] transition-colors"
+                  placeholder="150000"
+                  className="admin-input"
                 />
               </div>
-
-              {/* Slug */}
               <div>
-                <label className="block text-xs text-[#B6D6F2]/70 mb-1.5">
-                  Slug
-                </label>
-                <input
-                  type="text"
-                  value={form.slug}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, slug: e.target.value }))
-                  }
-                  placeholder="quat-giay-in-logo"
-                  className="w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white placeholder-[#B6D6F2]/30 px-3 py-2 text-sm outline-none focus:border-[#B6D6F2] transition-colors"
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-xs text-[#B6D6F2]/70 mb-1.5">
-                  Description
-                </label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, description: e.target.value }))
-                  }
-                  rows={2}
-                  placeholder="Mô tả sản phẩm..."
-                  className="w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white placeholder-[#B6D6F2]/30 px-3 py-2 text-sm outline-none focus:border-[#B6D6F2] transition-colors resize-none"
-                />
-              </div>
-
-              {/* Price row */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-[#B6D6F2]/70 mb-1.5">
-                    Base Price (VND) <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1000"
-                    value={form.basePrice}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, basePrice: e.target.value }))
-                    }
-                    required
-                    placeholder="150000"
-                    className="w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white placeholder-[#B6D6F2]/30 px-3 py-2 text-sm outline-none focus:border-[#B6D6F2] transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-[#B6D6F2]/70 mb-1.5">
-                    Min Qty
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={form.minQuantity}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, minQuantity: e.target.value }))
-                    }
-                    className="w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white placeholder-[#B6D6F2]/30 px-3 py-2 text-sm outline-none focus:border-[#B6D6F2] transition-colors"
-                  />
-                </div>
-              </div>
-
-              {/* Production days */}
-              <div>
-                <label className="block text-xs text-[#B6D6F2]/70 mb-1.5">
-                  Est. Production Days
+                <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+                  SL tối thiểu
                 </label>
                 <input
                   type="number"
                   min="1"
-                  value={form.estimatedProductionDays}
+                  value={form.minQuantity}
                   onChange={(e) =>
+                    setForm((prev) => ({ ...prev, minQuantity: e.target.value }))
+                  }
+                  className="admin-input"
+                />
+              </div>
+            </div>
+
+            {/* Production days */}
+            <div>
+              <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+                Ngày sản xuất ước tính
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={form.estimatedProductionDays}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    estimatedProductionDays: e.target.value,
+                  }))
+                }
+                className="admin-input"
+              />
+            </div>
+
+            {/* Toggles */}
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
                     setForm((prev) => ({
                       ...prev,
-                      estimatedProductionDays: e.target.value,
+                      isCustomizable: !prev.isCustomizable,
                     }))
                   }
-                  className="w-full rounded-lg bg-[#1B1C4A] border border-[#273481] text-white placeholder-[#B6D6F2]/30 px-3 py-2 text-sm outline-none focus:border-[#B6D6F2] transition-colors"
-                />
+                  className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                  style={{
+                    background: form.isCustomizable
+                      ? "var(--admin-toggle-on)"
+                      : "var(--admin-toggle-off)",
+                  }}
+                  aria-label="Toggle customizable"
+                  aria-checked={form.isCustomizable}
+                  role="switch"
+                >
+                  <span
+                    className="inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform shadow-sm"
+                    style={{
+                      transform: form.isCustomizable
+                        ? "translateX(18px)"
+                        : "translateX(2px)",
+                    }}
+                  />
+                </button>
+                <span className="text-xs" style={{ color: "var(--admin-text-muted)" }}>
+                  Tùy chỉnh được
+                </span>
               </div>
 
-              {/* Toggles */}
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        isCustomizable: !prev.isCustomizable,
-                      }))
-                    }
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                      form.isCustomizable
-                        ? "bg-[#273481]"
-                        : "bg-[#1B1C4A] border border-[#273481]"
-                    }`}
-                    aria-label="Toggle customizable"
-                  >
-                    <span
-                      className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
-                        form.isCustomizable ? "translate-x-4" : "translate-x-0.5"
-                      }`}
-                    />
-                  </button>
-                  <span className="text-xs text-[#B6D6F2]">Customizable</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setForm((prev) => ({ ...prev, isActive: !prev.isActive }))
-                    }
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                      form.isActive
-                        ? "bg-[#273481]"
-                        : "bg-[#1B1C4A] border border-[#273481]"
-                    }`}
-                    aria-label="Toggle active"
-                  >
-                    <span
-                      className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
-                        form.isActive ? "translate-x-4" : "translate-x-0.5"
-                      }`}
-                    />
-                  </button>
-                  <span className="text-xs text-[#B6D6F2]">Active</span>
-                </div>
-              </div>
-
-              {/* Image section */}
-              <div>
-                <label className="block text-xs text-[#B6D6F2]/70 mb-1.5">
-                  Image
-                </label>
-
-                {/* Local preview (selected, will upload on save) */}
-                {localPreview && (
-                  <div className="relative mb-2 aspect-video w-full overflow-hidden rounded-lg border border-dashed border-[#273481]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={localPreview}
-                      alt="Preview"
-                      className="h-full w-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={clearImage}
-                      className="absolute right-2 top-2 rounded-full bg-black/60 p-1 hover:bg-black/80 transition-colors"
-                    >
-                      <X className="h-3.5 w-3.5 text-white" />
-                    </button>
-                    <div className="absolute bottom-2 left-2 rounded-md bg-black/60 px-2 py-1 text-xs text-[#B6D6F2]">
-                      Will be uploaded on save
-                    </div>
-                  </div>
-                )}
-
-                {/* Existing imageUrl (no new file selected) */}
-                {form.imageUrl && !localPreview && (
-                  <div className="relative mb-2 aspect-video w-full overflow-hidden rounded-lg border border-[#273481]">
-                    <Image
-                      src={form.imageUrl}
-                      alt="Current image"
-                      fill
-                      className="object-cover"
-                      sizes="400px"
-                    />
-                    <button
-                      type="button"
-                      onClick={clearImage}
-                      className="absolute right-2 top-2 rounded-full bg-black/60 p-1 hover:bg-black/80 transition-colors"
-                    >
-                      <X className="h-3.5 w-3.5 text-white" />
-                    </button>
-                  </div>
-                )}
-
-                {/* File picker (no image set yet) */}
-                {!form.imageUrl && !localPreview && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[#273481] py-3 text-sm text-[#B6D6F2]/70 hover:border-[#B6D6F2] hover:text-white transition-colors"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Select image from computer
-                  </button>
-                )}
-
-                {/* Replace image button (existing image, no local file yet) */}
-                {form.imageUrl && !localPreview && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[#273481] py-2 text-xs text-[#B6D6F2]/70 hover:border-[#B6D6F2] hover:text-white transition-colors"
-                  >
-                    <Upload className="h-3.5 w-3.5" />
-                    Replace image
-                  </button>
-                )}
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/avif"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                />
-              </div>
-
-              {formError && (
-                <p className="text-sm text-red-400 bg-red-900/20 rounded-lg px-3 py-2">
-                  {formError}
-                </p>
-              )}
-              {formSuccess && (
-                <p className="text-sm text-green-400 bg-green-900/20 rounded-lg px-3 py-2">
-                  {formSuccess}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={formLoading}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#273481] py-2.5 text-sm font-semibold text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
-              >
-                {formLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                {editing ? "Update Product" : "Create Product"}
-              </button>
-            </form>
-
-            {/* Content block editor section */}
-            <div className="mt-5 border-t border-[#1B1C4A] pt-5">
-              <h3 className="text-sm font-semibold text-white mb-1">
-                Nội dung sản phẩm
-              </h3>
-              <p className="text-xs text-[#B6D6F2]/40 mb-4">
-                Tạo phần nội dung mở rộng hiển thị trên trang chi tiết sản phẩm.
-              </p>
-              {editing ? (
-                <ContentBlockEditor
-                  productId={editing}
-                  initialBlocks={
-                    products.find((p) => p.id === editing)?.contentBlocks ?? []
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm((prev) => ({ ...prev, isActive: !prev.isActive }))
                   }
-                  token={token!}
-                  onSaved={(updated) =>
-                    setProducts((prev) =>
-                      prev.map((p) =>
-                        p.id === updated.id
-                          ? { ...p, contentBlocks: updated.contentBlocks }
-                          : p,
-                      ),
-                    )
-                  }
-                />
-              ) : (
-                <p className="text-xs text-[#B6D6F2]/25 py-3 text-center rounded-lg border border-dashed border-[#1B1C4A]">
-                  Vui lòng tạo sản phẩm trước, sau đó chỉnh nội dung mở rộng.
-                </p>
-              )}
+                  className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                  style={{
+                    background: form.isActive
+                      ? "var(--admin-toggle-on)"
+                      : "var(--admin-toggle-off)",
+                  }}
+                  aria-label="Toggle active"
+                  aria-checked={form.isActive}
+                  role="switch"
+                >
+                  <span
+                    className="inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform shadow-sm"
+                    style={{
+                      transform: form.isActive
+                        ? "translateX(18px)"
+                        : "translateX(2px)",
+                    }}
+                  />
+                </button>
+                <span className="text-xs" style={{ color: "var(--admin-text-muted)" }}>
+                  Hiển thị
+                </span>
+              </div>
             </div>
+
+            {/* Image section */}
+            <div>
+              <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+                Hình ảnh
+              </label>
+
+              {/* Local preview */}
+              {localPreview && (
+                <div
+                  className="relative mb-2 aspect-video w-full overflow-hidden rounded-lg"
+                  style={{ border: "2px dashed var(--admin-primary)" }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={localPreview}
+                    alt="Preview"
+                    className="h-full w-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={clearImage}
+                    className="absolute right-2 top-2 rounded-full bg-black/50 p-1 hover:bg-black/70 transition-colors"
+                    aria-label="Xóa ảnh"
+                  >
+                    <X className="h-3.5 w-3.5 text-white" />
+                  </button>
+                  <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-xs text-white">
+                    Sẽ được tải lên khi lưu
+                  </div>
+                </div>
+              )}
+
+              {/* Existing imageUrl */}
+              {form.imageUrl && !localPreview && (
+                <div
+                  className="relative mb-2 aspect-video w-full overflow-hidden rounded-lg"
+                  style={{ border: "1px solid var(--admin-border-strong)" }}
+                >
+                  <Image
+                    src={form.imageUrl}
+                    alt="Current image"
+                    fill
+                    className="object-cover"
+                    sizes="400px"
+                  />
+                  <button
+                    type="button"
+                    onClick={clearImage}
+                    className="absolute right-2 top-2 rounded-full bg-black/50 p-1 hover:bg-black/70 transition-colors"
+                    aria-label="Xóa ảnh"
+                  >
+                    <X className="h-3.5 w-3.5 text-white" />
+                  </button>
+                </div>
+              )}
+
+              {/* File picker */}
+              {!form.imageUrl && !localPreview && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm transition-colors"
+                  style={{
+                    border: "2px dashed var(--admin-border-strong)",
+                    color: "var(--admin-text-subtle)",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = "var(--admin-primary)";
+                    (e.currentTarget as HTMLElement).style.color = "var(--admin-primary)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = "var(--admin-border-strong)";
+                    (e.currentTarget as HTMLElement).style.color = "var(--admin-text-subtle)";
+                  }}
+                >
+                  <Upload className="h-4 w-4" />
+                  Chọn ảnh từ máy tính
+                </button>
+              )}
+
+              {/* Replace image */}
+              {form.imageUrl && !localPreview && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs transition-colors"
+                  style={{
+                    border: "1px dashed var(--admin-border-strong)",
+                    color: "var(--admin-text-subtle)",
+                  }}
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Thay ảnh khác
+                </button>
+              )}
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+            </div>
+
+            {/* Error / Success banners */}
+            {formError && (
+              <p
+                className="text-sm rounded-lg px-3 py-2"
+                style={{
+                  color: "var(--admin-danger)",
+                  background: "var(--admin-danger-soft)",
+                  border: "1px solid rgba(220,38,38,0.20)",
+                }}
+              >
+                {formError}
+              </p>
+            )}
+            {formSuccess && (
+              <p
+                className="text-sm rounded-lg px-3 py-2"
+                style={{
+                  color: "var(--admin-success)",
+                  background: "var(--admin-success-soft)",
+                  border: "1px solid rgba(21,128,61,0.20)",
+                }}
+              >
+                {formSuccess}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={formLoading}
+              className={PRIMARY_BTN}
+              style={{ background: "var(--admin-primary)" }}
+            >
+              {formLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {editing ? "Cập nhật sản phẩm" : "Tạo sản phẩm"}
+            </button>
+          </form>
+
+          {/* Content block editor section */}
+          <div
+            className="mt-5 pt-5"
+            style={{ borderTop: "1px solid var(--admin-border)" }}
+          >
+            <h3 className="text-sm font-semibold mb-1" style={{ color: "var(--admin-text)" }}>
+              Nội dung sản phẩm
+            </h3>
+            <p className="text-xs mb-4 leading-relaxed" style={{ color: "var(--admin-text-subtle)" }}>
+              Tạo phần nội dung mở rộng hiển thị trên trang chi tiết sản phẩm.
+            </p>
+            {editing ? (
+              <ContentBlockEditor
+                productId={editing}
+                initialBlocks={
+                  products.find((p) => p.id === editing)?.contentBlocks ?? []
+                }
+                token={token!}
+                onSaved={(updated) =>
+                  setProducts((prev) =>
+                    prev.map((p) =>
+                      p.id === updated.id
+                        ? { ...p, contentBlocks: updated.contentBlocks }
+                        : p,
+                    ),
+                  )
+                }
+              />
+            ) : (
+              <p
+                className="text-xs py-3 text-center rounded-lg"
+                style={{
+                  color: "var(--admin-text-subtle)",
+                  border: "1px dashed var(--admin-border)",
+                }}
+              >
+                Vui lòng tạo sản phẩm trước, sau đó chỉnh nội dung mở rộng.
+              </p>
+            )}
+          </div>
+
+          {/* Product option assignment section */}
+          <div
+            className="mt-5 pt-5"
+            style={{ borderTop: "1px solid var(--admin-border)" }}
+          >
+            {editing ? (
+              <ProductOptionAssignments productId={editing} token={token!} />
+            ) : (
+              <>
+                <h3 className="text-sm font-semibold mb-1" style={{ color: "var(--admin-text)" }}>
+                  Tùy chọn áp dụng
+                </h3>
+                <p
+                  className="text-xs py-3 text-center rounded-lg"
+                  style={{
+                    color: "var(--admin-text-subtle)",
+                    border: "1px dashed var(--admin-border)",
+                  }}
+                >
+                  Vui lòng tạo sản phẩm trước, sau đó gắn tùy chọn từ danh mục.
+                </p>
+              </>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* List panel */}
-        <div className="lg:col-span-3">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-white">
-              Products ({products.length})
-            </h2>
-            <button
-              onClick={loadProducts}
-              className="text-sm text-[#B6D6F2]/60 hover:text-white transition-colors"
-            >
-              Refresh
-            </button>
+      {/* List panel */}
+      <div className="lg:col-span-3">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold" style={{ color: "var(--admin-text)" }}>
+            Sản phẩm ({products.length})
+          </h2>
+          <button
+            onClick={loadProducts}
+            className="text-sm transition-colors hover:underline"
+            style={{ color: "var(--admin-text-subtle)" }}
+          >
+            Làm mới
+          </button>
+        </div>
+
+        {listLoading && (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--admin-text-subtle)" }} />
           </div>
+        )}
 
-          {listLoading && (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-[#B6D6F2]" />
-            </div>
-          )}
+        {listError && (
+          <p
+            className="text-sm rounded-lg px-4 py-3"
+            style={{
+              color: "var(--admin-danger)",
+              background: "var(--admin-danger-soft)",
+              border: "1px solid rgba(220,38,38,0.20)",
+            }}
+          >
+            {listError}
+          </p>
+        )}
 
-          {listError && (
-            <p className="text-sm text-red-400 bg-red-900/20 rounded-lg px-4 py-3">
-              {listError}
-            </p>
-          )}
+        {!listLoading && products.length === 0 && !listError && (
+          <p className="text-sm py-12 text-center" style={{ color: "var(--admin-text-subtle)" }}>
+            Chưa có sản phẩm nào. Tạo sản phẩm đầu tiên.
+          </p>
+        )}
 
-          {!listLoading && products.length === 0 && !listError && (
-            <p className="text-sm text-[#B6D6F2]/40 py-12 text-center">
-              No products yet. Create your first one.
-            </p>
-          )}
-
-          <div className="space-y-3">
-            {products.map((p) => (
+        <div className="space-y-3">
+          {products.map((p) => {
+            const isEditing = editing === p.id;
+            return (
               <div
                 key={p.id}
-                className={`flex items-center gap-4 rounded-xl border p-4 transition-colors ${
-                  editing === p.id
-                    ? "border-[#273481] bg-[#1B1C4A]"
-                    : "border-[#1B1C4A] bg-[#111335]"
-                }`}
+                className="flex items-center gap-4 rounded-xl p-4 transition-colors"
+                style={{
+                  border: isEditing
+                    ? "1px solid rgba(8,51,125,0.35)"
+                    : "1px solid var(--admin-border)",
+                  background: isEditing
+                    ? "var(--admin-primary-soft)"
+                    : "var(--admin-surface)",
+                  boxShadow: isEditing ? "none" : "0 1px 3px rgba(8,51,125,0.04)",
+                }}
               >
-                <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-[#1B1C4A]">
+                {/* Thumbnail */}
+                <div
+                  className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg"
+                  style={{ background: "var(--admin-surface-muted)" }}
+                >
                   {p.imageUrl ? (
                     <Image
                       src={p.imageUrl}
@@ -669,7 +819,10 @@ export default function AdminProductsPage() {
                       sizes="56px"
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-[#273481]/60">
+                    <div
+                      className="flex h-full items-center justify-center"
+                      style={{ color: "var(--admin-border-strong)" }}
+                    >
                       <svg
                         viewBox="0 0 24 24"
                         fill="none"
@@ -683,42 +836,72 @@ export default function AdminProductsPage() {
                   )}
                 </div>
 
+                {/* Info */}
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-white truncate">{p.name}</p>
-                  <p className="text-xs text-[#B6D6F2]/50 truncate">
-                    {p.categoryName} · {p.basePrice > 0 ? `${p.basePrice.toLocaleString("vi-VN")} ₫` : "Báo giá"}
+                  <p className="font-medium truncate" style={{ color: "var(--admin-text)" }}>
+                    {p.name}
+                  </p>
+                  <p className="text-xs truncate mt-0.5" style={{ color: "var(--admin-text-subtle)" }}>
+                    {p.categoryName} ·{" "}
+                    {p.basePrice > 0
+                      ? `${p.basePrice.toLocaleString("vi-VN")} ₫`
+                      : "Báo giá"}
                   </p>
                   <span
-                    className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                      p.isActive
-                        ? "bg-green-900/30 text-green-400"
-                        : "bg-[#273481]/20 text-[#B6D6F2]/50"
+                    className={`mt-1 inline-block admin-badge ${
+                      p.isActive ? "admin-badge-active" : "admin-badge-inactive"
                     }`}
                   >
-                    {p.isActive ? "Active" : "Inactive"}
+                    {p.isActive ? "Hiển thị" : "Ẩn"}
                   </span>
                 </div>
 
+                {/* Actions */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={() => startEdit(p)}
-                    className="rounded-lg bg-[#273481]/30 p-2 text-[#B6D6F2] hover:bg-[#273481] hover:text-white transition-colors"
-                    aria-label="Edit"
+                    className={ICON_BTN_EDIT}
+                    style={{
+                      color: "var(--admin-primary)",
+                      background: "var(--admin-primary-soft)",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.background =
+                        "rgba(8,51,125,0.14)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.background =
+                        "var(--admin-primary-soft)";
+                    }}
+                    aria-label="Chỉnh sửa"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(p.id, p.name)}
-                    className="rounded-lg bg-red-900/20 p-2 text-red-400 hover:bg-red-900/40 transition-colors"
-                    aria-label="Delete"
+                    className={ICON_BTN_DEL}
+                    style={{
+                      color: "var(--admin-danger)",
+                      background: "var(--admin-danger-soft)",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.background =
+                        "rgba(220,38,38,0.15)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.background =
+                        "var(--admin-danger-soft)";
+                    }}
+                    aria-label="Xóa"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
+    </div>
   );
 }

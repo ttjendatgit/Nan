@@ -1,51 +1,114 @@
 "use client";
 
-import { useState } from "react";
-import { AlertCircle } from "lucide-react";
-import {
-  PRODUCT_OPTION_GROUPS,
-  REQUIRED_GROUP_IDS,
-  DEFAULT_QUANTITY_FALLBACK,
-  calculateUnitPrice,
-  buildOptionSummaryText,
-  formatCurrency,
-  resolveDelta,
-  type SelectedOptions,
-} from "@/lib/product-options";
-import type { Product } from "@/types/catalog";
+import { useEffect, useState } from "react";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { getProductOptionGroups } from "@/lib/api/productOptions";
+import { calculatePrice } from "@/lib/api/pricing";
+import { formatVnd } from "@/lib/format";
+import { optionTypeLabel as groupLabel } from "@/lib/optionTypes";
+import type { Product, ProductOptionGroup } from "@/types/catalog";
+import type { PriceBreakdown } from "@/types/pricing";
 
 interface ProductOptionSelectorProps {
   product: Product;
-  /** Called once required options + minimum quantity validate successfully. */
-  onRequestQuote: (summaryText: string, quantity: number) => void;
+  /** Called once quantity validates successfully. Options are optional -- there is no per-group "required" flag yet. */
+  onRequestQuote: (selectedOptionIds: string[], quantity: number) => void;
 }
 
 const QUANTITY_STEP = 50;
 
+function adjustmentSuffix(type: string): string {
+  if (type === "FixedPerOrder") return "/đơn";
+  if (type === "FixedPerUnit") return "/cái";
+  return "";
+}
+
 export default function ProductOptionSelector({ product, onRequestQuote }: ProductOptionSelectorProps) {
   const minQuantity = product.minQuantity > 0 ? product.minQuantity : 1;
-  const [selected, setSelected] = useState<SelectedOptions>({});
-  const [quantity, setQuantity] = useState<number>(
-    product.minQuantity > 0 ? product.minQuantity : DEFAULT_QUANTITY_FALLBACK,
-  );
-  const [quantityInput, setQuantityInput] = useState<string>(String(quantity));
+
+  const [groups, setGroups] = useState<ProductOptionGroup[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(true);
+
+  // Single-select per OptionType group: no per-group "required"/"allow multiple" flag exists yet
+  // (see PRODUCT_ARCHITECTURE audit -- deliberately not built until a real need proves it out).
+  const [selected, setSelected] = useState<Record<string, string>>({});
+  const [quantity, setQuantity] = useState<number>(minQuantity);
+  const [quantityInput, setQuantityInput] = useState<string>(String(minQuantity));
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const hasPrice = product.basePrice > 0;
-  const unitPrice = hasPrice ? calculateUnitPrice(product.basePrice, selected) : 0;
-  const subtotal = hasPrice ? unitPrice * quantity : 0;
+  const [breakdown, setBreakdown] = useState<PriceBreakdown | null>(null);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [pricingError, setPricingError] = useState<string | null>(null);
 
-  function toggleValue(groupId: string, valueId: string, multiSelect: boolean) {
+  // Load real per-product options from the database. No hardcoded fallback --
+  // a product with zero configured options simply shows no option groups.
+  useEffect(() => {
+    let cancelled = false;
+    // Deferred one tick so the loading-state setters below run inside a
+    // callback rather than synchronously in the effect body -- same pattern
+    // as the pricing effect further down (setTimeout(..., 300)), just with
+    // no artificial delay since there's nothing to debounce here.
+    const timer = window.setTimeout(() => {
+      setGroupsLoading(true);
+      getProductOptionGroups(product.id)
+        .then((grouped) => {
+          if (cancelled) return;
+          setGroups(grouped.groups);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setGroups([]);
+        })
+        .finally(() => {
+          if (!cancelled) setGroupsLoading(false);
+        });
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [product.id]);
+
+  // Backend is the sole pricing authority: every price shown here comes from
+  // POST /api/pricing/calculate, debounced on quantity/selection change.
+  useEffect(() => {
+    if (groupsLoading) return;
+    let cancelled = false;
+    const selectedOptionIds = Object.values(selected);
+
+    const timer = window.setTimeout(() => {
+      setPricingLoading(true);
+      setPricingError(null);
+      calculatePrice({ productId: product.id, quantity, selectedOptionIds })
+        .then((result) => {
+          if (cancelled) return;
+          setBreakdown(result);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setBreakdown(null);
+          setPricingError(err instanceof Error ? err.message : "Không thể tính giá.");
+        })
+        .finally(() => {
+          if (!cancelled) setPricingLoading(false);
+        });
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [product.id, quantity, selected, groupsLoading]);
+
+  function toggleValue(optionType: string, optionId: string) {
     setSelected((prev) => {
-      const current = prev[groupId] ?? [];
-      if (multiSelect) {
-        const next = current.includes(valueId)
-          ? current.filter((id) => id !== valueId)
-          : [...current, valueId];
-        return { ...prev, [groupId]: next };
+      const next = { ...prev };
+      if (next[optionType] === optionId) {
+        delete next[optionType];
+      } else {
+        next[optionType] = optionId;
       }
-      const next = current[0] === valueId ? [] : [valueId];
-      return { ...prev, [groupId]: next };
+      return next;
     });
     if (validationError) setValidationError(null);
   }
@@ -58,38 +121,19 @@ export default function ProductOptionSelector({ product, onRequestQuote }: Produ
   }
 
   function handleRequestQuote() {
-    const missingRequired = REQUIRED_GROUP_IDS.some((id) => (selected[id] ?? []).length === 0);
-    if (missingRequired) {
-      setValidationError("Vui lòng chọn đầy đủ thông số bắt buộc trước khi gửi yêu cầu báo giá.");
-      return;
-    }
     if (quantity < minQuantity) {
       setValidationError(`Số lượng tối thiểu là ${minQuantity} cái.`);
       return;
     }
-    const summary = buildOptionSummaryText({
-      productName: product.name,
-      quantity,
-      selected,
-      basePrice: product.basePrice,
-    });
-    onRequestQuote(summary, quantity);
+    onRequestQuote(Object.values(selected), quantity);
   }
 
-  const selectedSizeId = selected.size?.[0];
+  const hasOptions = groups.length > 0;
 
-  // items-start removed deliberately: with a Grid default of align-items:
-  // stretch, this sticky column's own box stretches to the full row height
-  // (matching the taller option-groups column), giving position:sticky the
-  // room it needs to stay pinned through the scroll. With items-start, the
-  // sticky wrapper's box shrank to just its content height and the summary
-  // "ran out" of containing block within the first ~150px of scroll. The
-  // inner card keeps its natural compact height regardless; only the
-  // invisible outer wrapper stretches.
   return (
     <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1fr_380px] lg:gap-14">
 
-      {/* Option groups -- wide two-column editorial grid, not a narrow stack */}
+      {/* Option groups -- rendered entirely from live backend data */}
       <div>
         <h2 className="font-serif text-2xl font-semibold tracking-tight text-[#0F1320]">
           Cấu hình sản phẩm
@@ -98,22 +142,32 @@ export default function ProductOptionSelector({ product, onRequestQuote }: Produ
           Chọn thông số để Nan tư vấn cấu hình và báo giá phù hợp hơn.
         </p>
 
-        <div className="mt-9 grid grid-cols-1 gap-x-10 gap-y-9 border-t border-[rgba(15,19,32,0.14)] pt-8 sm:grid-cols-2">
-          {PRODUCT_OPTION_GROUPS.map((group, index) => (
-            <OptionGroupField
-              key={group.id}
-              stepNumber={index + 1}
-              group={group}
-              selectedIds={selected[group.id] ?? []}
-              selectedSizeId={selectedSizeId}
-              onToggle={(valueId) => toggleValue(group.id, valueId, group.multiSelect)}
-            />
-          ))}
-        </div>
+        {groupsLoading ? (
+          <div className="mt-9 flex items-center gap-2 border-t border-[rgba(15,19,32,0.14)] pt-8 text-sm text-[rgba(15,19,32,0.45)]">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Đang tải tùy chọn...
+          </div>
+        ) : hasOptions ? (
+          <div className="mt-9 grid grid-cols-1 gap-x-10 gap-y-9 border-t border-[rgba(15,19,32,0.14)] pt-8 sm:grid-cols-2">
+            {groups.map((group, index) => (
+              <OptionGroupField
+                key={group.optionType}
+                stepNumber={index + 1}
+                group={group}
+                selectedId={selected[group.optionType]}
+                onToggle={(optionId) => toggleValue(group.optionType, optionId)}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="mt-9 border-t border-[rgba(15,19,32,0.14)] pt-8 text-sm text-[rgba(15,19,32,0.45)]">
+            Sản phẩm này chưa có tùy chọn cấu hình riêng. Bạn có thể gửi yêu cầu báo giá trực tiếp.
+          </p>
+        )}
 
-        {/* Quantity -- full width, larger touch targets */}
+        {/* Quantity */}
         <div className="mt-9 border-t border-[rgba(15,19,32,0.14)] pt-8">
-          <GroupLabel stepNumber={PRODUCT_OPTION_GROUPS.length + 1} title="Số lượng" required />
+          <GroupLabel title="Số lượng" />
           <div className="mt-4 flex items-center gap-3">
             <button
               type="button"
@@ -149,33 +203,34 @@ export default function ProductOptionSelector({ product, onRequestQuote }: Produ
         </div>
       </div>
 
-      {/* Summary + estimate -- the ONLY sticky element, compact, dark surface
-          as a deliberate accent within the light configurator section.
-          top-32 (128px) clears the fixed announcement-bar + Navbar stack
-          (measured 112.5px) with a visible margin, not a guessed value.
-
-          Two nested divs, deliberately: this outer one is the grid item and
-          stretches to the row's full height (matching the taller
-          option-groups column) via the grid's default align-items:stretch --
-          that's the "room to travel" position:sticky needs. The INNER div
-          carries the sticky positioning itself and keeps its own natural
-          (short) content height. Putting sticky directly on the stretched
-          grid item was the bug: an element that's already exactly as tall as
-          its own containing block has nowhere to move, so it never visually
-          stuck -- confirmed at runtime (its top tracked the grid's top in
-          exact 1:1 lockstep with scroll, at every scroll position tested). */}
+      {/* Summary + live pricing -- every number here comes from the backend */}
       <div>
       <div className="lg:sticky lg:top-32">
         <div className="rounded-lg border border-[#192B88]/25 bg-[#0F1320] p-4">
           <h3 className="font-serif text-lg font-semibold text-[#F1F0EA]">Tóm tắt cấu hình</h3>
 
           <div className="mt-2.5">
-          <SummaryList group={PRODUCT_OPTION_GROUPS[0]} selectedIds={selected.size ?? []} selectedSizeId={selectedSizeId} />
-          <SummaryList group={PRODUCT_OPTION_GROUPS[1]} selectedIds={selected.material ?? []} selectedSizeId={selectedSizeId} />
-          <SummaryList group={PRODUCT_OPTION_GROUPS[2]} selectedIds={selected.printSides ?? []} selectedSizeId={selectedSizeId} />
-          <SummaryList group={PRODUCT_OPTION_GROUPS[3]} selectedIds={selected.backSide ?? []} selectedSizeId={selectedSizeId} />
-          <SummaryList group={PRODUCT_OPTION_GROUPS[4]} selectedIds={selected.ribType ?? []} selectedSizeId={selectedSizeId} />
-          <SummaryList group={PRODUCT_OPTION_GROUPS[5]} selectedIds={selected.logoAccessories ?? []} selectedSizeId={selectedSizeId} />
+            {groups.map((group) => {
+              const optionId = selected[group.optionType];
+              const option = group.options.find((o) => o.id === optionId);
+              if (!option) return null;
+              return (
+                <div
+                  key={group.optionType}
+                  className="flex items-baseline justify-between gap-4 border-b border-white/10 py-2 text-sm last:border-b-0"
+                >
+                  <span className="text-[#F1F0EA]/50">{groupLabel(group.optionType)}</span>
+                  <span className="text-right font-medium text-[#F1F0EA]">
+                    {option.optionValue}
+                    {option.additionalPrice > 0 && (
+                      <span className="text-[#F1F0EA]/45">
+                        {" "}(+{formatVnd(option.additionalPrice)}{adjustmentSuffix(option.priceAdjustmentType)})
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
           <div className="mt-2.5 flex items-center justify-between border-t border-white/10 pt-2.5 text-sm">
@@ -183,21 +238,43 @@ export default function ProductOptionSelector({ product, onRequestQuote }: Produ
             <span className="font-semibold text-[#F1F0EA]">{quantity.toLocaleString("vi-VN")} cái</span>
           </div>
 
-          {/* Estimate */}
+          {/* Live backend-calculated estimate */}
           <div className="mt-2.5 border-t border-white/10 pt-2.5">
             <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#F1F0EA]/40">
               Ước tính
             </p>
-            <div className="mt-1.5 flex items-center justify-between text-sm">
-              <span className="text-[#F1F0EA]/60">Giá tham khảo / cái</span>
-              <span className="font-medium text-[#F1F0EA]">{hasPrice ? formatCurrency(unitPrice) : "Cần báo giá"}</span>
-            </div>
-            <div className="mt-1.5 flex items-center justify-between border-t border-white/10 pt-1.5">
-              <span className="text-sm text-[#F1F0EA]/70">Tạm tính</span>
-              <span className="text-lg font-bold text-[#F1F0EA]">
-                {hasPrice ? formatCurrency(subtotal) : "Cần báo giá"}
-              </span>
-            </div>
+
+            {pricingLoading && (
+              <div className="mt-1.5 flex items-center gap-2 text-sm text-[#F1F0EA]/50">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Đang tính giá...
+              </div>
+            )}
+
+            {!pricingLoading && pricingError && (
+              <p className="mt-1.5 text-xs text-red-400/90">{pricingError}</p>
+            )}
+
+            {!pricingLoading && !pricingError && breakdown && (
+              <>
+                <div className="mt-1.5 flex items-center justify-between text-sm">
+                  <span className="text-[#F1F0EA]/60">Giá tham khảo / cái</span>
+                  <span className="font-medium text-[#F1F0EA]">{formatVnd(breakdown.unitPrice)}</span>
+                </div>
+                {breakdown.orderAdjustmentsTotal > 0 && (
+                  <div className="mt-1 flex items-center justify-between text-xs">
+                    <span className="text-[#F1F0EA]/45">Phí theo đơn</span>
+                    <span className="text-[#F1F0EA]/70">{formatVnd(breakdown.orderAdjustmentsTotal)}</span>
+                  </div>
+                )}
+                <div className="mt-1.5 flex items-center justify-between border-t border-white/10 pt-1.5">
+                  <span className="text-sm text-[#F1F0EA]/70">Tạm tính</span>
+                  <span className="text-lg font-bold text-[#F1F0EA]">
+                    {formatVnd(breakdown.calculatedTotal)}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
           <p className="mt-2.5 text-[11px] leading-snug text-[#F1F0EA]/40">
@@ -228,22 +305,18 @@ export default function ProductOptionSelector({ product, onRequestQuote }: Produ
 
 // ─── Option group field ─────────────────────────────────────────────────────
 
-function GroupLabel({ stepNumber, title, required }: { stepNumber: number; title: string; required: boolean }) {
+function GroupLabel({ stepNumber, title }: { stepNumber?: number; title: string }) {
   return (
     <div className="flex items-baseline gap-3">
-      <span className="font-mono text-xs font-semibold text-[#192B88]">
-        {String(stepNumber).padStart(2, "0")}
-      </span>
-      <h3 className="font-serif text-lg font-semibold text-[#0F1320]">{title}</h3>
-      {required ? (
-        <span className="text-[10px] font-medium uppercase tracking-[0.10em] text-[rgba(15,19,32,0.45)]">
-          Bắt buộc
-        </span>
-      ) : (
-        <span className="text-[10px] font-medium uppercase tracking-[0.10em] text-[rgba(15,19,32,0.32)]">
-          Tùy chọn
+      {stepNumber !== undefined && (
+        <span className="font-mono text-xs font-semibold text-[#192B88]">
+          {String(stepNumber).padStart(2, "0")}
         </span>
       )}
+      <h3 className="font-serif text-lg font-semibold text-[#0F1320]">{title}</h3>
+      <span className="text-[10px] font-medium uppercase tracking-[0.10em] text-[rgba(15,19,32,0.32)]">
+        Tùy chọn
+      </span>
     </div>
   );
 }
@@ -251,81 +324,42 @@ function GroupLabel({ stepNumber, title, required }: { stepNumber: number; title
 function OptionGroupField({
   stepNumber,
   group,
-  selectedIds,
-  selectedSizeId,
+  selectedId,
   onToggle,
 }: {
   stepNumber: number;
-  group: (typeof PRODUCT_OPTION_GROUPS)[number];
-  selectedIds: string[];
-  selectedSizeId: string | undefined;
-  onToggle: (valueId: string) => void;
+  group: ProductOptionGroup;
+  selectedId: string | undefined;
+  onToggle: (optionId: string) => void;
 }) {
   return (
     <div>
-      <GroupLabel stepNumber={stepNumber} title={group.title} required={group.required} />
+      <GroupLabel stepNumber={stepNumber} title={groupLabel(group.optionType)} />
       <div className="mt-4 flex flex-wrap gap-2">
-        {group.values.map((value) => {
-          const isSelected = selectedIds.includes(value.id);
-          const delta = resolveDelta(value, selectedSizeId);
+        {group.options.map((option) => {
+          const isSelected = selectedId === option.id;
           return (
             <button
-              key={value.id}
+              key={option.id}
               type="button"
               aria-pressed={isSelected}
-              onClick={() => onToggle(value.id)}
+              onClick={() => onToggle(option.id)}
               className={`flex items-center gap-1.5 rounded-md border px-3.5 py-2 text-xs font-medium transition ${
                 isSelected
                   ? "border-[#192B88] bg-[#192B88] text-[#F1F0EA]"
                   : "border-[rgba(15,19,32,0.18)] bg-transparent text-[rgba(15,19,32,0.75)] hover:border-[#192B88]/50 hover:text-[#0F1320]"
               }`}
             >
-              {value.label}
-              {delta > 0 && (
+              {option.optionValue}
+              {option.additionalPrice > 0 && (
                 <span className={isSelected ? "text-[#F1F0EA]/65" : "text-[rgba(15,19,32,0.40)]"}>
-                  +{(delta / 1000).toLocaleString("vi-VN")}k
+                  +{(option.additionalPrice / 1000).toLocaleString("vi-VN")}k
                 </span>
               )}
             </button>
           );
         })}
       </div>
-    </div>
-  );
-}
-
-// ─── Summary row (only rendered once a value is selected) ──────────────────
-
-function SummaryList({
-  group,
-  selectedIds,
-  selectedSizeId,
-}: {
-  group: (typeof PRODUCT_OPTION_GROUPS)[number];
-  selectedIds: string[];
-  selectedSizeId: string | undefined;
-}) {
-  if (selectedIds.length === 0) return null;
-  const items = selectedIds
-    .map((id) => group.values.find((v) => v.id === id))
-    .filter((v): v is (typeof group.values)[number] => Boolean(v));
-  if (items.length === 0) return null;
-
-  return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-white/10 py-2 text-sm last:border-b-0">
-      <span className="text-[#F1F0EA]/50">{group.title}</span>
-      <span className="text-right font-medium text-[#F1F0EA]">
-        {items.map((v, i) => {
-          const delta = resolveDelta(v, selectedSizeId);
-          return (
-            <span key={v.id}>
-              {v.label}
-              {delta > 0 && <span className="text-[#F1F0EA]/45"> (+{formatCurrency(delta)})</span>}
-              {i < items.length - 1 ? ", " : ""}
-            </span>
-          );
-        })}
-      </span>
     </div>
   );
 }

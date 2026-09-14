@@ -12,15 +12,18 @@ public class QuoteRequestsController : BaseApiController
     private readonly IQuoteRequestService _quoteRequestService;
     private readonly IValidator<CreateQuoteRequestRequest> _createValidator;
     private readonly IValidator<UpdateQuoteRequestStatusRequest> _statusValidator;
+    private readonly IValidator<SetFinalQuotedPriceRequest> _finalPriceValidator;
 
     public QuoteRequestsController(
         IQuoteRequestService quoteRequestService,
         IValidator<CreateQuoteRequestRequest> createValidator,
-        IValidator<UpdateQuoteRequestStatusRequest> statusValidator)
+        IValidator<UpdateQuoteRequestStatusRequest> statusValidator,
+        IValidator<SetFinalQuotedPriceRequest> finalPriceValidator)
     {
         _quoteRequestService = quoteRequestService;
         _createValidator = createValidator;
         _statusValidator = statusValidator;
+        _finalPriceValidator = finalPriceValidator;
     }
 
     /// <summary>Submit a new quote request. No authentication required.</summary>
@@ -89,6 +92,24 @@ public class QuoteRequestsController : BaseApiController
         await _statusValidator.ValidateAndThrowAsync(request, cancellationToken);
         var result = await _quoteRequestService.UpdateStatusAsync(id, request, cancellationToken);
         return OkResponse(result, "Quote request status updated.");
+    }
+
+    /// <summary>Set the final quoted price for a quote. Requires Staff or Manager role.</summary>
+    /// <remarks>
+    /// Additive manual override only — never recalculates or overwrites the system's original
+    /// pricing snapshot (CalculatedTotalSnapshot), which remains the historical record of what
+    /// the pricing engine computed at submission time.
+    /// </remarks>
+    [HttpPut("{id:guid}/final-price")]
+    [Authorize(Roles = Roles.Staff + "," + Roles.Manager)]
+    public async Task<IActionResult> SetFinalPrice(
+        Guid id,
+        [FromBody] SetFinalQuotedPriceRequest request,
+        CancellationToken cancellationToken)
+    {
+        await _finalPriceValidator.ValidateAndThrowAsync(request, cancellationToken);
+        var result = await _quoteRequestService.SetFinalQuotedPriceAsync(id, request, cancellationToken);
+        return OkResponse(result, "Final quoted price saved.");
     }
 
     /// <summary>Delete a quote request by ID. Requires Manager role.</summary>
