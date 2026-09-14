@@ -60,15 +60,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       {/* Mobile top bar (< lg) — stays dark to match sidebar brand */}
-      <header className="sticky top-0 z-[99] flex items-center justify-between border-b border-[#1B1C4A] bg-[#080C15] px-4 py-3 lg:hidden">
-        <Link href="/admin" className="flex flex-col leading-tight">
+      <header
+        className="sticky top-0 z-[99] flex items-center justify-between border-b px-4 py-3 lg:hidden"
+        style={{ background: "var(--admin-sidebar-bg)", borderColor: "var(--admin-sidebar-border)" }}
+      >
+        <Link href="/admin" className="admin-focus-ring-dark flex flex-col leading-tight">
           <span className="font-serif text-[16px] font-semibold tracking-wide text-white">Nan</span>
-          <span className="font-mono text-[7px] uppercase tracking-[0.24em] text-[#4A74A7]">Admin</span>
+          <span className="font-mono text-[7px] uppercase tracking-[0.24em]" style={{ color: "var(--admin-sidebar-accent)" }}>Admin</span>
         </Link>
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label={mobileOpen ? "Close menu" : "Open menu"}
-          className="rounded-lg p-1.5 text-[#B6D6F2]/50 transition-colors hover:bg-[#1B1C4A] hover:text-white"
+          aria-label={mobileOpen ? "Đóng menu" : "Mở menu"}
+          aria-expanded={mobileOpen}
+          className="admin-focus-ring-dark flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors"
+          style={{ color: "var(--admin-sidebar-text-dim)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--admin-sidebar-hover)"; (e.currentTarget as HTMLElement).style.color = "white"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--admin-sidebar-text-dim)"; }}
         >
           {mobileOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
@@ -81,7 +88,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           onClick={() => setMobileOpen(false)}
         >
           <div
-            className="absolute top-[52px] left-0 right-0 border-b border-[#1B1C4A] bg-[#080C15] px-3 py-3"
+            className="absolute top-[52px] left-0 right-0 border-b px-3 py-3"
+            style={{ background: "var(--admin-sidebar-bg)", borderColor: "var(--admin-sidebar-border)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <MobileNav currentPath={pathname} onLogout={handleLogout} />
@@ -120,21 +128,22 @@ function MobileNav({
           <Link
             key={item.href}
             href={item.href}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all ${
-              active
-                ? "bg-[#273481]/22 text-white"
-                : "text-[#B6D6F2]/55 hover:bg-[#1B1C4A] hover:text-[#B6D6F2]"
-            }`}
+            className="admin-focus-ring-dark flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all"
+            style={{
+              background: active ? "var(--admin-sidebar-active-bg)" : "transparent",
+              color: active ? "#FFFFFF" : "var(--admin-sidebar-text)",
+            }}
           >
             <Icon className="h-4 w-4 flex-shrink-0" />
             <span className="text-[13px] font-medium">{item.label}</span>
           </Link>
         );
       })}
-      <div className="mt-2 border-t border-[#1B1C4A] pt-2">
+      <div className="mt-2 border-t pt-2" style={{ borderColor: "var(--admin-sidebar-border)" }}>
         <button
           onClick={onLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[#B6D6F2]/40 transition-colors hover:bg-[#1B1C4A] hover:text-[#B6D6F2]"
+          className="admin-focus-ring-dark flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors"
+          style={{ color: "var(--admin-sidebar-text)" }}
         >
           <span className="text-[13px]">Đăng xuất</span>
         </button>

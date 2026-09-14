@@ -142,6 +142,7 @@
   --admin-sidebar-accent:   #4A74A7;  /* active item accent bar */
   --admin-sidebar-text:     rgba(182, 214, 242, 0.80);
   --admin-sidebar-text-dim: rgba(182, 214, 242, 0.45);
+  --admin-sidebar-text-disabled: rgba(182, 214, 242, 0.62);  /* disabled nav rows: ~5.2:1 on sidebar-bg, clearly muted vs. --admin-sidebar-text but still readable (0.45 alone, or stacked with a container opacity, fell below AA) */
   --admin-sidebar-motif:    rgba(182, 214, 242, 0.06);  /* fan-rib tint on dark sidebar */
 
   /* ── Semantic status ── */
@@ -209,6 +210,26 @@
 @keyframes admin-pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.5; }
+}
+
+/* Keyboard-only focus rings (:focus-visible so pointer users never see them).
+   Two variants because the admin has two surfaces: bright workspace and the
+   dark sidebar, each needing a ring that reads clearly against its own bg.
+   !important is deliberate: several of these elements also carry an inline
+   `style` object (background/color driven by active-state), and inline
+   styles otherwise win the cascade even for properties they don't set,
+   silently swapping outline-color for the element's own currentColor. A
+   focus-visible ring is an accessibility requirement, not a decoration --
+   it must never be silently defeated by a future inline style. */
+.admin-focus-ring:focus-visible {
+  outline: 2px solid var(--admin-primary) !important;
+  outline-offset: 2px !important;
+  border-radius: inherit;
+}
+.admin-focus-ring-dark:focus-visible {
+  outline: 2px solid var(--admin-sidebar-accent) !important;
+  outline-offset: 2px !important;
+  border-radius: inherit;
 }
 
 /* ════════════════════════════════════════════════════════

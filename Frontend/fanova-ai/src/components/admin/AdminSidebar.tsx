@@ -57,7 +57,7 @@ export default function AdminSidebar({ onLogout }: AdminSidebarProps) {
         className="admin-fan-motif admin-fan-motif-dark border-b px-5 py-4"
         style={{ borderColor: "var(--admin-sidebar-border)" }}
       >
-        <Link href="/admin" className="group flex flex-col leading-tight">
+        <Link href="/admin" className="admin-focus-ring-dark group flex flex-col leading-tight">
           <span className="font-serif text-[18px] font-semibold tracking-wide text-white">
             Nan
           </span>
@@ -80,14 +80,14 @@ export default function AdminSidebar({ onLogout }: AdminSidebarProps) {
             return (
               <div
                 key={item.href}
-                className="flex cursor-default items-center gap-3 rounded-lg px-3 py-2.5 opacity-28"
+                className="flex cursor-default items-center gap-3 rounded-lg px-3 py-2.5"
                 aria-disabled="true"
               >
-                <Icon className="h-4 w-4 flex-shrink-0" style={{ color: "var(--admin-sidebar-text-dim)" }} />
-                <span className="flex-1 text-[12.5px]" style={{ color: "var(--admin-sidebar-text-dim)" }}>{item.label}</span>
+                <Icon className="h-4 w-4 flex-shrink-0" style={{ color: "var(--admin-sidebar-text-disabled)" }} />
+                <span className="flex-1 text-[12.5px]" style={{ color: "var(--admin-sidebar-text-disabled)" }}>{item.label}</span>
                 <span
                   className="flex-shrink-0 font-mono text-[8px] uppercase tracking-[0.10em]"
-                  style={{ color: "var(--admin-sidebar-text-dim)" }}
+                  style={{ color: "var(--admin-sidebar-text-disabled)" }}
                 >
                   Sắp ra mắt
                 </span>
@@ -99,7 +99,7 @@ export default function AdminSidebar({ onLogout }: AdminSidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-150 hover:text-white"
+              className="admin-focus-ring-dark flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-150 hover:text-white"
               style={{
                 background: active ? "var(--admin-sidebar-active-bg)" : "transparent",
                 color: active ? "#FFFFFF" : "var(--admin-sidebar-text)",
@@ -128,7 +128,7 @@ export default function AdminSidebar({ onLogout }: AdminSidebarProps) {
       <div className="border-t px-2.5 py-3 space-y-0.5" style={{ borderColor: "var(--admin-sidebar-border)" }}>
         <Link
           href="/"
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-150 hover:text-white"
+          className="admin-focus-ring-dark flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-150 hover:text-white"
           style={{ color: "var(--admin-sidebar-text)" }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--admin-sidebar-hover)"; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
@@ -138,8 +138,8 @@ export default function AdminSidebar({ onLogout }: AdminSidebarProps) {
         </Link>
         <button
           onClick={onLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-150 hover:text-white"
-          style={{ color: "var(--admin-sidebar-text-dim)" }}
+          className="admin-focus-ring-dark flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-150 hover:text-white"
+          style={{ color: "var(--admin-sidebar-text)" }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--admin-sidebar-hover)"; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
         >

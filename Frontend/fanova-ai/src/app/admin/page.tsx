@@ -70,7 +70,18 @@ export default function AdminDashboardPage() {
   }, []);
 
   if (!ready) {
-    return <div className="min-h-[100dvh]" style={{ background: "var(--admin-canvas)" }} />;
+    return (
+      <div className="min-h-[100dvh]" style={{ background: "var(--admin-canvas)" }} aria-hidden="true">
+        <div className="max-w-5xl mx-auto px-6 py-10">
+          <div className="mb-10 h-[124px] rounded-2xl admin-skeleton" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-[142px] rounded-2xl admin-skeleton" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -85,7 +96,7 @@ export default function AdminDashboardPage() {
         }}
       >
         <div className="mb-3 h-[2px] w-9 rounded-full" style={{ background: "var(--admin-accent)" }} aria-hidden="true" />
-        <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: "var(--admin-text)" }}>
+        <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--admin-text)" }}>
           Admin Console
         </h1>
         <p className="mt-2 text-sm leading-relaxed max-w-[56ch]" style={{ color: "var(--admin-text-subtle)" }}>
@@ -137,7 +148,7 @@ export default function AdminDashboardPage() {
             <Link
               key={mod.href}
               href={mod.href}
-              className="group flex flex-col gap-3 rounded-2xl p-5 transition-all duration-200 hover:-translate-y-0.5"
+              className="admin-focus-ring group flex flex-col gap-3 rounded-2xl p-5 transition-all duration-200 hover:-translate-y-0.5"
               style={{
                 background: "var(--admin-surface)",
                 border: "1px solid var(--admin-border)",
@@ -185,7 +196,7 @@ export default function AdminDashboardPage() {
       <div className="mt-10 pt-6" style={{ borderTop: "1px solid var(--admin-border)" }}>
         <Link
           href="/"
-          className="text-xs transition-colors hover:underline"
+          className="admin-focus-ring text-xs transition-colors hover:underline"
           style={{ color: "var(--admin-text-subtle)" }}
         >
           ← Về trang chủ Nan
