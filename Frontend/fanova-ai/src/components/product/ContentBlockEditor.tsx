@@ -368,6 +368,10 @@ export default function ContentBlockEditor({
   const imgInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const replaceTargetIndex = useRef<number | null>(null);
+  /** The toolbar "Lưu nội dung" button -- the stable, always-present trigger for the whole
+      confirm/save flow. Refocused when the success modal closes, since the confirm modal's own
+      "Lưu thay đổi" button (the immediate trigger) has already unmounted by then. */
+  const saveTriggerRef = useRef<HTMLButtonElement>(null);
 
   const uploadingImage = uploading || replacingIndex !== null;
   const busy = saving || uploadingImage;
@@ -595,6 +599,21 @@ export default function ContentBlockEditor({
   function handleConfirmSave() {
     setConfirmOpen(false);
     void performSave();
+  }
+
+  /** Closes the success modal and, once it's gone, returns keyboard focus to the toolbar save
+      button -- covers the X button, Escape, backdrop click, and "Tiếp tục chỉnh sửa" alike. No
+      auto-dismiss timer; this only ever runs from an explicit user action. */
+  function closeSuccessModal() {
+    setSuccessOpen(false);
+    requestAnimationFrame(() => saveTriggerRef.current?.focus());
+  }
+
+  /** "Xem trang sản phẩm": close the modal in this tab first, then let the link's own
+      target="_blank" open the public page in a new tab -- the admin editor state and this
+      tab are untouched, only the modal closes. */
+  function handleViewProductClick() {
+    closeSuccessModal();
   }
 
   const hasBlocks = blocks.length > 0;
@@ -1117,6 +1136,7 @@ export default function ContentBlockEditor({
             </button>
             {productId && (
               <button
+                ref={saveTriggerRef}
                 type="button"
                 onClick={requestSave}
                 disabled={busy}
@@ -1140,13 +1160,13 @@ export default function ContentBlockEditor({
           <h2 id="confirm-save-title" className="text-base font-semibold mb-2" style={{ color: "var(--admin-text)" }}>
             Xác nhận lưu nội dung
           </h2>
-          <p className="text-sm leading-relaxed mb-5" style={{ color: "var(--admin-text-subtle)" }}>
+          <p className="text-sm leading-relaxed mb-5" style={{ color: "var(--admin-text-muted)" }}>
             Nội dung này sẽ được hiển thị trên trang chi tiết sản phẩm. Bạn có
             chắc muốn lưu thay đổi?
           </p>
           <div className="flex items-center justify-end gap-3">
-            <button type="button" onClick={() => setConfirmOpen(false)} className={SECONDARY_BTN} style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-muted)" }}>Hủy</button>
-            <button type="button" onClick={handleConfirmSave} className={PRIMARY_BTN} style={{ background: "var(--admin-primary)" }}>Lưu thay đổi</button>
+            <button type="button" onClick={() => setConfirmOpen(false)} className={`${SECONDARY_BTN} admin-focus-ring`} style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-muted)" }}>Hủy</button>
+            <button type="button" onClick={handleConfirmSave} className={`${PRIMARY_BTN} admin-focus-ring`} style={{ background: "var(--admin-primary)" }}>Lưu thay đổi</button>
           </div>
         </div>
       </Modal>
@@ -1154,18 +1174,29 @@ export default function ContentBlockEditor({
       {/* ── Success modal ───────────────────────────────────────────────────── */}
       <Modal
         open={successOpen}
-        onClose={() => setSuccessOpen(false)}
+        onClose={closeSuccessModal}
         labelledBy="save-success-title"
         maxWidthClassName="max-w-md"
       >
         <div className="p-5">
-          <div className="flex items-center gap-2.5 mb-2">
-            <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
-            <h2 id="save-success-title" className="text-base font-semibold text-white">
-              Đã lưu nội dung
-            </h2>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="h-5 w-5 shrink-0" style={{ color: "var(--admin-success)" }} />
+              <h2 id="save-success-title" className="text-base font-semibold" style={{ color: "var(--admin-text)" }}>
+                Đã lưu nội dung
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={closeSuccessModal}
+              aria-label="Đóng"
+              className="admin-focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--admin-surface-muted)] hover:text-[var(--admin-text)]"
+              style={{ color: "var(--admin-text-subtle)" }}
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <p className="text-sm text-[#B6D6F2]/60 leading-relaxed mb-5">
+          <p className="text-sm leading-relaxed mb-5" style={{ color: "var(--admin-text-muted)" }}>
             Nội dung sản phẩm đã được cập nhật và sẽ hiển thị trên trang chi
             tiết sản phẩm.
           </p>
@@ -1174,11 +1205,18 @@ export default function ContentBlockEditor({
               href={`/products/${productId}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-[#B6D6F2]/60 hover:text-white transition-colors underline underline-offset-4"
+              onClick={handleViewProductClick}
+              className="admin-focus-ring rounded text-sm underline underline-offset-4 transition-colors hover:text-[var(--admin-primary-hover)]"
+              style={{ color: "var(--admin-primary)" }}
             >
               Xem trang sản phẩm
             </Link>
-            <button type="button" onClick={() => setSuccessOpen(false)} className={PRIMARY_BTN}>
+            <button
+              type="button"
+              onClick={closeSuccessModal}
+              className={`${PRIMARY_BTN} admin-focus-ring`}
+              style={{ background: "var(--admin-primary)" }}
+            >
               Tiếp tục chỉnh sửa
             </button>
           </div>
@@ -1194,14 +1232,19 @@ export default function ContentBlockEditor({
       >
         <div className="p-5">
           <div className="flex items-center gap-2.5 mb-2">
-            <AlertTriangle className="h-5 w-5 text-red-400 shrink-0" />
-            <h2 id="save-error-title" className="text-base font-semibold text-white">
+            <AlertTriangle className="h-5 w-5 shrink-0" style={{ color: "var(--admin-danger)" }} />
+            <h2 id="save-error-title" className="text-base font-semibold" style={{ color: "var(--admin-text)" }}>
               Không thể lưu nội dung
             </h2>
           </div>
-          <p className="text-sm text-[#B6D6F2]/60 leading-relaxed mb-5">{errorText}</p>
+          <p className="text-sm leading-relaxed mb-5" style={{ color: "var(--admin-text-muted)" }}>{errorText}</p>
           <div className="flex items-center justify-end">
-            <button type="button" onClick={() => setErrorOpen(false)} className={PRIMARY_BTN}>
+            <button
+              type="button"
+              onClick={() => setErrorOpen(false)}
+              className={`${PRIMARY_BTN} admin-focus-ring`}
+              style={{ background: "var(--admin-primary)" }}
+            >
               Đóng
             </button>
           </div>
@@ -1217,14 +1260,19 @@ export default function ContentBlockEditor({
       >
         <div className="p-5">
           <div className="flex items-center gap-2.5 mb-2">
-            <AlertTriangle className="h-5 w-5 text-red-400 shrink-0" />
-            <h2 id="upload-error-title" className="text-base font-semibold text-white">
+            <AlertTriangle className="h-5 w-5 shrink-0" style={{ color: "var(--admin-danger)" }} />
+            <h2 id="upload-error-title" className="text-base font-semibold" style={{ color: "var(--admin-text)" }}>
               Không thể tải ảnh
             </h2>
           </div>
-          <p className="text-sm text-[#B6D6F2]/60 leading-relaxed mb-5">{uploadErrorText}</p>
+          <p className="text-sm leading-relaxed mb-5" style={{ color: "var(--admin-text-muted)" }}>{uploadErrorText}</p>
           <div className="flex items-center justify-end">
-            <button type="button" onClick={() => setUploadErrorOpen(false)} className={PRIMARY_BTN}>
+            <button
+              type="button"
+              onClick={() => setUploadErrorOpen(false)}
+              className={`${PRIMARY_BTN} admin-focus-ring`}
+              style={{ background: "var(--admin-primary)" }}
+            >
               Đóng
             </button>
           </div>
@@ -1238,12 +1286,12 @@ export default function ContentBlockEditor({
         labelledBy="preview-modal-title"
         maxWidthClassName="max-w-4xl"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-[#1B1C4A] px-6 py-4">
+        <div className="flex items-start justify-between gap-4 border-b px-6 py-4" style={{ borderColor: "var(--admin-border)" }}>
           <div>
-            <h2 id="preview-modal-title" className="text-base font-semibold text-white">
+            <h2 id="preview-modal-title" className="text-base font-semibold" style={{ color: "var(--admin-text)" }}>
               Xem trước giao diện sản phẩm
             </h2>
-            <p className="text-xs text-[#B6D6F2]/40 mt-1 max-w-xl">
+            <p className="text-xs mt-1 max-w-xl" style={{ color: "var(--admin-text-subtle)" }}>
               Đây là bản xem trước nội dung sẽ hiển thị ở mục &quot;Nội dung chi
               tiết sản phẩm&quot; phía cuối trang sản phẩm. Nội dung chỉ được
               cập nhật chính thức sau khi bấm Lưu nội dung.
@@ -1253,7 +1301,8 @@ export default function ContentBlockEditor({
             type="button"
             onClick={() => setPreviewOpen(false)}
             aria-label="Đóng"
-            className="shrink-0 rounded-lg p-1.5 text-[#B6D6F2]/45 hover:bg-[#1B1C4A] hover:text-white transition-colors"
+            className="admin-focus-ring shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[var(--admin-surface-muted)] hover:text-[var(--admin-text)]"
+            style={{ color: "var(--admin-text-subtle)" }}
           >
             <X className="h-4 w-4" />
           </button>
@@ -1261,14 +1310,16 @@ export default function ContentBlockEditor({
 
         <div className="p-6 md:p-8">
           <div className="mb-6">
-            <h3 className="text-xl md:text-2xl font-semibold text-white tracking-tight">
+            <h3 className="text-xl md:text-2xl font-semibold tracking-tight" style={{ color: "var(--admin-text)" }}>
               Nội dung chi tiết sản phẩm
             </h3>
-            <p className="text-sm text-[#B6D6F2]/40 mt-1.5">
+            <p className="text-sm mt-1.5" style={{ color: "var(--admin-text-subtle)" }}>
               Thông tin mở rộng, hình ảnh và ghi chú chi tiết về sản phẩm.
             </p>
           </div>
 
+          {/* Deliberately dark: this mockup simulates the live public product page,
+              which uses Nan's dark storefront theme -- not a modal-chrome contrast bug. */}
           <div className="rounded-3xl border border-[#1B1C4A] bg-[#111335]/40 p-6 md:p-10">
             <div className="max-w-3xl mx-auto">
               {hasBlocks ? (
@@ -1282,8 +1333,13 @@ export default function ContentBlockEditor({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-[#1B1C4A] px-6 py-4">
-          <button type="button" onClick={() => setPreviewOpen(false)} className={SECONDARY_BTN}>
+        <div className="flex items-center justify-end gap-3 border-t px-6 py-4" style={{ borderColor: "var(--admin-border)" }}>
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(false)}
+            className={`${SECONDARY_BTN} admin-focus-ring`}
+            style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-muted)" }}
+          >
             Đóng
           </button>
           {productId && (
@@ -1294,7 +1350,8 @@ export default function ContentBlockEditor({
                 setConfirmOpen(true);
               }}
               disabled={busy}
-              className={PRIMARY_BTN}
+              className={`${PRIMARY_BTN} admin-focus-ring`}
+              style={{ background: "var(--admin-primary)" }}
             >
               Lưu nội dung
             </button>

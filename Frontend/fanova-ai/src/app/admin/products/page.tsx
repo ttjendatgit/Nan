@@ -19,6 +19,7 @@ import {
 import { getCategories } from "@/lib/api/categories";
 import ContentBlockEditor from "@/components/product/ContentBlockEditor";
 import ProductOptionAssignments from "@/components/admin/ProductOptionAssignments";
+import Modal from "@/components/ui/Modal";
 import type { Product, ProductCategory } from "@/types/catalog";
 
 function slugify(name: string): string {
@@ -51,11 +52,13 @@ const INPUT_CLS =
 const LABEL_CLS =
   "block text-xs font-medium mb-1.5";
 const PRIMARY_BTN =
-  "flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition-all duration-150";
+  "admin-focus-ring flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition-all duration-150";
 const ICON_BTN_EDIT =
-  "rounded-lg p-2 transition-colors focus-visible:outline-none focus-visible:ring-2";
+  "admin-focus-ring rounded-lg p-2 transition-colors";
 const ICON_BTN_DEL =
-  "rounded-lg p-2 transition-colors focus-visible:outline-none focus-visible:ring-2";
+  "admin-focus-ring rounded-lg p-2 transition-colors";
+const SECTION_KICKER_CLS =
+  "text-[10px] font-mono uppercase tracking-[0.14em]";
 
 export default function AdminProductsPage() {
   // Auth
@@ -82,6 +85,11 @@ export default function AdminProductsPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Delete confirmation
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("nan_admin_token");
@@ -239,15 +247,25 @@ export default function AdminProductsPage() {
     }
   }
 
-  async function handleDelete(id: string, name: string) {
-    if (!token) return;
-    if (!confirm(`Xóa "${name}"? Thao tác này không thể hoàn tác.`)) return;
+  function closeDeleteModal() {
+    if (deleteBusy) return;
+    setPendingDelete(null);
+    setDeleteError(null);
+  }
+
+  async function handleConfirmDelete() {
+    if (!token || !pendingDelete) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
     try {
-      await deleteProduct(id, token);
+      await deleteProduct(pendingDelete.id, token);
+      if (editing === pendingDelete.id) startNew();
+      setPendingDelete(null);
       await loadProducts();
-      if (editing === id) startNew();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Xóa thất bại");
+      setDeleteError(err instanceof Error ? err.message : "Xóa thất bại");
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -323,10 +341,13 @@ export default function AdminProductsPage() {
       className="max-w-6xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-5 gap-8"
       style={{ color: "var(--admin-text)" }}
     >
-      {/* Form panel */}
+      {/* Form panel -- not sticky: unlike the Option Catalog's short form, this panel embeds the
+          Content Block Editor and Option Assignments below the core fields, so its height is
+          effectively unbounded once a product has real content. A sticky panel that tall would
+          "freeze" mid-scroll for the length of its own content instead of scrolling normally. */}
       <div className="lg:col-span-2">
         <div
-          className="rounded-2xl p-6 space-y-4 sticky top-6"
+          className="rounded-2xl p-6 space-y-4"
           style={{
             background: "var(--admin-surface)",
             border: "1px solid var(--admin-border)",
@@ -340,7 +361,7 @@ export default function AdminProductsPage() {
             {editing && (
               <button
                 onClick={startNew}
-                className="text-xs transition-colors hover:underline"
+                className="admin-focus-ring rounded text-xs transition-colors hover:underline"
                 style={{ color: "var(--admin-primary)" }}
               >
                 + Mới
@@ -351,10 +372,11 @@ export default function AdminProductsPage() {
           <form onSubmit={handleSubmit} className="space-y-3">
             {/* Category */}
             <div>
-              <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+              <label htmlFor="product-category" className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
                 Danh mục <span style={{ color: "var(--admin-danger)" }}>*</span>
               </label>
               <select
+                id="product-category"
                 value={form.categoryId}
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, categoryId: e.target.value }))
@@ -373,10 +395,11 @@ export default function AdminProductsPage() {
 
             {/* Name */}
             <div>
-              <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+              <label htmlFor="product-name" className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
                 Tên sản phẩm <span style={{ color: "var(--admin-danger)" }}>*</span>
               </label>
               <input
+                id="product-name"
                 type="text"
                 value={form.name}
                 onChange={(e) => handleNameChange(e.target.value)}
@@ -388,10 +411,11 @@ export default function AdminProductsPage() {
 
             {/* Slug */}
             <div>
-              <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+              <label htmlFor="product-slug" className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
                 Slug
               </label>
               <input
+                id="product-slug"
                 type="text"
                 value={form.slug}
                 onChange={(e) =>
@@ -404,10 +428,11 @@ export default function AdminProductsPage() {
 
             {/* Description */}
             <div>
-              <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+              <label htmlFor="product-description" className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
                 Mô tả
               </label>
               <textarea
+                id="product-description"
                 value={form.description}
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, description: e.target.value }))
@@ -418,13 +443,18 @@ export default function AdminProductsPage() {
               />
             </div>
 
+            <p className={`${SECTION_KICKER_CLS} pt-1`} style={{ color: "var(--admin-text-subtle)" }}>
+              Giá &amp; sản xuất
+            </p>
+
             {/* Price row */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+                <label htmlFor="product-base-price" className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
                   Giá gốc (VND) <span style={{ color: "var(--admin-danger)" }}>*</span>
                 </label>
                 <input
+                  id="product-base-price"
                   type="number"
                   min="0"
                   step="1000"
@@ -438,10 +468,11 @@ export default function AdminProductsPage() {
                 />
               </div>
               <div>
-                <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+                <label htmlFor="product-min-quantity" className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
                   SL tối thiểu
                 </label>
                 <input
+                  id="product-min-quantity"
                   type="number"
                   min="1"
                   value={form.minQuantity}
@@ -455,10 +486,11 @@ export default function AdminProductsPage() {
 
             {/* Production days */}
             <div>
-              <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
+              <label htmlFor="product-production-days" className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
                 Ngày sản xuất ước tính
               </label>
               <input
+                id="product-production-days"
                 type="number"
                 min="1"
                 value={form.estimatedProductionDays}
@@ -472,6 +504,10 @@ export default function AdminProductsPage() {
               />
             </div>
 
+            <p className={`${SECTION_KICKER_CLS} pt-1`} style={{ color: "var(--admin-text-subtle)" }}>
+              Hiển thị
+            </p>
+
             {/* Toggles */}
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
@@ -483,13 +519,13 @@ export default function AdminProductsPage() {
                       isCustomizable: !prev.isCustomizable,
                     }))
                   }
-                  className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                  className="admin-focus-ring relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
                   style={{
                     background: form.isCustomizable
                       ? "var(--admin-toggle-on)"
                       : "var(--admin-toggle-off)",
                   }}
-                  aria-label="Toggle customizable"
+                  aria-label="Tùy chỉnh được"
                   aria-checked={form.isCustomizable}
                   role="switch"
                 >
@@ -513,13 +549,13 @@ export default function AdminProductsPage() {
                   onClick={() =>
                     setForm((prev) => ({ ...prev, isActive: !prev.isActive }))
                   }
-                  className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                  className="admin-focus-ring relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
                   style={{
                     background: form.isActive
                       ? "var(--admin-toggle-on)"
                       : "var(--admin-toggle-off)",
                   }}
-                  aria-label="Toggle active"
+                  aria-label="Hiển thị"
                   aria-checked={form.isActive}
                   role="switch"
                 >
@@ -553,13 +589,13 @@ export default function AdminProductsPage() {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={localPreview}
-                    alt="Preview"
+                    alt="Ảnh xem trước"
                     className="h-full w-full object-cover"
                   />
                   <button
                     type="button"
                     onClick={clearImage}
-                    className="absolute right-2 top-2 rounded-full bg-black/50 p-1 hover:bg-black/70 transition-colors"
+                    className="admin-focus-ring absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 transition-colors"
                     aria-label="Xóa ảnh"
                   >
                     <X className="h-3.5 w-3.5 text-white" />
@@ -578,7 +614,7 @@ export default function AdminProductsPage() {
                 >
                   <Image
                     src={form.imageUrl}
-                    alt="Current image"
+                    alt={form.name || "Ảnh sản phẩm"}
                     fill
                     className="object-cover"
                     sizes="400px"
@@ -586,7 +622,7 @@ export default function AdminProductsPage() {
                   <button
                     type="button"
                     onClick={clearImage}
-                    className="absolute right-2 top-2 rounded-full bg-black/50 p-1 hover:bg-black/70 transition-colors"
+                    className="admin-focus-ring absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 transition-colors"
                     aria-label="Xóa ảnh"
                   >
                     <X className="h-3.5 w-3.5 text-white" />
@@ -599,7 +635,7 @@ export default function AdminProductsPage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm transition-colors"
+                  className="admin-focus-ring flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm transition-colors"
                   style={{
                     border: "2px dashed var(--admin-border-strong)",
                     color: "var(--admin-text-subtle)",
@@ -623,7 +659,7 @@ export default function AdminProductsPage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs transition-colors"
+                  className="admin-focus-ring mt-2 flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs transition-colors"
                   style={{
                     border: "1px dashed var(--admin-border-strong)",
                     color: "var(--admin-text-subtle)",
@@ -646,6 +682,7 @@ export default function AdminProductsPage() {
             {/* Error / Success banners */}
             {formError && (
               <p
+                role="alert"
                 className="text-sm rounded-lg px-3 py-2"
                 style={{
                   color: "var(--admin-danger)",
@@ -658,6 +695,8 @@ export default function AdminProductsPage() {
             )}
             {formSuccess && (
               <p
+                role="status"
+                aria-live="polite"
                 className="text-sm rounded-lg px-3 py-2"
                 style={{
                   color: "var(--admin-success)",
@@ -756,53 +795,51 @@ export default function AdminProductsPage() {
           </h2>
           <button
             onClick={loadProducts}
-            className="text-sm transition-colors hover:underline"
+            className="admin-focus-ring rounded text-sm transition-colors hover:underline"
             style={{ color: "var(--admin-text-subtle)" }}
           >
             Làm mới
           </button>
         </div>
 
-        {listLoading && (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--admin-text-subtle)" }} />
-          </div>
-        )}
+        {/* One shared surface for every state, matching the Option Catalog list -- keeps the
+            panel's frame stable across loading/error/empty/populated instead of a stack of
+            individually-bordered, individually-shadowed cards. */}
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ border: "1px solid var(--admin-border)", background: "var(--admin-surface)" }}
+        >
+          {listLoading && (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--admin-text-subtle)" }} />
+            </div>
+          )}
 
-        {listError && (
-          <p
-            className="text-sm rounded-lg px-4 py-3"
-            style={{
-              color: "var(--admin-danger)",
-              background: "var(--admin-danger-soft)",
-              border: "1px solid rgba(220,38,38,0.20)",
-            }}
-          >
-            {listError}
-          </p>
-        )}
+          {!listLoading && listError && (
+            <p
+              role="alert"
+              className="text-sm px-4 py-3"
+              style={{ color: "var(--admin-danger)" }}
+            >
+              {listError}
+            </p>
+          )}
 
-        {!listLoading && products.length === 0 && !listError && (
-          <p className="text-sm py-12 text-center" style={{ color: "var(--admin-text-subtle)" }}>
-            Chưa có sản phẩm nào. Tạo sản phẩm đầu tiên.
-          </p>
-        )}
+          {!listLoading && !listError && products.length === 0 && (
+            <p className="text-sm py-12 text-center" style={{ color: "var(--admin-text-subtle)" }}>
+              Chưa có sản phẩm nào. Tạo sản phẩm đầu tiên.
+            </p>
+          )}
 
-        <div className="space-y-3">
-          {products.map((p) => {
+          {!listLoading && !listError && products.map((p, idx) => {
             const isEditing = editing === p.id;
             return (
               <div
                 key={p.id}
-                className="flex items-center gap-4 rounded-xl p-4 transition-colors"
+                className="flex items-center gap-4 px-4 py-3 transition-colors"
                 style={{
-                  border: isEditing
-                    ? "1px solid rgba(8,51,125,0.35)"
-                    : "1px solid var(--admin-border)",
-                  background: isEditing
-                    ? "var(--admin-primary-soft)"
-                    : "var(--admin-surface)",
-                  boxShadow: isEditing ? "none" : "0 1px 3px rgba(8,51,125,0.04)",
+                  borderTop: idx === 0 ? "none" : "1px solid var(--admin-border)",
+                  background: isEditing ? "var(--admin-primary-soft)" : "transparent",
                 }}
               >
                 {/* Thumbnail */}
@@ -873,26 +910,19 @@ export default function AdminProductsPage() {
                       (e.currentTarget as HTMLElement).style.background =
                         "var(--admin-primary-soft)";
                     }}
-                    aria-label="Chỉnh sửa"
+                    aria-label={`Chỉnh sửa "${p.name}"`}
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
+                  {/* Destructive action stays visually quiet at rest (same weight as a tertiary
+                      control, like the Option Catalog's delete button) and only reads as
+                      dangerous on hover/focus, so it doesn't compete with Edit as a persistent
+                      red icon on every row. */}
                   <button
-                    onClick={() => handleDelete(p.id, p.name)}
-                    className={ICON_BTN_DEL}
-                    style={{
-                      color: "var(--admin-danger)",
-                      background: "var(--admin-danger-soft)",
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.background =
-                        "rgba(220,38,38,0.15)";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.background =
-                        "var(--admin-danger-soft)";
-                    }}
-                    aria-label="Xóa"
+                    onClick={() => { setPendingDelete({ id: p.id, name: p.name }); setDeleteError(null); }}
+                    className={`${ICON_BTN_DEL} hover:text-[var(--admin-danger)] hover:bg-[var(--admin-danger-soft)]`}
+                    style={{ color: "var(--admin-text-subtle)" }}
+                    aria-label={`Xóa "${p.name}"`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -902,6 +932,53 @@ export default function AdminProductsPage() {
           })}
         </div>
       </div>
+
+      {/* Delete confirmation modal -- same guard/behavior as before, now presented consistently
+          with the rest of the admin instead of a native browser confirm()/alert(). */}
+      <Modal open={pendingDelete !== null} onClose={closeDeleteModal} labelledBy="delete-product-title" maxWidthClassName="max-w-sm">
+        {pendingDelete && (
+          <div className="p-5">
+            <h2 id="delete-product-title" className="text-base font-semibold mb-2" style={{ color: "var(--admin-text)" }}>
+              Xóa sản phẩm &ldquo;{pendingDelete.name}&rdquo;?
+            </h2>
+            <p className="text-sm leading-relaxed mb-4" style={{ color: "var(--admin-text-muted)" }}>
+              Thao tác này không thể hoàn tác.
+            </p>
+
+            {deleteError && (
+              <div role="alert" className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5" style={{ border: "1px solid rgba(220,38,38,0.22)", background: "var(--admin-danger-soft)" }}>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--admin-danger)" }}>{deleteError}</p>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deleteBusy}
+                className="admin-focus-ring flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition disabled:opacity-50"
+                style={{
+                  borderColor: "rgba(220,38,38,0.30)",
+                  background: "var(--admin-danger-soft)",
+                  color: "var(--admin-danger)",
+                  border: "1px solid rgba(220,38,38,0.30)",
+                }}
+              >
+                {deleteBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Xóa vĩnh viễn
+              </button>
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deleteBusy}
+                className="admin-focus-ring flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm transition"
+                style={{ color: "var(--admin-text-subtle)" }}
+              >
+                Hủy
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

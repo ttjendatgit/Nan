@@ -19,7 +19,7 @@ interface ProductOptionAssignmentsProps {
 }
 
 const ICON_BTN =
-  "rounded-lg p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:opacity-30 disabled:pointer-events-none";
+  "admin-focus-ring rounded-lg p-2 transition-colors disabled:opacity-30 disabled:pointer-events-none";
 
 function formatOptionPrice(amount: number, type: string): string {
   if (type === "None") return "Không cộng thêm";
@@ -196,7 +196,7 @@ export default function ProductOptionAssignments({ productId, token }: ProductOp
           placeholder="Tìm tùy chọn..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-9 w-full rounded-lg pl-8 pr-3 text-sm outline-none transition"
+          className="admin-focus-ring h-9 w-full rounded-lg pl-8 pr-3 text-sm outline-none transition"
           style={{
             background: "var(--admin-surface-muted)",
             border: "1px solid var(--admin-border-strong)",
@@ -208,11 +208,11 @@ export default function ProductOptionAssignments({ productId, token }: ProductOp
       {loading && <AssignmentsSkeleton />}
 
       {!loading && loadError && (
-        <div className="flex items-start gap-3 rounded-lg px-3.5 py-3" style={{ border: "1px solid rgba(220,38,38,0.25)", background: "var(--admin-danger-soft)" }}>
+        <div role="alert" className="flex items-start gap-3 rounded-lg px-3.5 py-3" style={{ border: "1px solid rgba(220,38,38,0.25)", background: "var(--admin-danger-soft)" }}>
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--admin-danger)" }} />
           <div className="flex-1">
             <p className="text-sm" style={{ color: "var(--admin-danger)" }}>{loadError}</p>
-            <button onClick={load} className="mt-1.5 text-xs font-medium underline underline-offset-2" style={{ color: "var(--admin-danger)" }}>Thử lại</button>
+            <button onClick={load} className="admin-focus-ring mt-1.5 rounded text-xs font-medium underline underline-offset-2" style={{ color: "var(--admin-danger)" }}>Thử lại</button>
           </div>
         </div>
       )}
@@ -231,6 +231,8 @@ export default function ProductOptionAssignments({ productId, token }: ProductOp
         <div className="space-y-4">
           {notice && (
             <div
+              role="status"
+              aria-live="polite"
               className="flex items-start gap-2.5 rounded-lg px-3 py-2 text-xs"
               style={{
                 border: notice.type === "success" ? "1px solid rgba(21,128,61,0.25)" : "1px solid rgba(220,38,38,0.25)",
