@@ -16,6 +16,7 @@ import {
   updateCategoryWithImage,
   deleteCategory,
 } from "@/lib/api/categories";
+import Modal from "@/components/ui/Modal";
 import type { ProductCategory } from "@/types/catalog";
 
 function slugify(name: string): string {
@@ -38,7 +39,11 @@ const EMPTY_FORM = {
 };
 
 const PRIMARY_BTN =
-  "flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition-all duration-150";
+  "admin-focus-ring flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition-all duration-150";
+const ICON_BTN =
+  "admin-focus-ring rounded-lg p-2 transition-colors";
+const SECTION_KICKER_CLS =
+  "text-[10px] font-mono uppercase tracking-[0.14em]";
 
 export default function AdminCategoriesPage() {
   // Auth
@@ -64,6 +69,11 @@ export default function AdminCategoriesPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Delete confirmation
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("nan_admin_token");
@@ -198,15 +208,25 @@ export default function AdminCategoriesPage() {
     }
   }
 
-  async function handleDelete(id: string, name: string) {
-    if (!token) return;
-    if (!confirm(`Xóa "${name}"? Thao tác này không thể hoàn tác.`)) return;
+  function closeDeleteModal() {
+    if (deleteBusy) return;
+    setPendingDelete(null);
+    setDeleteError(null);
+  }
+
+  async function handleConfirmDelete() {
+    if (!token || !pendingDelete) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
     try {
-      await deleteCategory(id, token);
+      await deleteCategory(pendingDelete.id, token);
+      if (editing === pendingDelete.id) startNew();
+      setPendingDelete(null);
       await loadCategories();
-      if (editing === id) startNew();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Xóa thất bại");
+      setDeleteError(err instanceof Error ? err.message : "Xóa thất bại");
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -283,7 +303,7 @@ export default function AdminCategoriesPage() {
             {editing && (
               <button
                 onClick={startNew}
-                className="text-xs transition-colors hover:underline"
+                className="admin-focus-ring rounded text-xs transition-colors hover:underline"
                 style={{ color: "var(--admin-primary)" }}
               >
                 + Mới
@@ -293,10 +313,11 @@ export default function AdminCategoriesPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--admin-text-muted)" }}>
+              <label htmlFor="category-name" className="block text-xs font-medium mb-1.5" style={{ color: "var(--admin-text-muted)" }}>
                 Tên danh mục <span style={{ color: "var(--admin-danger)" }}>*</span>
               </label>
               <input
+                id="category-name"
                 type="text"
                 value={form.name}
                 onChange={(e) => handleNameChange(e.target.value)}
@@ -307,10 +328,11 @@ export default function AdminCategoriesPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--admin-text-muted)" }}>
+              <label htmlFor="category-slug" className="block text-xs font-medium mb-1.5" style={{ color: "var(--admin-text-muted)" }}>
                 Slug
               </label>
               <input
+                id="category-slug"
                 type="text"
                 value={form.slug}
                 onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
@@ -320,10 +342,11 @@ export default function AdminCategoriesPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--admin-text-muted)" }}>
+              <label htmlFor="category-description" className="block text-xs font-medium mb-1.5" style={{ color: "var(--admin-text-muted)" }}>
                 Mô tả
               </label>
               <textarea
+                id="category-description"
                 value={form.description}
                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                 rows={3}
@@ -332,13 +355,17 @@ export default function AdminCategoriesPage() {
               />
             </div>
 
+            <p className={`${SECTION_KICKER_CLS} pt-1`} style={{ color: "var(--admin-text-subtle)" }}>
+              Hiển thị
+            </p>
+
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setForm((prev) => ({ ...prev, isActive: !prev.isActive }))}
-                className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                className="admin-focus-ring relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
                 style={{ background: form.isActive ? "var(--admin-toggle-on)" : "var(--admin-toggle-off)" }}
-                aria-label="Toggle active"
+                aria-label="Hiển thị danh mục"
                 aria-checked={form.isActive}
                 role="switch"
               >
@@ -361,8 +388,8 @@ export default function AdminCategoriesPage() {
               {localPreview && (
                 <div className="relative mb-2 aspect-video w-full overflow-hidden rounded-lg" style={{ border: "2px dashed var(--admin-primary)" }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={localPreview} alt="Preview" className="h-full w-full object-cover" />
-                  <button type="button" onClick={clearImage} className="absolute right-2 top-2 rounded-full bg-black/50 p-1 hover:bg-black/70 transition-colors" aria-label="Xóa ảnh">
+                  <img src={localPreview} alt="Ảnh xem trước" className="h-full w-full object-cover" />
+                  <button type="button" onClick={clearImage} className="admin-focus-ring absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 transition-colors" aria-label="Xóa ảnh">
                     <X className="h-3.5 w-3.5 text-white" />
                   </button>
                   <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-xs text-white">
@@ -373,8 +400,8 @@ export default function AdminCategoriesPage() {
 
               {form.imageUrl && !localPreview && (
                 <div className="relative mb-2 aspect-video w-full overflow-hidden rounded-lg" style={{ border: "1px solid var(--admin-border-strong)" }}>
-                  <Image src={form.imageUrl} alt="Current image" fill className="object-cover" sizes="400px" />
-                  <button type="button" onClick={clearImage} className="absolute right-2 top-2 rounded-full bg-black/50 p-1 hover:bg-black/70 transition-colors" aria-label="Xóa ảnh">
+                  <Image src={form.imageUrl} alt={form.name || "Ảnh danh mục"} fill className="object-cover" sizes="400px" />
+                  <button type="button" onClick={clearImage} className="admin-focus-ring absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 transition-colors" aria-label="Xóa ảnh">
                     <X className="h-3.5 w-3.5 text-white" />
                   </button>
                 </div>
@@ -384,7 +411,7 @@ export default function AdminCategoriesPage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm transition-colors"
+                  className="admin-focus-ring flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm transition-colors"
                   style={{ border: "2px dashed var(--admin-border-strong)", color: "var(--admin-text-subtle)" }}
                 >
                   <Upload className="h-4 w-4" />
@@ -396,7 +423,7 @@ export default function AdminCategoriesPage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs transition-colors"
+                  className="admin-focus-ring mt-2 flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs transition-colors"
                   style={{ border: "1px dashed var(--admin-border-strong)", color: "var(--admin-text-subtle)" }}
                 >
                   <Upload className="h-3.5 w-3.5" />
@@ -408,12 +435,12 @@ export default function AdminCategoriesPage() {
             </div>
 
             {formError && (
-              <p className="text-sm rounded-lg px-3 py-2" style={{ color: "var(--admin-danger)", background: "var(--admin-danger-soft)", border: "1px solid rgba(220,38,38,0.20)" }}>
+              <p role="alert" className="text-sm rounded-lg px-3 py-2" style={{ color: "var(--admin-danger)", background: "var(--admin-danger-soft)", border: "1px solid rgba(220,38,38,0.20)" }}>
                 {formError}
               </p>
             )}
             {formSuccess && (
-              <p className="text-sm rounded-lg px-3 py-2" style={{ color: "var(--admin-success)", background: "var(--admin-success-soft)", border: "1px solid rgba(21,128,61,0.20)" }}>
+              <p role="status" aria-live="polite" className="text-sm rounded-lg px-3 py-2" style={{ color: "var(--admin-success)", background: "var(--admin-success-soft)", border: "1px solid rgba(21,128,61,0.20)" }}>
                 {formSuccess}
               </p>
             )}
@@ -432,40 +459,45 @@ export default function AdminCategoriesPage() {
           <h2 className="font-semibold" style={{ color: "var(--admin-text)" }}>
             Danh mục ({categories.length})
           </h2>
-          <button onClick={loadCategories} className="text-sm transition-colors hover:underline" style={{ color: "var(--admin-text-subtle)" }}>
+          <button onClick={loadCategories} className="admin-focus-ring rounded text-sm transition-colors hover:underline" style={{ color: "var(--admin-text-subtle)" }}>
             Làm mới
           </button>
         </div>
 
-        {listLoading && (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--admin-text-subtle)" }} />
-          </div>
-        )}
+        {/* One shared surface for every state, matching the Option Catalog / Product list --
+            keeps the panel's frame stable across loading/error/empty/populated instead of a
+            stack of repeated, individually-shadowed cards. */}
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ border: "1px solid var(--admin-border)", background: "var(--admin-surface)" }}
+        >
+          {listLoading && (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--admin-text-subtle)" }} />
+            </div>
+          )}
 
-        {listError && (
-          <p className="text-sm rounded-lg px-4 py-3" style={{ color: "var(--admin-danger)", background: "var(--admin-danger-soft)", border: "1px solid rgba(220,38,38,0.20)" }}>
-            {listError}
-          </p>
-        )}
+          {!listLoading && listError && (
+            <p role="alert" className="text-sm px-4 py-3" style={{ color: "var(--admin-danger)" }}>
+              {listError}
+            </p>
+          )}
 
-        {!listLoading && categories.length === 0 && !listError && (
-          <p className="text-sm py-12 text-center" style={{ color: "var(--admin-text-subtle)" }}>
-            Chưa có danh mục nào. Tạo danh mục đầu tiên.
-          </p>
-        )}
+          {!listLoading && !listError && categories.length === 0 && (
+            <p className="text-sm py-12 text-center" style={{ color: "var(--admin-text-subtle)" }}>
+              Chưa có danh mục nào. Tạo danh mục đầu tiên.
+            </p>
+          )}
 
-        <div className="space-y-3">
-          {categories.map((cat) => {
+          {!listLoading && !listError && categories.map((cat, idx) => {
             const isEditing = editing === cat.id;
             return (
               <div
                 key={cat.id}
-                className="flex items-center gap-4 rounded-xl p-4 transition-colors"
+                className="flex items-center gap-4 px-4 py-3 transition-colors"
                 style={{
-                  border: isEditing ? "1px solid rgba(8,51,125,0.35)" : "1px solid var(--admin-border)",
-                  background: isEditing ? "var(--admin-primary-soft)" : "var(--admin-surface)",
-                  boxShadow: isEditing ? "none" : "0 1px 3px rgba(8,51,125,0.04)",
+                  borderTop: idx === 0 ? "none" : "1px solid var(--admin-border)",
+                  background: isEditing ? "var(--admin-primary-soft)" : "transparent",
                 }}
               >
                 {/* Thumbnail */}
@@ -494,17 +526,20 @@ export default function AdminCategoriesPage() {
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={() => startEdit(cat)}
-                    className="rounded-lg p-2 transition-colors"
+                    className={ICON_BTN}
                     style={{ color: "var(--admin-primary)", background: "var(--admin-primary-soft)" }}
-                    aria-label="Chỉnh sửa"
+                    aria-label={`Chỉnh sửa "${cat.name}"`}
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
+                  {/* Destructive action stays visually quiet at rest (same weight as a tertiary
+                      control) and only reads as dangerous on hover/focus, matching the pattern
+                      already approved in the Option Catalog and Products list. */}
                   <button
-                    onClick={() => handleDelete(cat.id, cat.name)}
-                    className="rounded-lg p-2 transition-colors"
-                    style={{ color: "var(--admin-danger)", background: "var(--admin-danger-soft)" }}
-                    aria-label="Xóa"
+                    onClick={() => { setPendingDelete({ id: cat.id, name: cat.name }); setDeleteError(null); }}
+                    className={`${ICON_BTN} hover:text-[var(--admin-danger)] hover:bg-[var(--admin-danger-soft)]`}
+                    style={{ color: "var(--admin-text-subtle)" }}
+                    aria-label={`Xóa "${cat.name}"`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -514,6 +549,53 @@ export default function AdminCategoriesPage() {
           })}
         </div>
       </div>
+
+      {/* Delete confirmation modal -- same guard/behavior as before, now presented consistently
+          with the rest of the admin instead of a native browser confirm()/alert(). */}
+      <Modal open={pendingDelete !== null} onClose={closeDeleteModal} labelledBy="delete-category-title" maxWidthClassName="max-w-sm">
+        {pendingDelete && (
+          <div className="p-5">
+            <h2 id="delete-category-title" className="text-base font-semibold mb-2" style={{ color: "var(--admin-text)" }}>
+              Xóa danh mục &ldquo;{pendingDelete.name}&rdquo;?
+            </h2>
+            <p className="text-sm leading-relaxed mb-4" style={{ color: "var(--admin-text-muted)" }}>
+              Thao tác này không thể hoàn tác.
+            </p>
+
+            {deleteError && (
+              <div role="alert" className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5" style={{ border: "1px solid rgba(220,38,38,0.22)", background: "var(--admin-danger-soft)" }}>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--admin-danger)" }}>{deleteError}</p>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deleteBusy}
+                className="admin-focus-ring flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition disabled:opacity-50"
+                style={{
+                  borderColor: "rgba(220,38,38,0.30)",
+                  background: "var(--admin-danger-soft)",
+                  color: "var(--admin-danger)",
+                  border: "1px solid rgba(220,38,38,0.30)",
+                }}
+              >
+                {deleteBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Xóa vĩnh viễn
+              </button>
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deleteBusy}
+                className="admin-focus-ring flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm transition"
+                style={{ color: "var(--admin-text-subtle)" }}
+              >
+                Hủy
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
