@@ -21,7 +21,7 @@ import {
 } from "@/lib/api/quoteRequests";
 import { formatVnd } from "@/lib/format";
 import { optionTypeLabel } from "@/lib/optionTypes";
-import type { QuoteRequestDto, QuoteRequestStatus } from "@/types/quote";
+import type { QuoteRequestDto, QuoteRequestStatus, QuoteStatusNotificationOutcome } from "@/types/quote";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -78,6 +78,25 @@ function formatDateTime(iso: string): string {
 
 function dash(val?: string | null): string {
   return val?.trim() || "—";
+}
+
+// Backend is the sole authority on whether/why a status-change email was (or wasn't) sent --
+// this only translates its explicit outcome into the copy Staff sees, it never re-derives the
+// outcome from `status` itself.
+function notificationOutcomeToNotice(
+  outcome: QuoteStatusNotificationOutcome,
+): { tone: "success" | "warning"; text: string } {
+  switch (outcome) {
+    case "Sent":
+      return { tone: "success", text: "Đã cập nhật trạng thái. Đã gửi email thông báo tới địa chỉ khách hàng đã cung cấp." };
+    case "SkippedNoEmail":
+      return { tone: "warning", text: "Đã cập nhật trạng thái. Khách hàng chưa có email nên không thể gửi thông báo." };
+    case "Failed":
+      return { tone: "warning", text: "Đã cập nhật trạng thái, nhưng chưa gửi được email thông báo." };
+    case "NotRequired":
+    default:
+      return { tone: "success", text: "Đã cập nhật trạng thái." };
+  }
 }
 
 // ─── StatusBadge ───────────────────────────────────────────────────────────────
@@ -447,14 +466,14 @@ function DetailDrawer({
 }) {
   const [selectedStatus, setSelectedStatus] = useState<QuoteRequestStatus>("New");
   const [saving, setSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveNotice, setSaveNotice] = useState<{ tone: "success" | "warning"; text: string } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (quote) { setSelectedStatus(quote.status); setSaveSuccess(false); setSaveError(null); }
+    if (quote) { setSelectedStatus(quote.status); setSaveNotice(null); setSaveError(null); }
   }, [quote]);
 
   // Focus lifecycle — same pattern as the shared Modal primitive: capture whatever triggered
@@ -484,11 +503,11 @@ function DetailDrawer({
 
   async function handleSave() {
     if (!quote) return;
-    setSaving(true); setSaveSuccess(false); setSaveError(null);
+    setSaving(true); setSaveNotice(null); setSaveError(null);
     try {
-      const updated = await updateQuoteRequestStatus(quote.id, selectedStatus, token);
-      setSaveSuccess(true);
-      onStatusUpdated(updated);
+      const result = await updateQuoteRequestStatus(quote.id, selectedStatus, token);
+      setSaveNotice(notificationOutcomeToNotice(result.notification.outcome));
+      onStatusUpdated(result.quote);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Cập nhật thất bại.");
     } finally {
@@ -620,7 +639,7 @@ function DetailDrawer({
               id="quote-status-select"
               aria-label="Chọn trạng thái mới"
               value={selectedStatus}
-              onChange={(e) => { setSelectedStatus(e.target.value as QuoteRequestStatus); setSaveSuccess(false); setSaveError(null); }}
+              onChange={(e) => { setSelectedStatus(e.target.value as QuoteRequestStatus); setSaveNotice(null); setSaveError(null); }}
               className="admin-input"
             >
               {STATUS_OPTIONS.filter((o) => o.value !== "all").map((o) => (
@@ -633,10 +652,25 @@ function DetailDrawer({
                 {saveError}
               </p>
             )}
-            {saveSuccess && (
-              <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ border: "1px solid rgba(21,128,61,0.22)", background: "var(--admin-success-soft)" }}>
-                <CheckCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--admin-success)" }} />
-                <p className="text-xs" style={{ color: "var(--admin-success)" }}>Cập nhật trạng thái thành công.</p>
+            {saveNotice && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="flex items-start gap-2 rounded-lg px-3 py-2"
+                style={
+                  saveNotice.tone === "success"
+                    ? { border: "1px solid rgba(21,128,61,0.22)", background: "var(--admin-success-soft)" }
+                    : { border: "1px solid rgba(180,83,9,0.22)", background: "var(--admin-warning-soft)" }
+                }
+              >
+                {saveNotice.tone === "success" ? (
+                  <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "var(--admin-success)" }} />
+                ) : (
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "var(--admin-warning)" }} />
+                )}
+                <p className="text-xs leading-relaxed" style={{ color: saveNotice.tone === "success" ? "var(--admin-success)" : "var(--admin-warning)" }}>
+                  {saveNotice.text}
+                </p>
               </div>
             )}
             <button

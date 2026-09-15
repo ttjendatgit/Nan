@@ -14,17 +14,20 @@ public class QuoteRequestService : IQuoteRequestService
     private readonly IQuoteRequestRepository _quoteRequestRepository;
     private readonly IProductRepository _productRepository;
     private readonly IPricingService _pricingService;
+    private readonly IQuoteStatusNotificationService _quoteStatusNotificationService;
     private readonly IUnitOfWork _unitOfWork;
 
     public QuoteRequestService(
         IQuoteRequestRepository quoteRequestRepository,
         IProductRepository productRepository,
         IPricingService pricingService,
+        IQuoteStatusNotificationService quoteStatusNotificationService,
         IUnitOfWork unitOfWork)
     {
         _quoteRequestRepository = quoteRequestRepository;
         _productRepository = productRepository;
         _pricingService = pricingService;
+        _quoteStatusNotificationService = quoteStatusNotificationService;
         _unitOfWork = unitOfWork;
     }
 
@@ -132,7 +135,7 @@ public class QuoteRequestService : IQuoteRequestService
         return MapToDto(entity);
     }
 
-    public async Task<QuoteRequestDto> UpdateStatusAsync(
+    public async Task<QuoteStatusUpdateResultDto> UpdateStatusAsync(
         Guid id,
         UpdateQuoteRequestStatusRequest request,
         CancellationToken ct = default)
@@ -143,12 +146,23 @@ public class QuoteRequestService : IQuoteRequestService
         if (!Enum.TryParse<QuoteRequestStatus>(request.Status, ignoreCase: true, out var newStatus))
             throw new ValidationException($"Invalid status value '{request.Status}'.");
 
+        var previousStatus = entity.Status;
         entity.Status = newStatus;
 
         _quoteRequestRepository.Update(entity);
         await _unitOfWork.SaveChangesAsync(ct);
 
-        return MapToDto(entity);
+        // The status change above is already committed by this point. A notification failure
+        // (caught internally by the notification service) must never undo it -- it only ever
+        // adds an explicit outcome to the response below.
+        var notification = await _quoteStatusNotificationService.NotifyIfApplicableAsync(
+            entity, previousStatus, newStatus, ct);
+
+        return new QuoteStatusUpdateResultDto
+        {
+            Quote = MapToDto(entity),
+            Notification = notification
+        };
     }
 
     public async Task<QuoteRequestDto> SetFinalQuotedPriceAsync(

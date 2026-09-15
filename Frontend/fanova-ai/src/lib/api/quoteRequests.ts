@@ -6,6 +6,8 @@ import type {
   QuoteRequestListData,
   QuoteRequestQueryParams,
   QuoteRequestStatus,
+  QuoteStatusUpdateApiResponse,
+  QuoteStatusUpdateResult,
   SetFinalQuotedPriceInput,
 } from "@/types/quote";
 import { apiFetch, getAuthHeaders } from "./client";
@@ -55,13 +57,22 @@ export async function getQuoteRequestById(
   return res.data;
 }
 
-/** PUT /api/QuoteRequests/{id}/status — update status. Requires Staff or Manager token. */
+/**
+ * PUT /api/QuoteRequests/{id}/status — update status. Requires Staff or Manager token.
+ *
+ * A real transition into "Contacted" or "Quoted" triggers a backend-sent customer email, resolved
+ * server-side from the quote's own customer-provided contact email -- never from this call. That
+ * address is unverified (Nan does not confirm email ownership at submission or elsewhere), so
+ * this is best-effort delivery, not a confirmed or account-linked address. The response's
+ * `notification.outcome` reports what happened (Sent / Failed / SkippedNoEmail / NotRequired) so
+ * the caller never has to infer it from `status`.
+ */
 export async function updateQuoteRequestStatus(
   id: string,
   status: QuoteRequestStatus,
   token: string,
-): Promise<QuoteRequestDto> {
-  const res = await apiFetch<QuoteRequestApiResponse>(
+): Promise<QuoteStatusUpdateResult> {
+  const res = await apiFetch<QuoteStatusUpdateApiResponse>(
     `/api/QuoteRequests/${id}/status`,
     {
       method: "PUT",

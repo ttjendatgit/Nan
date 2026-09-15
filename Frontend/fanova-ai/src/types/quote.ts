@@ -118,3 +118,27 @@ export interface QuoteRequestListApiResponse {
 export interface UpdateQuoteRequestStatusInput {
   status: QuoteRequestStatus;
 }
+
+// ─── Status-change notification result ────────────────────────────────────────
+// Backend is the sole authority on whether a customer email was sent for a status change --
+// the frontend only ever reads this outcome, never decides to send or infers it from `status`.
+
+export type QuoteStatusNotificationType = "Contacted" | "Quoted";
+export type QuoteStatusNotificationOutcome = "Sent" | "Failed" | "SkippedNoEmail" | "NotRequired";
+
+export interface QuoteStatusNotificationResult {
+  notificationType: QuoteStatusNotificationType | null;
+  outcome: QuoteStatusNotificationOutcome;
+}
+
+export interface QuoteStatusUpdateResult {
+  quote: QuoteRequestDto;
+  notification: QuoteStatusNotificationResult;
+}
+
+export interface QuoteStatusUpdateApiResponse {
+  success: boolean;
+  message?: string;
+  data: QuoteStatusUpdateResult;
+  errors?: string[];
+}

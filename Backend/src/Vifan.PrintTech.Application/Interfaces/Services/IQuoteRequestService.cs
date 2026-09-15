@@ -8,7 +8,7 @@ public interface IQuoteRequestService
     Task<QuoteRequestDto> CreateAsync(CreateQuoteRequestRequest request, CancellationToken ct = default);
     Task<PagedResult<QuoteRequestDto>> GetAllAsync(QuoteRequestQueryParameters query, CancellationToken ct = default);
     Task<QuoteRequestDto> GetByIdAsync(Guid id, CancellationToken ct = default);
-    Task<QuoteRequestDto> UpdateStatusAsync(Guid id, UpdateQuoteRequestStatusRequest request, CancellationToken ct = default);
+    Task<QuoteStatusUpdateResultDto> UpdateStatusAsync(Guid id, UpdateQuoteRequestStatusRequest request, CancellationToken ct = default);
     Task<QuoteRequestDto> SetFinalQuotedPriceAsync(Guid id, SetFinalQuotedPriceRequest request, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 }

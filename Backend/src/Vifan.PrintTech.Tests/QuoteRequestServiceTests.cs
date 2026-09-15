@@ -1,5 +1,8 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Vifan.PrintTech.Application.DTOs.QuoteRequests;
 using Vifan.PrintTech.Application.Exceptions;
+using Vifan.PrintTech.Application.Interfaces.Services;
+using Vifan.PrintTech.Domain.Entities;
 using Vifan.PrintTech.Domain.Enums;
 using Vifan.PrintTech.Infrastructure.Data;
 using Vifan.PrintTech.Infrastructure.Repositories;
@@ -11,17 +14,24 @@ namespace Vifan.PrintTech.Tests;
 
 public class QuoteRequestServiceTests
 {
-    private static (QuoteRequestService Service, ApplicationDbContext Db) BuildService()
+    private static (QuoteRequestService Service, ApplicationDbContext Db) BuildService(
+        IQuoteEmailNotificationSender? emailSender = null)
     {
         var db = TestDbContextFactory.Create();
         var pricingService = new PricingService(
             new ProductRepository(db),
             new ProductOptionRepository(db),
             new PricingRuleRepository(db));
+        var notificationService = new QuoteStatusNotificationService(
+            new Repository<QuoteStatusEmailNotification>(db),
+            emailSender ?? new FakeQuoteEmailNotificationSender(),
+            new UnitOfWork(db),
+            NullLogger<QuoteStatusNotificationService>.Instance);
         var service = new QuoteRequestService(
             new QuoteRequestRepository(db),
             new ProductRepository(db),
             pricingService,
+            notificationService,
             new UnitOfWork(db));
         return (service, db);
     }

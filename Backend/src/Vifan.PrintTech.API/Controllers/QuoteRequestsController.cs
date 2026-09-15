@@ -81,6 +81,14 @@ public class QuoteRequestsController : BaseApiController
     /// <remarks>
     /// Only the <c>status</c> field is updated. Valid values: <c>New</c>, <c>Contacted</c>, <c>Quoted</c>,
     /// <c>Closed</c>, <c>Cancelled</c>. All other fields remain unchanged.
+    ///
+    /// A real transition into <c>Contacted</c> or <c>Quoted</c> triggers a customer notification
+    /// email, sent to the quote's own customer-provided contact email (never client-supplied on
+    /// this request). That address is unverified -- Nan does not confirm email ownership at quote
+    /// submission or anywhere else -- so this is best-effort delivery, not a confirmed or
+    /// account-linked address. The response's <c>data.notification</c> reports the outcome
+    /// (<c>Sent</c>, <c>Failed</c>, <c>SkippedNoEmail</c>, or <c>NotRequired</c>); a failed or
+    /// skipped send never rolls back the already-saved status.
     /// </remarks>
     [HttpPut("{id:guid}/status")]
     [Authorize(Roles = Roles.Staff + "," + Roles.Manager)]

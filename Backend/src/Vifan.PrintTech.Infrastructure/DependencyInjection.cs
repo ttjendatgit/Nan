@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.Configure<SeedSettings>(configuration.GetSection(SeedSettings.SectionName));
         services.Configure<FileStorageSettings>(configuration.GetSection(FileStorageSettings.SectionName));
         services.Configure<CloudinarySettings>(configuration.GetSection(CloudinarySettings.SectionName));
+        services.Configure<SmtpSettings>(configuration.GetSection(SmtpSettings.SectionName));
 
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(
@@ -99,6 +100,8 @@ public static class DependencyInjection
         services.AddScoped<IDesignFileRepository, DesignFileRepository>();
         services.AddScoped<IQuoteRequestRepository, QuoteRequestRepository>();
         services.AddScoped<IQuoteRequestService, QuoteRequestService>();
+        services.AddScoped<IQuoteEmailNotificationSender, SmtpQuoteEmailNotificationSender>();
+        services.AddScoped<IQuoteStatusNotificationService, QuoteStatusNotificationService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;
