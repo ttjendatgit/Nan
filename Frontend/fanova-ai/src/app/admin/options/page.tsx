@@ -149,11 +149,27 @@ function Field({
 
 // ─── Catalog entry form (shared by Create and Edit) ──────────────────────────
 
-function DefinitionForm({ values, onChange, errors }: { values: FormValues; onChange: (v: FormValues) => void; errors: FormErrors }) {
+function SectionKicker({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="pt-1 text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: "var(--admin-text-subtle)" }}>
+      {children}
+    </p>
+  );
+}
+
+function DefinitionForm({
+  values, onChange, errors, disabled,
+}: {
+  values: FormValues;
+  onChange: (v: FormValues) => void;
+  errors: FormErrors;
+  /** True while the parent form is submitting -- disables every field via native <fieldset>, not just the submit button. */
+  disabled?: boolean;
+}) {
   const priceDisabled = values.priceAdjustmentType === "None";
 
   return (
-    <div className="space-y-3.5">
+    <fieldset disabled={disabled} className="space-y-3.5 border-0 p-0 m-0 disabled:opacity-60">
       <Field label="Nhóm tùy chọn" required hint="Loại thông số này thuộc về, ví dụ: Kích thước, Chất liệu, Loại nan.">
         {(id) => (
           <select id={id} value={values.optionType} onChange={(e) => onChange({ ...values, optionType: e.target.value })} className={INPUT_CLS}>
@@ -173,6 +189,8 @@ function DefinitionForm({ values, onChange, errors }: { values: FormValues; onCh
           <input id={id} type="text" value={values.optionValue} onChange={(e) => onChange({ ...values, optionValue: e.target.value })} placeholder="Nan tre" className={INPUT_CLS} />
         )}
       </Field>
+
+      <SectionKicker>Giá</SectionKicker>
 
       <Field label="Cách tính giá" required hint={ADJUSTMENT_HELP[values.priceAdjustmentType]}>
         {(id) => (
@@ -254,7 +272,7 @@ function DefinitionForm({ values, onChange, errors }: { values: FormValues; onCh
         />
         Đang hoạt động (có thể được gắn vào sản phẩm)
       </label>
-    </div>
+    </fieldset>
   );
 }
 
@@ -480,7 +498,7 @@ export default function AdminOptionsPage() {
                 {loginError}
               </p>
             )}
-            <button type="submit" disabled={loginLoading} className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "var(--admin-primary)" }}>
+            <button type="submit" disabled={loginLoading} className="admin-focus-ring flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "var(--admin-primary)" }}>
               {loginLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loginLoading ? "Đang đăng nhập..." : "Đăng nhập"}
             </button>
@@ -507,9 +525,9 @@ export default function AdminOptionsPage() {
             <Plus className="h-3.5 w-3.5" /> Thêm tùy chọn mới
           </p>
           <form onSubmit={handleCreate} noValidate>
-            <DefinitionForm values={createValues} onChange={setCreateValues} errors={createErrors} />
+            <DefinitionForm values={createValues} onChange={setCreateValues} errors={createErrors} disabled={creating} />
             {createApiError && (
-              <p className="mt-3 flex items-start gap-2 text-xs" style={{ color: "var(--admin-danger)" }}>
+              <p role="alert" className="mt-3 flex items-start gap-2 text-xs" style={{ color: "var(--admin-danger)" }}>
                 <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{createApiError}
               </p>
             )}
@@ -521,7 +539,7 @@ export default function AdminOptionsPage() {
             <button
               type="submit"
               disabled={creating}
-              className="flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition mt-3.5 w-full"
+              className="admin-focus-ring flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition mt-3.5 w-full"
               style={{ background: "var(--admin-primary)" }}
             >
               {creating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -535,7 +553,7 @@ export default function AdminOptionsPage() {
       <div className="lg:col-span-3">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold" style={{ color: "var(--admin-text)" }}>Danh mục ({definitions.length})</h2>
-          <button onClick={() => token && load(token)} className="text-sm transition-colors hover:underline" style={{ color: "var(--admin-text-subtle)" }}>Làm mới</button>
+          <button onClick={() => token && load(token)} className="admin-focus-ring rounded text-sm transition-colors hover:underline" style={{ color: "var(--admin-text-subtle)" }}>Làm mới</button>
         </div>
 
         <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
@@ -546,7 +564,7 @@ export default function AdminOptionsPage() {
               placeholder="Tìm theo tên hoặc giá trị..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-9 w-full rounded-lg pl-8 pr-3 text-sm outline-none transition"
+              className="admin-focus-ring h-9 w-full rounded-lg pl-8 pr-3 text-sm outline-none transition"
               style={{
                 background: "var(--admin-surface)",
                 border: "1px solid var(--admin-border-strong)",
@@ -559,80 +577,102 @@ export default function AdminOptionsPage() {
               type="checkbox"
               checked={showInactive}
               onChange={(e) => setShowInactive(e.target.checked)}
-              className="h-3.5 w-3.5 rounded"
+              className="admin-focus-ring h-3.5 w-3.5 rounded"
               style={{ accentColor: "var(--admin-primary)" }}
             />
             Hiện cả tùy chọn đã ẩn
           </label>
         </div>
 
-        {loading && <CatalogSkeleton />}
-
-        {!loading && loadError && (
-          <div className="flex items-start gap-3 rounded-lg px-3.5 py-3" style={{ border: "1px solid rgba(220,38,38,0.25)", background: "var(--admin-danger-soft)" }}>
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--admin-danger)" }} />
-            <div className="flex-1">
-              <p className="text-sm" style={{ color: "var(--admin-danger)" }}>{loadError}</p>
-              <button onClick={() => token && load(token)} className="mt-1.5 text-xs font-medium underline underline-offset-2" style={{ color: "var(--admin-danger)" }}>Thử lại</button>
+        {/* One shared surface for every state (loading/error/empty/populated) so the
+            panel's frame doesn't jump as data resolves -- and so the catalog reads as
+            a single scannable list rather than a stack of repeated small cards. */}
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ border: "1px solid var(--admin-border)", background: "var(--admin-surface)" }}
+        >
+          {loading && (
+            <div className="p-4">
+              <CatalogSkeleton />
             </div>
-          </div>
-        )}
+          )}
 
-        {!loading && !loadError && definitions.length === 0 && (
-          <div className="rounded-lg px-4 py-8 text-center" style={{ border: "1px dashed var(--admin-border-strong)" }}>
-            <p className="text-sm font-medium" style={{ color: "var(--admin-text-muted)" }}>Chưa có tùy chọn nào trong danh mục.</p>
-            <p className="mt-1.5 text-xs leading-relaxed max-w-sm mx-auto" style={{ color: "var(--admin-text-subtle)" }}>
-              Tạo tùy chọn đầu tiên ở form bên trái, sau đó gắn vào sản phẩm khi tạo hoặc chỉnh sửa sản phẩm.
-            </p>
-          </div>
-        )}
-
-        {!loading && !loadError && definitions.length > 0 && groups.length === 0 && (
-          <p className="text-sm py-8 text-center" style={{ color: "var(--admin-text-subtle)" }}>Không tìm thấy tùy chọn phù hợp.</p>
-        )}
-
-        {!loading && !loadError && groups.length > 0 && (
-          <div className="space-y-4">
-            {listNotice && (
-              <div
-                className="flex items-start gap-2.5 rounded-lg px-3 py-2 text-xs"
-                style={{
-                  border: listNotice.type === "success" ? "1px solid rgba(21,128,61,0.25)" : "1px solid rgba(220,38,38,0.25)",
-                  background: listNotice.type === "success" ? "var(--admin-success-soft)" : "var(--admin-danger-soft)",
-                  color: listNotice.type === "success" ? "var(--admin-success)" : "var(--admin-danger)",
-                }}
-              >
-                {listNotice.type === "success" ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
-                <p>{listNotice.text}</p>
+          {!loading && loadError && (
+            <div role="alert" className="flex items-start gap-3 p-4">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--admin-danger)" }} />
+              <div className="flex-1">
+                <p className="text-sm" style={{ color: "var(--admin-danger)" }}>{loadError}</p>
+                <button
+                  onClick={() => token && load(token)}
+                  className="admin-focus-ring mt-1.5 rounded text-xs font-medium underline underline-offset-2"
+                  style={{ color: "var(--admin-danger)" }}
+                >
+                  Thử lại
+                </button>
               </div>
-            )}
+            </div>
+          )}
 
-            {groups.map((group) => (
-              <div key={group.optionType}>
-                <p className="text-[10px] font-mono uppercase tracking-[0.14em] mb-2" style={{ color: "var(--admin-text-subtle)" }}>
-                  {optionTypeLabel(group.optionType)}
-                </p>
-                <div className="space-y-1.5">
-                  {group.options.map((d) =>
+          {!loading && !loadError && definitions.length === 0 && (
+            <div className="px-4 py-10 text-center">
+              <p className="text-sm font-medium" style={{ color: "var(--admin-text-muted)" }}>Chưa có tùy chọn nào trong danh mục.</p>
+              <p className="mt-1.5 text-xs leading-relaxed max-w-sm mx-auto" style={{ color: "var(--admin-text-subtle)" }}>
+                Tạo tùy chọn đầu tiên ở form bên trái, sau đó gắn vào sản phẩm khi tạo hoặc chỉnh sửa sản phẩm.
+              </p>
+            </div>
+          )}
+
+          {!loading && !loadError && definitions.length > 0 && groups.length === 0 && (
+            <p className="px-4 py-10 text-center text-sm" style={{ color: "var(--admin-text-subtle)" }}>Không tìm thấy tùy chọn phù hợp.</p>
+          )}
+
+          {!loading && !loadError && groups.length > 0 && (
+            <div>
+              {listNotice && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="flex items-start gap-2.5 px-4 py-2.5 text-xs"
+                  style={{
+                    borderBottom: "1px solid var(--admin-border)",
+                    background: listNotice.type === "success" ? "var(--admin-success-soft)" : "var(--admin-danger-soft)",
+                    color: listNotice.type === "success" ? "var(--admin-success)" : "var(--admin-danger)",
+                  }}
+                >
+                  {listNotice.type === "success" ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
+                  <p>{listNotice.text}</p>
+                </div>
+              )}
+
+              {groups.map((group, groupIdx) => (
+                <div key={group.optionType}>
+                  <p
+                    className="px-4 pb-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{ color: "var(--admin-text-subtle)", paddingTop: groupIdx === 0 ? "1rem" : "1.25rem" }}
+                  >
+                    {optionTypeLabel(group.optionType)}
+                  </p>
+                  {group.options.map((d, idx) =>
                     editingId === d.id ? (
                       <div
                         key={d.id}
-                        className="rounded-lg p-3.5"
+                        className="px-4 py-4"
                         style={{
-                          border: "1px solid var(--admin-border-strong)",
+                          borderTop: idx === 0 ? "none" : "1px solid var(--admin-border)",
                           background: "var(--admin-primary-soft)",
                         }}
                       >
-                        <DefinitionForm values={editValues} onChange={setEditValues} errors={editErrors} />
+                        <DefinitionForm values={editValues} onChange={setEditValues} errors={editErrors} disabled={savingEdit} />
                         {editApiError && (
-                          <p className="mt-3 flex items-start gap-2 text-xs" style={{ color: "var(--admin-danger)" }}>
+                          <p role="alert" className="mt-3 flex items-start gap-2 text-xs" style={{ color: "var(--admin-danger)" }}>
                             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{editApiError}
                           </p>
                         )}
                         <div className="mt-3.5 flex items-center justify-end gap-2">
                           <button
                             onClick={() => setEditingId(null)}
-                            className="flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-all"
+                            disabled={savingEdit}
+                            className="admin-focus-ring flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-all disabled:opacity-50"
                             style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-muted)" }}
                             type="button"
                           >
@@ -641,7 +681,7 @@ export default function AdminOptionsPage() {
                           <button
                             onClick={() => handleSaveEdit(d)}
                             disabled={savingEdit}
-                            className="flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition"
+                            className="admin-focus-ring flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition"
                             style={{ background: "var(--admin-primary)" }}
                             type="button"
                           >
@@ -652,59 +692,81 @@ export default function AdminOptionsPage() {
                     ) : (
                       <div
                         key={d.id}
-                        className="flex items-center gap-3 rounded-lg px-3.5 py-3"
+                        className="flex flex-col gap-2 px-4 py-3 transition-colors sm:flex-row sm:items-center sm:gap-x-4 sm:gap-y-0"
                         style={{
-                          border: "1px solid var(--admin-border)",
-                          background: d.isActive ? "var(--admin-surface)" : "var(--admin-surface-muted)",
-                          opacity: d.isActive ? 1 : 0.65,
+                          borderTop: idx === 0 ? "none" : "1px solid var(--admin-border)",
+                          background: d.isActive ? "transparent" : "var(--admin-surface-muted)",
                         }}
                       >
+                        {/* Identity always gets its own full-width line first -- on narrow screens this is the
+                            one thing that must never truncate or wrap awkwardly, so price/actions move to a
+                            second line instead of squeezing it. Name is shown since one type can hold several
+                            distinct names (e.g. Material → "Chất liệu" vs. "Loại nan"). */}
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm truncate font-medium" style={{ color: "var(--admin-text)" }}>
+                          <p className="text-[11px]" style={{ color: "var(--admin-text-muted)" }}>{d.optionName}</p>
+                          <p className="text-sm font-medium truncate" style={{ color: "var(--admin-text)" }}>
                             {d.optionValue}
                             {!d.isActive && (
                               <span className="ml-2 admin-badge admin-badge-hidden">Đã ẩn</span>
                             )}
                           </p>
-                          <p className="text-xs" style={{ color: "var(--admin-text-subtle)" }}>{formatOptionPrice(d.additionalPrice, d.priceAdjustmentType)}</p>
-                          <p className="mt-0.5 text-[11px]" style={{ color: "var(--admin-text-subtle)" }}>
+                          <p className="mt-0.5 text-[11px]" style={{ color: "var(--admin-text-muted)" }}>
                             {d.productAssignmentCount === 0 ? "Chưa gắn vào sản phẩm nào" : `${d.productAssignmentCount} sản phẩm đang sử dụng`}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => handleDeactivateToggle(d)}
-                            className="flex items-center justify-center gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] transition-all"
-                            style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-muted)" }}
-                            aria-label={d.isActive ? `Ẩn "${d.optionValue}"` : `Kích hoạt lại "${d.optionValue}"`}
-                          >
-                            {d.isActive ? "Ẩn" : "Kích hoạt"}
-                          </button>
-                          <button
-                            onClick={() => startEdit(d)}
-                            className="rounded-lg p-2 transition-colors"
-                            style={{ color: "var(--admin-primary)", background: "var(--admin-primary-soft)" }}
-                            aria-label={`Sửa "${d.optionValue}"`}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => { setPendingDelete(d); setDeleteError(null); }}
-                            className="rounded-lg p-2 transition-colors"
-                            style={{ color: "var(--admin-danger)", background: "var(--admin-danger-soft)" }}
-                            aria-label={`Xóa "${d.optionValue}"`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+
+                        <div className="flex items-center justify-between gap-3 sm:shrink-0 sm:justify-end">
+                          {/* Price: its own scannable column, with the adjustment type spelled out in plain
+                              Vietnamese underneath -- never just the raw enum. */}
+                          <div className="text-left sm:text-right">
+                            <p className="text-sm font-semibold" style={{ color: "var(--admin-text)" }}>
+                              {formatOptionPrice(d.additionalPrice, d.priceAdjustmentType)}
+                            </p>
+                            {d.priceAdjustmentType !== "None" && (
+                              <p className="text-[10px]" style={{ color: "var(--admin-text-muted)" }}>
+                                {ADJUSTMENT_LABELS[d.priceAdjustmentType]}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => handleDeactivateToggle(d)}
+                              className="admin-focus-ring flex h-9 items-center justify-center gap-2 rounded-lg border px-2.5 text-[11px] transition-all"
+                              style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-muted)" }}
+                              aria-label={d.isActive ? `Ẩn "${d.optionValue}"` : `Kích hoạt lại "${d.optionValue}"`}
+                            >
+                              {d.isActive ? "Ẩn" : "Kích hoạt"}
+                            </button>
+                            <button
+                              onClick={() => startEdit(d)}
+                              className="admin-focus-ring flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
+                              style={{ color: "var(--admin-primary)", background: "var(--admin-primary-soft)" }}
+                              aria-label={`Sửa "${d.optionValue}"`}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            {/* Destructive action stays visually quiet at rest (neutral, same weight as
+                                a tertiary control) and only reads as dangerous on hover/focus -- so the
+                                row doesn't have a persistent red icon competing with Deactivate/Edit. */}
+                            <button
+                              onClick={() => { setPendingDelete(d); setDeleteError(null); }}
+                              className="admin-focus-ring flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:text-[var(--admin-danger)] hover:bg-[var(--admin-danger-soft)]"
+                              style={{ color: "var(--admin-text-subtle)" }}
+                              aria-label={`Xóa "${d.optionValue}"`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ),
                   )}
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Delete confirmation modal */}
@@ -736,20 +798,24 @@ export default function AdminOptionsPage() {
             )}
 
             <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => handleDeactivateToggle(pendingDelete).then(() => setPendingDelete(null))}
-                disabled={deleteBusy}
-                className="flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition"
-                style={{ background: "var(--admin-primary)" }}
-              >
-                Ẩn tùy chọn (khuyến nghị)
-              </button>
+              {/* Only offered when the item is still active -- for an already-inactive item this
+                  same toggle would silently reactivate it, the opposite of what the label says. */}
+              {pendingDelete.isActive && (
+                <button
+                  type="button"
+                  onClick={() => handleDeactivateToggle(pendingDelete).then(() => setPendingDelete(null))}
+                  disabled={deleteBusy}
+                  className="admin-focus-ring flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition"
+                  style={{ background: "var(--admin-primary)" }}
+                >
+                  Ẩn tùy chọn (khuyến nghị)
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => handleHardDelete(pendingDelete)}
                 disabled={deleteBusy || pendingDelete.productAssignmentCount > 0}
-                className="flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="admin-focus-ring flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   borderColor: "rgba(220,38,38,0.30)",
                   background: "var(--admin-danger-soft)",
@@ -762,7 +828,7 @@ export default function AdminOptionsPage() {
                 type="button"
                 onClick={closeDeleteModal}
                 disabled={deleteBusy}
-                className="flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm transition"
+                className="admin-focus-ring flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm transition"
                 style={{ color: "var(--admin-text-subtle)" }}
               >
                 Hủy
