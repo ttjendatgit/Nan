@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search,
   X,
@@ -44,14 +44,14 @@ const STATUS_LABELS: Record<QuoteRequestStatus, string> = {
   Cancelled: "Đã hủy",
 };
 
-// Light-surface badge config — bg / text / border — all via Tailwind utilities
-// to keep the badge rendering pure classNames with no runtime style injection
+// Shared admin-badge-* classes (globals.css) — same status-color language as
+// the rest of the admin instead of a page-local Tailwind palette.
 const STATUS_BADGE_CLS: Record<QuoteRequestStatus, string> = {
-  New:       "bg-blue-50   text-blue-700   border-blue-200",
-  Contacted: "bg-amber-50  text-amber-700  border-amber-200",
-  Quoted:    "bg-indigo-50 text-indigo-700 border-indigo-200",
-  Closed:    "bg-green-50  text-green-700  border-green-200",
-  Cancelled: "bg-red-50    text-red-600    border-red-200",
+  New:       "admin-badge-new",
+  Contacted: "admin-badge-contact",
+  Quoted:    "admin-badge-quoted",
+  Closed:    "admin-badge-closed",
+  Cancelled: "admin-badge-cancelled",
 };
 
 // Summary card accent colors for count numbers
@@ -85,10 +85,39 @@ function dash(val?: string | null): string {
 function StatusBadge({ status }: { status: QuoteRequestStatus }) {
   const cls = STATUS_BADGE_CLS[status] ?? STATUS_BADGE_CLS.New;
   return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.10em] ${cls}`}>
+    <span className={`admin-badge ${cls} font-mono uppercase tracking-[0.10em]`}>
       {STATUS_LABELS[status]}
     </span>
   );
+}
+
+// ─── PriceCell — list-row price readout ─────────────────────────────────────
+// Deliberately never shows the same value twice: a finalized quote shows only
+// the commercial FinalQuotedPrice (bold, "Đã chốt"); anything else falls back
+// to the system-calculated snapshot, visibly softer and labeled "Dự kiến" so
+// staff never mistake a calculated estimate for a confirmed commercial price.
+function PriceCell({ quote }: { quote: QuoteRequestDto }) {
+  if (quote.finalQuotedPrice != null) {
+    return (
+      <div>
+        <p className="font-mono text-[12.5px] font-semibold tabular-nums" style={{ color: "var(--admin-primary)" }}>
+          {formatVnd(quote.finalQuotedPrice)}
+        </p>
+        <p className="text-[10px]" style={{ color: "var(--admin-text-subtle)" }}>Đã chốt</p>
+      </div>
+    );
+  }
+  if (quote.calculatedTotalSnapshot != null) {
+    return (
+      <div>
+        <p className="font-mono text-[12px] tabular-nums" style={{ color: "var(--admin-text-muted)" }}>
+          {formatVnd(quote.calculatedTotalSnapshot)}
+        </p>
+        <p className="text-[10px]" style={{ color: "var(--admin-text-subtle)" }}>Dự kiến</p>
+      </div>
+    );
+  }
+  return <span style={{ color: "var(--admin-text-subtle)" }}>—</span>;
 }
 
 // ─── SummaryCard ───────────────────────────────────────────────────────────────
@@ -118,7 +147,7 @@ function SkeletonRows() {
     <>
       {Array.from({ length: 6 }).map((_, i) => (
         <tr key={i} style={{ borderBottom: "1px solid var(--admin-border)" }}>
-          {Array.from({ length: 7 }).map((__, j) => (
+          {Array.from({ length: 8 }).map((__, j) => (
             <td key={j} className="px-4 py-3">
               <div className="h-4 rounded admin-skeleton" style={{ width: `${60 + ((i + j) % 3) * 15}%` }} />
             </td>
@@ -176,7 +205,7 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => voi
       </div>
       <button
         onClick={onRetry}
-        className="shrink-0 rounded-lg border px-3 py-1.5 text-xs transition-colors"
+        className="admin-focus-ring shrink-0 rounded-lg border px-3 py-1.5 text-xs transition-colors"
         style={{ borderColor: "rgba(220,38,38,0.25)", color: "var(--admin-danger)" }}
       >
         Thử lại
@@ -211,7 +240,7 @@ function AdminLoginForm({
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+            className="admin-focus-ring flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50"
             style={{ background: "var(--admin-primary)" }}
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -234,25 +263,37 @@ function PricingBreakdownSection({ quote }: { quote: QuoteRequestDto }) {
       {quote.options.length === 0 ? (
         <p className="text-sm" style={{ color: "var(--admin-text-subtle)" }}>Không có tùy chọn nào được chọn.</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
+          {/* Snapshot data -- never re-fetched from the live Option Catalog, so this always
+              reflects exactly what the customer saw and selected at submission time, even if
+              that option was later renamed, repriced, or deactivated in the catalog. */}
           {quote.options.map((opt) => (
-            <div key={opt.id} className="flex items-baseline justify-between gap-4 text-sm">
-              <span style={{ color: "var(--admin-text-subtle)" }}>{optionTypeLabel(opt.optionTypeSnapshot)}</span>
-              <span className="text-right" style={{ color: "var(--admin-text)" }}>
-                {opt.optionValueSnapshot}
+            <div key={opt.id} className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-mono uppercase tracking-[0.08em]" style={{ color: "var(--admin-text-subtle)" }}>
+                  {optionTypeLabel(opt.optionTypeSnapshot)}
+                </p>
+                <p className="text-sm" style={{ color: "var(--admin-text)" }}>{opt.optionValueSnapshot}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-sm tabular-nums" style={{ color: opt.calculatedAmountSnapshot > 0 ? "var(--admin-text)" : "var(--admin-text-subtle)" }}>
+                  {opt.calculatedAmountSnapshot > 0 ? `+${formatVnd(opt.calculatedAmountSnapshot)}` : "Không cộng thêm"}
+                </p>
                 {opt.calculatedAmountSnapshot > 0 && (
-                  <span style={{ color: "var(--admin-text-subtle)" }}>
-                    {" "}(+{formatVnd(opt.priceAdjustmentSnapshot)}
-                    {opt.priceAdjustmentTypeSnapshot === "FixedPerOrder" ? "/đơn" : "/cái"})
-                  </span>
+                  <p className="text-[10px]" style={{ color: "var(--admin-text-subtle)" }}>
+                    {formatVnd(opt.priceAdjustmentSnapshot)}{opt.priceAdjustmentTypeSnapshot === "FixedPerOrder" ? "/đơn" : "/cái"}
+                  </p>
                 )}
-              </span>
+              </div>
             </div>
           ))}
         </div>
       )}
-      <p className="mb-3 mt-5 font-mono text-[9px] uppercase tracking-[0.18em]" style={{ color: "var(--admin-primary)" }}>
+      <p className="mb-1.5 mt-5 font-mono text-[9px] uppercase tracking-[0.18em]" style={{ color: "var(--admin-primary)" }}>
         Giá hệ thống tính toán
+      </p>
+      <p className="mb-3 text-[11px] leading-snug" style={{ color: "var(--admin-text-subtle)" }}>
+        Số liệu cố định tại thời điểm gửi yêu cầu, không đổi theo giá hiện tại trong danh mục.
       </p>
       <div className="space-y-2 text-sm">
         <PricingRow label="Giá gốc / cái"                 value={formatVnd(quote.baseUnitPriceSnapshot)} />
@@ -318,11 +359,45 @@ function FinalPriceSection({
     }
   }
 
+  const isFinalized = quote.finalQuotedPrice != null;
+
   return (
     <section>
       <p className="mb-3 font-mono text-[9px] uppercase tracking-[0.18em]" style={{ color: "var(--admin-primary)" }}>
-        Giá báo cho khách (thủ công)
+        Giá báo & ghi chú nội bộ
       </p>
+
+      {/* Commercially prominent readout of the SAVED final price -- reads from `quote`, not the
+          in-progress `finalPrice` input state, so it never implies an unsaved keystroke is
+          already the official quote. Distinct styling (filled navy vs. muted paper) is the only
+          thing separating "confirmed" from "still just a system estimate" at a glance. */}
+      <div
+        className="mb-4 rounded-xl px-4 py-3.5"
+        style={{
+          background: isFinalized ? "var(--admin-primary-soft)" : "var(--admin-surface-muted)",
+          border: `1px solid ${isFinalized ? "var(--admin-primary)" : "var(--admin-border)"}`,
+        }}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[10px] font-mono uppercase tracking-[0.12em]" style={{ color: "var(--admin-text-subtle)" }}>Giá báo cuối cùng</p>
+          <span className={`admin-badge ${isFinalized ? "admin-badge-closed" : "admin-badge-inactive"} font-mono uppercase tracking-[0.10em]`}>
+            {isFinalized ? "Đã chốt" : "Chưa chốt"}
+          </span>
+        </div>
+        <p className="mt-1 text-2xl font-semibold tabular-nums" style={{ color: isFinalized ? "var(--admin-primary)" : "var(--admin-text-subtle)" }}>
+          {isFinalized
+            ? formatVnd(quote.finalQuotedPrice)
+            : quote.calculatedTotalSnapshot != null
+              ? `~ ${formatVnd(quote.calculatedTotalSnapshot)}`
+              : "Chưa có giá"}
+        </p>
+        {!isFinalized && (
+          <p className="mt-0.5 text-[11px] leading-snug" style={{ color: "var(--admin-text-subtle)" }}>
+            Giá dự kiến theo tính toán hệ thống — chưa phải giá báo chính thức cho khách.
+          </p>
+        )}
+      </div>
+
       <div className="space-y-2.5">
         <div>
           <label className="text-[10px] font-mono uppercase tracking-[0.12em]" style={{ color: "var(--admin-text-subtle)" }}>Giá cuối (VNĐ)</label>
@@ -342,11 +417,14 @@ function FinalPriceSection({
         {saved && !saveError && (
           <p className="rounded-lg px-3 py-2 text-xs" style={{ color: "var(--admin-success)", background: "var(--admin-success-soft)", border: "1px solid rgba(21,128,61,0.20)" }}>Đã lưu giá cuối.</p>
         )}
+        {/* Secondary weight (outlined, not filled) -- the drawer's one filled-primary action is
+            the status update at the bottom, so this doesn't compete with it as an equally loud
+            "primary" button. */}
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ background: "var(--admin-primary)" }}
+          className="admin-focus-ring flex w-full items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
+          style={{ borderColor: "var(--admin-primary)", color: "var(--admin-primary)", background: "var(--admin-primary-soft)" }}
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
           {saving ? "Đang lưu..." : "Lưu giá cuối"}
@@ -372,15 +450,36 @@ function DetailDrawer({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (quote) { setSelectedStatus(quote.status); setSaveSuccess(false); setSaveError(null); }
   }, [quote]);
 
+  // Focus lifecycle — same pattern as the shared Modal primitive: capture whatever triggered
+  // the drawer, move focus into the panel on open, and restore it on close (skipped if the
+  // trigger row is no longer in the DOM). Keyed on `open` alone so it runs exactly once per
+  // open/close cycle instead of re-capturing on every parent re-render.
   useEffect(() => {
     if (!open) return;
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+    return () => {
+      if (previouslyFocusedRef.current?.isConnected) previouslyFocusedRef.current.focus();
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     function onKeyDown(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [open, onClose]);
 
   async function handleSave() {
@@ -419,10 +518,12 @@ function DetailDrawer({
 
       {/* Drawer panel — white surface on light workspace */}
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Chi tiết yêu cầu báo giá"
-        className={`fixed right-0 top-0 z-[200] flex h-full w-full flex-col shadow-2xl transition-transform duration-200 ease-out sm:w-[480px] ${open ? "translate-x-0" : "translate-x-full"}`}
+        tabIndex={-1}
+        className={`fixed right-0 top-0 z-[200] flex h-full w-full flex-col shadow-2xl outline-none transition-transform duration-200 ease-out sm:w-[480px] ${open ? "translate-x-0" : "translate-x-full"}`}
         style={{
           background: "var(--admin-surface)",
           borderLeft: "1px solid var(--admin-border)",
@@ -434,7 +535,7 @@ function DetailDrawer({
           <button
             onClick={onClose}
             aria-label="Đóng"
-            className="rounded-lg p-1.5 transition-colors"
+            className="admin-focus-ring rounded-lg p-1.5 transition-colors"
             style={{ color: "var(--admin-text-subtle)" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--admin-text)"; (e.currentTarget as HTMLElement).style.background = "var(--admin-surface-muted)"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--admin-text-subtle)"; (e.currentTarget as HTMLElement).style.background = "transparent"; }}
@@ -541,11 +642,11 @@ function DetailDrawer({
             <button
               onClick={handleSave}
               disabled={saving || selectedStatus === quote.status}
-              className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-40"
+              className="admin-focus-ring flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-40"
               style={{ background: "var(--admin-primary)" }}
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              {saving ? "Đang lưu..." : "Lưu"}
+              {saving ? "Đang lưu..." : "Lưu trạng thái"}
             </button>
           </div>
         )}
@@ -704,8 +805,12 @@ export default function AdminQuoteRequestsPage() {
           <SummaryCard label="Đã báo giá"   value={counts.quoted}    accentCls={STATUS_ACCENT.quoted} />
         </div>
 
-        {/* Filters */}
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* Filters — search + status live in one bordered control zone so they read as a
+            single coherent tool, not two unrelated rows stacked above the table. */}
+        <div
+          className="mb-5 flex flex-col gap-3 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between"
+          style={{ background: "var(--admin-surface)", border: "1px solid var(--admin-border)" }}
+        >
           <div className="relative w-full sm:max-w-[280px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "var(--admin-text-subtle)" }} />
             <input
@@ -713,14 +818,15 @@ export default function AdminQuoteRequestsPage() {
               placeholder="Tìm theo tên, SĐT, email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-9 w-full rounded-lg pl-8 pr-8 text-sm outline-none transition"
-              style={{ background: "var(--admin-surface)", border: "1px solid var(--admin-border-strong)", color: "var(--admin-text)" }}
+              aria-label="Tìm kiếm yêu cầu báo giá"
+              className="admin-focus-ring h-9 w-full rounded-lg pl-8 pr-8 text-sm outline-none transition"
+              style={{ background: "var(--admin-canvas)", border: "1px solid var(--admin-border-strong)", color: "var(--admin-text)" }}
             />
             {search && (
               <button
                 onClick={() => setSearch("")}
                 aria-label="Xóa tìm kiếm"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 transition-colors"
+                className="admin-focus-ring absolute right-2.5 top-1/2 -translate-y-1/2 rounded transition-colors"
                 style={{ color: "var(--admin-text-subtle)" }}
               >
                 <X size={13} />
@@ -729,12 +835,13 @@ export default function AdminQuoteRequestsPage() {
           </div>
 
           {/* Status filter chips */}
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Lọc theo trạng thái">
             {STATUS_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => setStatusFilter(opt.value as QuoteRequestStatus | "all")}
-                className="rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.10em] transition-colors"
+                aria-pressed={statusFilter === opt.value}
+                className="admin-focus-ring rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.10em] transition-colors"
                 style={
                   statusFilter === opt.value
                     ? { borderColor: "var(--admin-primary)", background: "var(--admin-primary-soft)", color: "var(--admin-primary)" }
@@ -747,13 +854,14 @@ export default function AdminQuoteRequestsPage() {
           </div>
         </div>
 
-        {/* Desktop table */}
-        <div className="hidden sm:block overflow-hidden rounded-xl" style={{ border: "1px solid var(--admin-border)" }}>
-          <table className="w-full text-left" style={{ background: "var(--admin-surface)" }}>
+        {/* Desktop table — horizontal scroll container so the price column never forces the
+            other columns to truncate awkwardly at tablet widths (~768-1023px). */}
+        <div className="hidden overflow-x-auto rounded-xl sm:block" style={{ border: "1px solid var(--admin-border)" }}>
+          <table className="w-full min-w-[880px] text-left" style={{ background: "var(--admin-surface)" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--admin-border)", background: "var(--admin-surface-muted)" }}>
-                {["Khách hàng", "Liên hệ", "Sản phẩm", "Số lượng", "Trạng thái", "Ngày gửi", ""].map((h) => (
-                  <th key={h} className="px-4 py-3 font-mono text-[9.5px] uppercase tracking-[0.12em]" style={{ color: "var(--admin-text-subtle)" }}>
+                {["Khách hàng", "Liên hệ", "Sản phẩm", "Số lượng", "Trạng thái", "Ngày gửi", "Giá", ""].map((h) => (
+                  <th key={h} scope="col" className="px-4 py-3 font-mono text-[9.5px] uppercase tracking-[0.12em]" style={{ color: "var(--admin-text-subtle)" }}>
                     {h}
                   </th>
                 ))}
@@ -762,10 +870,10 @@ export default function AdminQuoteRequestsPage() {
             <tbody>
               {listLoading && <SkeletonRows />}
               {!listLoading && listError && (
-                <tr><td colSpan={7} className="px-4"><ErrorBanner message={listError} onRetry={loadQuotes} /></td></tr>
+                <tr><td colSpan={8} className="px-4"><ErrorBanner message={listError} onRetry={loadQuotes} /></td></tr>
               )}
               {!listLoading && !listError && quotes.length === 0 && (
-                <tr><td colSpan={7}><EmptyState filtered={isFiltered} /></td></tr>
+                <tr><td colSpan={8}><EmptyState filtered={isFiltered} /></td></tr>
               )}
               {!listLoading && !listError && quotes.map((q) => (
                 <tr
@@ -791,10 +899,11 @@ export default function AdminQuoteRequestsPage() {
                   </td>
                   <td className="px-4 py-3"><StatusBadge status={q.status} /></td>
                   <td className="px-4 py-3 font-mono text-[11px]" style={{ color: "var(--admin-text-subtle)" }}>{formatDate(q.createdAt)}</td>
+                  <td className="px-4 py-3"><PriceCell quote={q} /></td>
                   <td className="px-4 py-3">
                     <button
                       onClick={() => openDrawer(q)}
-                      className="flex min-h-[38px] items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] transition-colors"
+                      className="admin-focus-ring flex min-h-[38px] items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] transition-colors"
                       style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-subtle)" }}
                       onMouseEnter={(e) => {
                         (e.currentTarget as HTMLElement).style.borderColor = "var(--admin-primary)";
@@ -836,15 +945,18 @@ export default function AdminQuoteRequestsPage() {
                       {dash(q.productNameSnapshot)} &middot; {q.quantity.toLocaleString("vi-VN")} cái
                     </p>
                     <div className="mt-3 flex items-center justify-between">
+                      <div>
+                        <PriceCell quote={q} />
+                      </div>
                       <span className="font-mono text-[10px]" style={{ color: "var(--admin-text-subtle)" }}>{formatDate(q.createdAt)}</span>
-                      <button
-                        onClick={() => openDrawer(q)}
-                        className="flex min-h-[38px] items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] transition-colors"
-                        style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-subtle)" }}
-                      >
-                        <Eye size={12} /> Xem chi tiết
-                      </button>
                     </div>
+                    <button
+                      onClick={() => openDrawer(q)}
+                      className="admin-focus-ring mt-3 flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[12px] font-medium transition-colors"
+                      style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-subtle)" }}
+                    >
+                      <Eye size={13} /> Xem chi tiết
+                    </button>
                   </div>
                 ))}
               </div>
@@ -863,7 +975,7 @@ export default function AdminQuoteRequestsPage() {
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={!pagination.hasPrev || listLoading}
                 aria-label="Trang trước"
-                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] transition-colors disabled:cursor-not-allowed disabled:opacity-35"
+                className="admin-focus-ring flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] transition-colors disabled:cursor-not-allowed disabled:opacity-35"
                 style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-subtle)" }}
               >
                 <ChevronLeft size={13} /> Trước
@@ -872,7 +984,7 @@ export default function AdminQuoteRequestsPage() {
                 onClick={() => setPage((p) => p + 1)}
                 disabled={!pagination.hasNext || listLoading}
                 aria-label="Trang tiếp"
-                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] transition-colors disabled:cursor-not-allowed disabled:opacity-35"
+                className="admin-focus-ring flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] transition-colors disabled:cursor-not-allowed disabled:opacity-35"
                 style={{ borderColor: "var(--admin-border-strong)", color: "var(--admin-text-subtle)" }}
               >
                 Tiếp <ChevronRight size={13} />
@@ -886,7 +998,7 @@ export default function AdminQuoteRequestsPage() {
           <div className="mt-8 flex justify-end">
             <button
               onClick={loadQuotes}
-              className="flex items-center gap-1.5 text-[11px] transition-colors"
+              className="admin-focus-ring flex items-center gap-1.5 rounded text-[11px] transition-colors"
               style={{ color: "var(--admin-text-subtle)" }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--admin-text-muted)"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--admin-text-subtle)"; }}
