@@ -102,6 +102,8 @@ public static class DependencyInjection
         services.AddScoped<IQuoteRequestService, QuoteRequestService>();
         services.AddScoped<IQuoteEmailNotificationSender, SmtpQuoteEmailNotificationSender>();
         services.AddScoped<IQuoteStatusNotificationService, QuoteStatusNotificationService>();
+        services.AddScoped<IContentDocumentRepository, ContentDocumentRepository>();
+        services.AddScoped<IContentDocumentService, ContentDocumentService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;
