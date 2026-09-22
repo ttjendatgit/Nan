@@ -25,6 +25,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<QuoteRequest> QuoteRequests => Set<QuoteRequest>();
     public DbSet<QuoteRequestOption> QuoteRequestOptions => Set<QuoteRequestOption>();
     public DbSet<QuoteStatusEmailNotification> QuoteStatusEmailNotifications => Set<QuoteStatusEmailNotification>();
+    public DbSet<ContentDocument> ContentDocuments => Set<ContentDocument>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
