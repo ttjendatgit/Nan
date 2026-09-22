@@ -176,12 +176,19 @@ function productsUrl(path = "", params?: Record<string, string | number | boolea
   return str ? `${base}?${str}` : base;
 }
 
-/** GET /api/Products — paginated list (public). */
+/**
+ * GET /api/Products — paginated list. Public (no token): backend forces activeOnly=true
+ * regardless of the `activeOnly` param, since it can't see a Manager role on an anonymous
+ * request. Pass a Manager token to see inactive products too (e.g. for an admin workspace that
+ * must still manage records -- like pricing rules -- tied to a product that was since hidden).
+ */
 export async function getProducts(
   params?: PaginationParams & { search?: string; categoryId?: string; activeOnly?: boolean },
+  token?: string,
 ): Promise<PagedResult<Product>> {
   const res = await apiFetch<CatalogApiResponse<PagedResult<Product>>>(
     productsUrl("", params as Record<string, string | number | boolean | undefined>),
+    token ? { headers: getAuthHeaders(token) } : undefined,
   );
   return {
     ...res.data,

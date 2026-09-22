@@ -28,7 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Danh mục",          href: "/admin/categories",     icon: FolderOpen,       available: true  },
   { label: "Tùy chọn",          href: "/admin/options",        icon: SlidersHorizontal,available: true  },
   { label: "Yêu cầu báo giá",  href: "/admin/quote-requests", icon: FileText,         available: true  },
-  { label: "Pricing Rules",     href: "/admin/pricing-rules",  icon: CircleDollarSign, available: false },
+  { label: "Quy tắc giá",       href: "/admin/pricing-rules",  icon: CircleDollarSign, available: true  },
   { label: "Design Files",      href: "/admin/design-files",   icon: Palette,          available: false },
   { label: "Users",             href: "/admin/users",          icon: Users,            available: false },
 ];

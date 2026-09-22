@@ -35,11 +35,11 @@ const MODULES: Module[] = [
     available: true,
   },
   {
-    label: "Pricing Rules",
+    label: "Quy tắc giá",
     description: "Cấu hình quy tắc giá theo số lượng, chất liệu và tùy chọn sản phẩm.",
     href: "/admin/pricing-rules",
     icon: CircleDollarSign,
-    available: false,
+    available: true,
   },
   {
     label: "Design Files",

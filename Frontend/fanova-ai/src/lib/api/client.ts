@@ -16,8 +16,15 @@ export async function apiFetch<T>(
     let message = `Request failed: ${res.status} ${res.statusText}`;
     try {
       const body = await res.json();
-      if (body?.message) message = body.message;
-      else if (Array.isArray(body?.errors) && body.errors.length > 0) {
+      const hasSpecificErrors = Array.isArray(body?.errors) && body.errors.length > 0;
+      // FluentValidation failures all share the same generic top-level message
+      // ("Validation failed.") -- the actual field-level reason lives in `errors`,
+      // so prefer that whenever it's present instead of the uninformative bucket text.
+      if (hasSpecificErrors && (!body?.message || body.message === "Validation failed.")) {
+        message = body.errors.join(" ");
+      } else if (body?.message) {
+        message = body.message;
+      } else if (hasSpecificErrors) {
         message = body.errors[0];
       }
     } catch {
