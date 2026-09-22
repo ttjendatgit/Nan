@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Package, FolderOpen, FileText, CircleDollarSign, Palette, Users } from "lucide-react";
+import { Package, FolderOpen, FileText, CircleDollarSign, Newspaper, Palette, Users } from "lucide-react";
 
 interface Module {
   label: string;
@@ -39,6 +39,13 @@ const MODULES: Module[] = [
     description: "Cấu hình quy tắc giá theo số lượng, chất liệu và tùy chọn sản phẩm.",
     href: "/admin/pricing-rules",
     icon: CircleDollarSign,
+    available: true,
+  },
+  {
+    label: "Nội dung",
+    description: "Quản lý nội dung mở rộng cho sản phẩm, trang tĩnh và bài viết blog.",
+    href: "/admin/content",
+    icon: Newspaper,
     available: true,
   },
   {

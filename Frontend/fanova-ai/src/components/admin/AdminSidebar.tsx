@@ -8,6 +8,7 @@ import {
   FolderOpen,
   FileText,
   CircleDollarSign,
+  Newspaper,
   Palette,
   Users,
   LogOut,
@@ -29,6 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Tùy chọn",          href: "/admin/options",        icon: SlidersHorizontal,available: true  },
   { label: "Yêu cầu báo giá",  href: "/admin/quote-requests", icon: FileText,         available: true  },
   { label: "Quy tắc giá",       href: "/admin/pricing-rules",  icon: CircleDollarSign, available: true  },
+  { label: "Nội dung",          href: "/admin/content",        icon: Newspaper,        available: true  },
   { label: "Design Files",      href: "/admin/design-files",   icon: Palette,          available: false },
   { label: "Users",             href: "/admin/users",          icon: Users,            available: false },
 ];
