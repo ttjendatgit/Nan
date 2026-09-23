@@ -4,7 +4,7 @@ import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import type { ContentBlock } from "@/types/contentBlocks";
 import { contentBlockLabel } from "@/types/contentBlocks";
 import type { TipTapDocument } from "@/lib/tiptapContent";
-import type { ParagraphBackspacePayload, ParagraphEnterPayload } from "./RichTextInput";
+import type { ParagraphBackspacePayload, ParagraphEnterPayload, ParagraphPastePayload } from "./RichTextInput";
 import HeadingBlockEditor from "./blocks/HeadingBlockEditor";
 import ParagraphBlockEditor from "./blocks/ParagraphBlockEditor";
 import QuoteBlockEditor from "./blocks/QuoteBlockEditor";
@@ -38,13 +38,14 @@ interface BlockItemProps {
   autoFocus?: false | "start" | "end";
   pendingMerge?: TipTapDocument | null;
   onMergeApplied?: () => void;
+  onPasteBlocks?: (payload: ParagraphPastePayload) => void;
 }
 
 /** Shared chrome (border/hover/active + reorder/remove actions) around one block's type-specific
  * editor. Reordering uses plain up/down buttons, not a drag-and-drop library (out of scope). */
 export default function BlockItem({
   block, index, total, active, onFocus, onChange, onRemove, onMoveUp, onMoveDown, token,
-  onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied,
+  onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied, onPasteBlocks,
 }: BlockItemProps) {
   const label = contentBlockLabel(block.type);
 
@@ -101,16 +102,19 @@ export default function BlockItem({
         block={block} onChange={onChange} token={token}
         onEnter={onEnter} onBackspaceAtStart={onBackspaceAtStart}
         autoFocus={autoFocus} pendingMerge={pendingMerge} onMergeApplied={onMergeApplied}
+        onPasteBlocks={onPasteBlocks}
       />
     </div>
   );
 }
 
 /** Dispatches to the right type-specific editor. Exhaustive switch, no `default`: a new
- * ContentBlockType without a case here is a compile error. The A1/A2 props are only ever passed
- * to ParagraphBlockEditor -- every other case ignores them, which is what "other blocks ignore
- * these props" means in practice: there's simply no plumbing to them. */
-function BlockFields({ block, onChange, token, onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied }: {
+ * ContentBlockType without a case here is a compile error. The A1/A2/A3 props are only ever
+ * passed to ParagraphBlockEditor -- every other case ignores them, which is what "other blocks
+ * ignore these props" means in practice: there's simply no plumbing to them. */
+function BlockFields({
+  block, onChange, token, onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied, onPasteBlocks,
+}: {
   block: ContentBlock;
   onChange: (block: ContentBlock) => void;
   token: string;
@@ -119,6 +123,7 @@ function BlockFields({ block, onChange, token, onEnter, onBackspaceAtStart, auto
   autoFocus?: false | "start" | "end";
   pendingMerge?: TipTapDocument | null;
   onMergeApplied?: () => void;
+  onPasteBlocks?: (payload: ParagraphPastePayload) => void;
 }) {
   switch (block.type) {
     case "heading":
@@ -129,6 +134,7 @@ function BlockFields({ block, onChange, token, onEnter, onBackspaceAtStart, auto
           block={block} onChange={onChange}
           onEnter={onEnter} onBackspaceAtStart={onBackspaceAtStart}
           autoFocus={autoFocus} pendingMerge={pendingMerge} onMergeApplied={onMergeApplied}
+          onPasteBlocks={onPasteBlocks}
         />
       );
     case "quote":

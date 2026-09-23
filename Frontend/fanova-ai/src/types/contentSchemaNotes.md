@@ -348,3 +348,117 @@ operations will conceptually resolve in (record the intent, then remove what's n
 **Out of scope, unchanged from A1's own list**: Delete (forward) is not handled, only Backspace.
 No cross-type merge (merging into a heading, quote, etc. is not implemented -- only
 paragraph-into-paragraph). No undo/redo participation, same as A1.
+
+## Paste splits into real blocks (Phase A3)
+
+The most-used real interaction Content Studio has: drafting somewhere else (Google Docs, Word,
+ChatGPT, a plain .md file) and pasting into an article. Before this phase, pasting a long,
+structured document into one ParagraphBlock produced one block holding several TipTap paragraph
+nodes -- headings, lists, and quotes all flattened into plain text, and ChatGPT's markdown-only
+"Copy" button left literal `##`/`**`/`- ` characters visible in the pasted text. No schema change
+here either -- `spliceBlocks` (the one new `useContentEditor` primitive this phase needed) still
+only ever produces ordinary `ContentBlock` values built from the existing `createXBlock()`
+factories.
+
+### When this activates
+
+Only inside a `ParagraphBlock`, and only when the clipboard converts to more than one block, or to
+a single block that *isn't* a paragraph (a list, a heading, ...). A clipboard that converts to
+exactly one plain paragraph is left entirely alone -- `handlePaste` returns `false` and TipTap's
+own default paste handling runs unchanged. This is deliberate, not an oversight: pasting a phrase
+into the middle of a sentence is the single most common paste interaction in a text editor, and it
+must never behave differently just because this feature exists.
+
+### HTML -> block conversion table
+
+| Source element | Target block |
+|---|---|
+| `<p>`, loose top-level text | ParagraphBlock, keeps bold/italic/link/highlight |
+| `<h1>`, `<h2>` | HeadingBlock, level `"h2"` |
+| `<h3>`-`<h6>` | HeadingBlock, level `"h3"` |
+| `<ul>` | ListBlock, `style: "bullet"`, one item per `<li>` |
+| `<ol>` | ListBlock, `style: "ordered"` |
+| `<blockquote>` | QuoteBlock |
+| `<hr>` | DividerBlock |
+| `<pre>`, block-level `<code>` | ParagraphBlock holding plain `textContent` (no marks) |
+| `<table>` | Each `<tr>` becomes its own ParagraphBlock, cells joined with `" · "` -- see "Known limitations" below |
+| `<img>` | Dropped entirely -- no ImageBlock is created from a paste |
+| `<div>`/`<section>`/`<article>`/other wrappers | Not converted to a block themselves -- descended into, children processed as if they were at the top level |
+| `<style>`/`<meta>`/`<script>`/HTML comments | Dropped entirely, no descent |
+
+`HeadingBlock.text`, `ListBlock.items[]`, and `QuoteBlock.text` are exactly what
+`contentBlocks.ts` already declares them as -- plain strings (trimmed `textContent`), not
+TipTapDocument. `ParagraphBlock` is the only target that carries real inline formatting, and only
+because it's the only block type whose schema supports it.
+
+**Cleanup rules applied during conversion:**
+- Empty `<p>` elements are dropped outright (Word and Google Docs insert these purely for visual
+  spacing between paragraphs) -- including ones holding only `&nbsp;`/`<br>`, checked via
+  `textContent` rather than `innerHTML` so both possible entity-vs-character serializations of a
+  non-breaking space are caught.
+- Nested `<ul>`/`<ol>` flatten into the parent list's own `items[]` -- `ListBlock.items` is a flat
+  `string[]`, so there's nothing to preserve the indentation level in even if this phase wanted to.
+- Google Docs wraps an entire paste in `<b id="docs-internal-guid-...">` carrying
+  `style="font-weight:normal"` -- a real `<b>` tag that isn't semantically bold. Detected by that
+  id prefix or that specific style, and unwrapped (not deleted -- its content survives, just not
+  as a bold mark) in one pass over the *whole* parsed document before any block-level walking or
+  inline parsing starts, since depending on the exact source shape this wrapper can end up
+  wrapping the pasted `<p>` elements directly, or nested inside one -- normalizing first means
+  neither code path downstream has to special-case which.
+- Word's bulleted-list paste style doesn't use real `<ul>`/`<li>` -- it emits plain `<p>` elements
+  whose text starts with a bullet glyph (`•`, `·`, `▪`) or `o` followed by whitespace. Detected as
+  a post-process over the already-converted flat block array (a *run* of consecutive matching
+  paragraphs, not a single-element rule), collapsed into one bullet ListBlock with the glyph
+  stripped from each item.
+
+### Why inline HTML reuses `lib/richTextExtensions.ts` instead of a second parser
+
+The extension array RichTextInput.tsx configures (StarterKit with everything but paragraph/
+text/hardBreak turned off, plus Link and Highlight) was moved verbatim into its own file this
+phase specifically so `lib/pasteToBlocks.ts` could parse pasted HTML through the *exact same*
+schema, via TipTap's own `generateJSON`, rather than a second, hand-written inline-mark parser
+that would need to be kept in sync with the live editor's rules by hand forever after. Two
+concrete guarantees this buys, both already true for the live editor's own native paste handling
+and now equally true for this custom conversion path:
+- No font styles, colors, or disallowed structure survive -- the schema simply has no node/mark
+  slot for them, the same reason the live editor's own paste already sanitizes for free.
+- Every link's `href` is validated by the same `isAllowedUri` check (http/https/mailto only).
+  `<a href="javascript:alert(1)">x</a>` parses with the text "x" kept and no link mark at all --
+  confirmed directly from `@tiptap/extension-link`'s own `parseHTML` rule, whose `getAttrs`
+  returns `false` (rejecting the match entirely) when `isAllowedUri` fails, which is what causes
+  ProseMirror's parser to fall back to its normal "unrecognized inline element -- keep the text,
+  drop the wrapper" behavior for that tag, not a separate check this file has to implement itself.
+
+### Markdown / plain text
+
+When the clipboard has no `text/html` (ChatGPT's "Copy" button, a `.md` file, Notepad) but does
+have `text/plain`, it's run through `marked.parse(text, { gfm: true, breaks: true, async: false })`
+first, and the resulting HTML goes through the *exact same* conversion pipeline described above --
+one path, not two. Plain text with no markdown syntax at all still produces correct output for
+free: `marked` wraps blank-line-separated text in `<p>` tags on its own, so it degrades to the same
+result as if the same text had been pasted as HTML.
+
+### Insertion position
+
+Same cut-at-cursor split A1's Enter already does -- `state.doc.cut(0, from)` for what stays before
+the cursor, `state.doc.cut(to, docSize)` for what was after it, so a currently-selected range is
+excluded from both sides rather than surviving into either one.
+
+| Situation | Result |
+|---|---|
+| Nothing before the cursor (empty block, or cursor at its start) | The current block is replaced outright by the pasted blocks -- no leftover empty block |
+| Content before the cursor | The current block keeps it; pasted blocks are inserted right after |
+| Content after the cursor | Becomes its own trailing ParagraphBlock, placed last, inheriting the original block's `align` |
+
+Focus lands at the end of the last pasted block, but only if that block is a paragraph -- a
+list/heading/quote/divider has nothing a text cursor can usefully land in, so focus is simply left
+wherever it already was, the same reasoning A2's empty-block-delete case already applies when the
+previous block isn't a paragraph.
+
+### Known limitations (deliberate, not oversights)
+
+- **Images are dropped, not uploaded.** Nothing in this phase uploads a pasted image to
+  Cloudinary or creates an `ImageBlock` from clipboard content -- explicitly out of scope.
+- **Tables become one ParagraphBlock per row** (cells joined with `" · "`), not a real table
+  structure, until a `TableBlock` exists. This is a temporary, lossy representation, tracked here
+  so it isn't mistaken for the intended final behavior.

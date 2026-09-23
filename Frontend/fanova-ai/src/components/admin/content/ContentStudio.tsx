@@ -10,7 +10,7 @@ import type { ParagraphBlock } from "@/types/contentBlocks";
 import { useContentEditor } from "@/hooks/useContentEditor";
 import type { ContentDocument } from "@/types/content";
 import type { Product } from "@/types/catalog";
-import type { ParagraphBackspacePayload, ParagraphEnterPayload } from "./editor/RichTextInput";
+import type { ParagraphBackspacePayload, ParagraphEnterPayload, ParagraphPastePayload } from "./editor/RichTextInput";
 import ContentStudioHeader from "./ContentStudioHeader";
 import ContentMetadataForm from "./ContentMetadataForm";
 import SeoPanel, { type SeoErrors } from "./SeoPanel";
@@ -255,6 +255,48 @@ export default function ContentStudio({
     editor.removeBlock(blockId);
   }
 
+  /**
+   * A3: what a multi-block paste inside a ParagraphBlock does. RichTextInput has already done the
+   * hard part (decided the paste isn't the single-plain-paragraph case, converted the clipboard
+   * into ContentBlock[] via lib/pasteToBlocks.ts, and cut this block's own doc at the cursor the
+   * same way A1's Enter does) -- this only decides where those blocks land in the array, which is
+   * the same "replace vs. keep-and-insert-after" shape handleParagraphEnter already has for
+   * `atStart`, generalized from one new block to several.
+   */
+  function handleParagraphPaste(blockId: string, index: number, payload: ParagraphPastePayload) {
+    const { before, beforeIsEmpty, after, blocks: pastedBlocks } = payload;
+
+    const current = editor.blocks.find((b) => b.id === blockId);
+    if (!current || current.type !== "paragraph") return; // onPasteBlocks is only ever wired for paragraph blocks
+
+    const toInsert = [...pastedBlocks];
+    if (after !== null) {
+      // Whatever was after the cursor becomes its own trailing paragraph, inheriting this
+      // block's align the same way A1's split-block does -- it's a continuation of the same
+      // paragraph, not a fresh default-aligned one.
+      toInsert.push({ ...createParagraphBlock(), text: after, align: current.align });
+    }
+
+    if (beforeIsEmpty) {
+      // Nothing worth keeping before the cursor (an empty block, or the cursor at its start) --
+      // the current block is replaced outright rather than surviving as a leftover empty block
+      // alongside everything just pasted.
+      editor.spliceBlocks(index, 1, toInsert);
+    } else {
+      editor.updateBlock({ ...current, text: before });
+      editor.spliceBlocks(index + 1, 0, toInsert);
+    }
+
+    // Focus the last pasted block only if it's a paragraph -- there's nothing meaningful to
+    // place a text cursor into for a list/heading/quote/divider, so focus is simply left where
+    // it already was rather than forced somewhere it can't usefully land (same reasoning A2's
+    // empty-block-delete case already uses for a non-paragraph previous block).
+    const last = toInsert[toInsert.length - 1];
+    if (last && last.type === "paragraph") {
+      editor.requestFocus(last.id, "end");
+    }
+  }
+
   function handleBack() {
     if (editor.dirty) {
       const confirmed = window.confirm(
@@ -490,6 +532,7 @@ export default function ContentStudio({
           clearMerge={editor.clearMerge}
           onParagraphEnter={handleParagraphEnter}
           onParagraphBackspace={handleParagraphBackspace}
+          onParagraphPaste={handleParagraphPaste}
         />
         <PreviewPanel blocks={editor.blocks} />
       </div>

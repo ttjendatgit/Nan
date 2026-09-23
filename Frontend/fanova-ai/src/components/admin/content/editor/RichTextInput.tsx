@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent, type Content } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Link from "@tiptap/extension-link";
-import Highlight from "@tiptap/extension-highlight";
 import { Bold, Highlighter, Italic, Link as LinkIcon, Unlink, X } from "lucide-react";
 import { isSafeHref } from "@/lib/richText";
-import type { TipTapDocument } from "@/lib/tiptapContent";
+import { isTipTapDocEmpty, type TipTapDocument } from "@/lib/tiptapContent";
+import { richTextExtensions } from "@/lib/richTextExtensions";
+import { clipboardToBlocks } from "@/lib/pasteToBlocks";
+import type { ContentBlock } from "@/types/contentBlocks";
 
 /**
  * What Enter hands back to the block layer when it's asked to split a paragraph (A1, reversing
@@ -39,6 +39,25 @@ export interface ParagraphBackspacePayload {
   isEmpty: boolean;
   doc: TipTapDocument;
 }
+
+/**
+ * What a multi-block paste (A3) hands back to the block layer. Unlike Enter/Backspace, this one
+ * carries the converted `blocks` themselves (pasted content parsed into whatever mix of block
+ * types the clipboard's structure implied -- headings, lists, quotes, more paragraphs), since
+ * that conversion has to happen here, against the live clipboard event, not something ContentStudio
+ * could derive on its own. `before`/`after` are the same cut-at-cursor split A1's Enter already
+ * does (marks preserved via `Node.cut()`, selected range excluded from both sides).
+ */
+export type ParagraphPastePayload = {
+  before: TipTapDocument;
+  /** Whether `before` has any visible content -- included rather than left for the caller to
+   * derive, same reasoning as ParagraphBackspacePayload.isEmpty: it's a judgment this component
+   * already has to make internally (to decide whether to intervene in the paste at all), so
+   * there's no reason to make the caller re-derive it from raw JSON. */
+  beforeIsEmpty: boolean;
+  after: TipTapDocument | null;
+  blocks: ContentBlock[];
+};
 
 interface RichTextInputProps {
   id: string;
@@ -73,6 +92,14 @@ interface RichTextInputProps {
    * pendingMerge back to null -- otherwise the same merge would reapply on every future render
    * where pendingMerge is still set. */
   onMergeApplied?: () => void;
+  /** A3: handles a paste whose clipboard content converts to more than one block, or to a single
+   * non-paragraph block (a list, a heading, ...) -- reports the converted blocks plus the doc
+   * split at the cursor (same shape as onEnter), and lets the block layer decide how to splice
+   * them into the array. When the clipboard converts to exactly one plain paragraph, this isn't
+   * called at all -- see handlePaste below, that case is left to TipTap's own default paste so a
+   * "paste a phrase mid-sentence" interaction is never changed by this. Optional, same "safe
+   * no-op when absent" contract as onEnter/onBackspaceAtStart. */
+  onPasteBlocks?: (payload: ParagraphPastePayload) => void;
 }
 
 const TOOLBAR_BTN =
@@ -103,11 +130,12 @@ function resolveInitialContent(value: string | TipTapDocument): Content {
  * itself needs to run its own editor instance, plus the small amount of local UI state the Link
  * popover needs.
  *
- * Also owns two block-boundary keyboard behaviors that report intent upward rather than acting on
- * the block array themselves (this component has no concept of "the block array" at all): Enter
- * (A1, split into a new block) and Backspace at the start of the content (A2, delete or merge into
- * the previous block). See the `onEnter`/`onBackspaceAtStart` handlers in handleKeyDown below, and
- * the `pendingMerge` effect for the merge case specifically.
+ * Also owns three block-boundary behaviors that report intent upward rather than acting on the
+ * block array themselves (this component has no concept of "the block array" at all): Enter (A1,
+ * split into a new block), Backspace at the start of the content (A2, delete or merge into the
+ * previous block), and a multi-block paste (A3, split the clipboard's content into several
+ * blocks). See the `onEnter`/`onBackspaceAtStart` handlers in handleKeyDown and `onPasteBlocks` in
+ * handlePaste below, and the `pendingMerge` effect for A2's merge case specifically.
  *
  * Scope is deliberately narrow -- Bold, Italic, Link, Highlight only. Every other StarterKit node
  * (headings, lists, blockquote, code block, horizontal rule, strike, underline) is turned off in
@@ -136,11 +164,13 @@ function resolveInitialContent(value: string | TipTapDocument): Content {
  * than closing over the prop value directly.
  */
 export default function RichTextInput({
-  id, value, onChange, placeholder, align = "left", onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied,
+  id, value, onChange, placeholder, align = "left",
+  onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied, onPasteBlocks,
 }: RichTextInputProps) {
   const lastEmittedRef = useRef<string | TipTapDocument>(value);
   const onEnterRef = useRef(onEnter);
   const onBackspaceAtStartRef = useRef(onBackspaceAtStart);
+  const onPasteBlocksRef = useRef(onPasteBlocks);
   const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkError, setLinkError] = useState<string | null>(null);
@@ -153,47 +183,20 @@ export default function RichTextInput({
     onBackspaceAtStartRef.current = onBackspaceAtStart;
   }, [onBackspaceAtStart]);
 
+  useEffect(() => {
+    onPasteBlocksRef.current = onPasteBlocks;
+  }, [onPasteBlocks]);
+
   const editor = useEditor({
     // Next.js renders once on the server for the initial HTML; TipTap's own guidance for SSR
     // frameworks is to disable that first render and let the client mount the editor, avoiding a
     // hydration mismatch (the editor's internal ids differ between the two passes otherwise).
     immediatelyRender: false,
     content: resolveInitialContent(value),
-    extensions: [
-      StarterKit.configure({
-        heading: false,
-        blockquote: false,
-        codeBlock: false,
-        horizontalRule: false,
-        bulletList: false,
-        orderedList: false,
-        listItem: false,
-        listKeymap: false,
-        strike: false,
-        code: false,
-        underline: false,
-        // Disabled here so the explicitly-installed, explicitly-configured Link extension below
-        // (with our protocol allowlist) is the only Link instance registered -- StarterKit would
-        // otherwise register its own with default (unrestricted) options.
-        link: false,
-      }),
-      Link.configure({
-        openOnClick: false, // this is an editor, not a reader -- a click should place the cursor, not navigate away
-        autolink: true,
-        linkOnPaste: true,
-        protocols: ["http", "https", "mailto"],
-        defaultProtocol: "https",
-        HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
-        // Belt-and-suspenders with the manual isSafeHref() check in handleInsertLink below --
-        // this gate covers autolink-while-typing and link-on-paste, which never go through that
-        // handler at all.
-        isAllowedUri: (url, ctx) => isSafeHref(url) && ctx.defaultValidate(url),
-      }),
-      Highlight.configure({
-        multicolor: false, // one fixed color -- no color picker, per spec
-        HTMLAttributes: { class: "cs-highlight" },
-      }),
-    ],
+    // Phase A3: moved to lib/richTextExtensions.ts so lib/pasteToBlocks.ts's clipboard-to-blocks
+    // conversion parses pasted HTML through this exact same configured array (via generateJSON),
+    // not a second, separately-maintained copy -- see that file's own header comment.
+    extensions: richTextExtensions,
     editorProps: {
       attributes: {
         id,
@@ -304,6 +307,54 @@ export default function RichTextInput({
           before: beforeDoc.toJSON() as TipTapDocument,
           after: afterIsEmpty ? null : (afterDoc.toJSON() as TipTapDocument),
           atStart: false,
+        });
+        return true;
+      },
+      // A3: a paste whose clipboard content converts to more than one block (or to a single
+      // non-paragraph block) is handed up to the block layer instead of landing inside this one
+      // block's doc as several TipTap paragraph nodes. A paste that converts to exactly one plain
+      // paragraph is deliberately left alone -- returning false here means TipTap's own default
+      // paste handling runs unchanged, so "paste a phrase into the middle of a sentence" is never
+      // affected by any of this.
+      handlePaste(view, event) {
+        const pasteHandler = onPasteBlocksRef.current;
+        if (!pasteHandler) return false;
+        if (!editor) return false; // same unprovable-statically null guard as the Enter/Backspace branches above
+
+        const clipboardData = event.clipboardData;
+        if (!clipboardData) return false;
+
+        const html = clipboardData.getData("text/html");
+        const text = clipboardData.getData("text/plain");
+        if (!html && !text) return false; // nothing this code can read -- let TipTap try its own handling
+
+        const blocks = clipboardToBlocks(html || null, text || null);
+
+        // Nothing usable came out of the conversion (e.g. clipboard content that was only
+        // images/comments/style tags) -- rather than silently eating the paste, fall through to
+        // TipTap's own default handling, which may still be able to do something with it.
+        if (blocks.length === 0) return false;
+
+        // Exactly one plain paragraph -- the common case (copying a word or a sentence from
+        // somewhere) must not change behavior at all.
+        if (blocks.length === 1 && blocks[0].type === "paragraph") return false;
+
+        const { state } = editor;
+        const { from, to } = state.selection;
+        const docSize = state.doc.content.size;
+        // Same cut-at-cursor split A1's Enter uses -- before ends at `from`, after starts at
+        // `to`, so a currently-selected range is excluded from both sides rather than surviving
+        // into one of them.
+        const beforeDoc = state.doc.cut(0, from);
+        const afterDoc = state.doc.cut(to, docSize);
+        const beforeJson = beforeDoc.toJSON() as TipTapDocument;
+        const afterIsEmpty = afterDoc.textContent.length === 0;
+
+        pasteHandler({
+          before: beforeJson,
+          beforeIsEmpty: isTipTapDocEmpty(beforeJson),
+          after: afterIsEmpty ? null : (afterDoc.toJSON() as TipTapDocument),
+          blocks,
         });
         return true;
       },

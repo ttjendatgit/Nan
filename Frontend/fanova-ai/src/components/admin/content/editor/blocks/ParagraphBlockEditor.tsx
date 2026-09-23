@@ -4,7 +4,9 @@ import { useId } from "react";
 import type { BlockAlign, ParagraphBlock } from "@/types/contentBlocks";
 import type { TipTapDocument } from "@/lib/tiptapContent";
 import BlockFieldLabel from "./BlockFieldLabel";
-import RichTextInput, { type ParagraphBackspacePayload, type ParagraphEnterPayload } from "../RichTextInput";
+import RichTextInput, {
+  type ParagraphBackspacePayload, type ParagraphEnterPayload, type ParagraphPastePayload,
+} from "../RichTextInput";
 
 const ALIGN_OPTIONS: BlockAlign[] = ["left", "center", "right"];
 const ALIGN_LABELS: Record<BlockAlign, string> = {
@@ -24,10 +26,11 @@ interface ParagraphBlockEditorProps {
   autoFocus?: false | "start" | "end";
   pendingMerge?: TipTapDocument | null;
   onMergeApplied?: () => void;
+  onPasteBlocks?: (payload: ParagraphPastePayload) => void;
 }
 
 export default function ParagraphBlockEditor({
-  block, onChange, onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied,
+  block, onChange, onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied, onPasteBlocks,
 }: ParagraphBlockEditorProps) {
   const alignId = useId();
   const textId = useId();
@@ -58,6 +61,7 @@ export default function ParagraphBlockEditor({
           autoFocus={autoFocus}
           pendingMerge={pendingMerge}
           onMergeApplied={onMergeApplied}
+          onPasteBlocks={onPasteBlocks}
         />
       </div>
     </div>

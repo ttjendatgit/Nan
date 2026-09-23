@@ -23,6 +23,13 @@ export interface UseContentEditorResult {
    * "split mid-paragraph" case builds a ParagraphBlock with the split-off text before inserting
    * it, so createBlock's always-empty factory doesn't fit). */
   insertBlockAt: (block: ContentBlock, index: number) => void;
+  /** A3: replaces `deleteCount` blocks starting at `start` with `items` -- the one primitive
+   * clipboard-paste splitting needs that none of addBlockAt/insertBlockAt/removeBlock already
+   * covers (a paste can delete the current block AND insert several new ones in a single step,
+   * e.g. replacing an empty paragraph outright with everything just pasted). Array.splice's own
+   * argument order/semantics, applied through the same functional setBlocks(prev => ...) pattern
+   * every other mutation here uses. */
+  spliceBlocks: (start: number, deleteCount: number, items: ContentBlock[]) => void;
   updateBlock: (block: ContentBlock) => void;
   removeBlock: (id: string) => void;
   moveBlock: (id: string, direction: -1 | 1) => void;
@@ -123,6 +130,16 @@ export function useContentEditor(initialBlocks: ContentBlock[] = []): UseContent
     setDirty(true);
   }, []);
 
+  const spliceBlocks = useCallback((start: number, deleteCount: number, items: ContentBlock[]) => {
+    setBlocks((prev) => {
+      const clampedStart = Math.max(0, Math.min(start, prev.length));
+      const next = [...prev];
+      next.splice(clampedStart, deleteCount, ...items);
+      return next;
+    });
+    setDirty(true);
+  }, []);
+
   const updateBlock = useCallback((updated: ContentBlock) => {
     setBlocks((prev) => prev.map((block) => (block.id === updated.id ? updated : block)));
     setDirty(true);
@@ -174,7 +191,7 @@ export function useContentEditor(initialBlocks: ContentBlock[] = []): UseContent
   const clearMerge = useCallback(() => setPendingMerge(null), []);
 
   return {
-    blocks, dirty, addBlock, addBlockAt, insertBlockAt, updateBlock, removeBlock, moveBlock,
+    blocks, dirty, addBlock, addBlockAt, insertBlockAt, spliceBlocks, updateBlock, removeBlock, moveBlock,
     pendingFocus, requestFocus, pendingMerge, requestMerge, clearMerge,
     loadBlocks, serializeBlocks, markDirty, clearDirty,
   };

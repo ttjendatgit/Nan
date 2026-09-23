@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { ContentBlock, ContentBlockType } from "@/types/contentBlocks";
 import type { TipTapDocument } from "@/lib/tiptapContent";
-import type { ParagraphBackspacePayload, ParagraphEnterPayload } from "./RichTextInput";
+import type { ParagraphBackspacePayload, ParagraphEnterPayload, ParagraphPastePayload } from "./RichTextInput";
 import BlockToolbar from "./BlockToolbar";
 import BlockCanvas from "./BlockCanvas";
 
@@ -22,6 +22,7 @@ interface BlockEditorProps {
   clearMerge: () => void;
   onParagraphEnter: (blockId: string, index: number, payload: ParagraphEnterPayload) => void;
   onParagraphBackspace: (blockId: string, index: number, payload: ParagraphBackspacePayload) => void;
+  onParagraphPaste: (blockId: string, index: number, payload: ParagraphPastePayload) => void;
 }
 
 /**
@@ -33,7 +34,7 @@ interface BlockEditorProps {
  */
 export default function BlockEditor({
   blocks, onAddBlock, onUpdateBlock, onRemoveBlock, onMoveBlock, token,
-  pendingFocus, requestFocus, pendingMerge, clearMerge, onParagraphEnter, onParagraphBackspace,
+  pendingFocus, requestFocus, pendingMerge, clearMerge, onParagraphEnter, onParagraphBackspace, onParagraphPaste,
 }: BlockEditorProps) {
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
 
@@ -64,6 +65,7 @@ export default function BlockEditor({
         clearMerge={clearMerge}
         onParagraphEnter={onParagraphEnter}
         onParagraphBackspace={onParagraphBackspace}
+        onParagraphPaste={onParagraphPaste}
       />
     </div>
   );
