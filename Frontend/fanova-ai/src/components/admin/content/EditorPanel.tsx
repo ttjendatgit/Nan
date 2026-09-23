@@ -1,6 +1,7 @@
 "use client";
 
 import type { ContentBlock, ContentBlockType } from "@/types/contentBlocks";
+import type { ParagraphEnterPayload } from "./editor/RichTextInput";
 import BlockEditor from "./editor/BlockEditor";
 
 interface EditorPanelProps {
@@ -10,9 +11,15 @@ interface EditorPanelProps {
   onRemoveBlock: (id: string) => void;
   onMoveBlock: (id: string, direction: -1 | 1) => void;
   token: string;
+  pendingFocusBlockId: string | null;
+  requestFocus: (blockId: string | null) => void;
+  onParagraphEnter: (blockId: string, index: number, payload: ParagraphEnterPayload) => void;
 }
 
-export default function EditorPanel({ blocks, onAddBlock, onUpdateBlock, onRemoveBlock, onMoveBlock, token }: EditorPanelProps) {
+export default function EditorPanel({
+  blocks, onAddBlock, onUpdateBlock, onRemoveBlock, onMoveBlock, token,
+  pendingFocusBlockId, requestFocus, onParagraphEnter,
+}: EditorPanelProps) {
   return (
     <section
       aria-labelledby="editor-panel-heading"
@@ -31,6 +38,9 @@ export default function EditorPanel({ blocks, onAddBlock, onUpdateBlock, onRemov
           onRemoveBlock={onRemoveBlock}
           onMoveBlock={onMoveBlock}
           token={token}
+          pendingFocusBlockId={pendingFocusBlockId}
+          requestFocus={requestFocus}
+          onParagraphEnter={onParagraphEnter}
         />
       </div>
     </section>

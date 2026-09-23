@@ -2,6 +2,7 @@
 
 import { LayoutList } from "lucide-react";
 import type { ContentBlock } from "@/types/contentBlocks";
+import type { ParagraphEnterPayload } from "./RichTextInput";
 import BlockItem from "./BlockItem";
 
 interface BlockCanvasProps {
@@ -12,9 +13,21 @@ interface BlockCanvasProps {
   onRemoveBlock: (id: string) => void;
   onMoveBlock: (id: string, direction: -1 | 1) => void;
   token: string;
+  /** A1: which block (if any) should auto-focus on this render -- state owned by useContentEditor
+   * via ContentStudio, threaded all the way down here since this is the component that actually
+   * knows each block's id to compare against it. */
+  pendingFocusBlockId: string | null;
+  requestFocus: (blockId: string | null) => void;
+  /** Raw split payload from a paragraph's RichTextInput, plus which block/index it came from --
+   * BlockCanvas is where `block.id`/`index` are known, so it's the natural place to close over
+   * them before handing the payload up to the real handler in ContentStudio. */
+  onParagraphEnter: (blockId: string, index: number, payload: ParagraphEnterPayload) => void;
 }
 
-export default function BlockCanvas({ blocks, activeBlockId, onFocusBlock, onUpdateBlock, onRemoveBlock, onMoveBlock, token }: BlockCanvasProps) {
+export default function BlockCanvas({
+  blocks, activeBlockId, onFocusBlock, onUpdateBlock, onRemoveBlock, onMoveBlock, token,
+  pendingFocusBlockId, requestFocus, onParagraphEnter,
+}: BlockCanvasProps) {
   if (blocks.length === 0) {
     return (
       <div className="rounded-lg border border-dashed px-4 py-10 text-center" style={{ borderColor: "var(--admin-border-strong)" }}>
@@ -35,12 +48,21 @@ export default function BlockCanvas({ blocks, activeBlockId, onFocusBlock, onUpd
           index={index}
           total={blocks.length}
           active={block.id === activeBlockId}
-          onFocus={() => onFocusBlock(block.id)}
+          onFocus={() => {
+            onFocusBlock(block.id);
+            // The DOM focus event this fires on is the actual signal that a pending auto-focus
+            // request landed where it was supposed to -- clearing it here (rather than the moment
+            // the request was made) is what keeps it from re-firing on some unrelated later
+            // render, per useContentEditor's own contract for requestFocus.
+            if (block.id === pendingFocusBlockId) requestFocus(null);
+          }}
           onChange={onUpdateBlock}
           onRemove={() => onRemoveBlock(block.id)}
           onMoveUp={() => onMoveBlock(block.id, -1)}
           onMoveDown={() => onMoveBlock(block.id, 1)}
           token={token}
+          onEnter={(payload) => onParagraphEnter(block.id, index, payload)}
+          autoFocus={block.id === pendingFocusBlockId}
         />
       ))}
     </div>

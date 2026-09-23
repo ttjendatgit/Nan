@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, CheckCircle2, X } from "lucide-react";
 import { createContentDocument, updateContentDocument } from "@/lib/api/contentDocuments";
 import { getProducts } from "@/lib/api/products";
-import { parseBlocksJson } from "@/types/contentBlocks";
+import { createParagraphBlock, parseBlocksJson } from "@/types/contentBlocks";
+import type { ParagraphBlock } from "@/types/contentBlocks";
 import { useContentEditor } from "@/hooks/useContentEditor";
 import type { ContentDocument } from "@/types/content";
 import type { Product } from "@/types/catalog";
+import type { ParagraphEnterPayload } from "./editor/RichTextInput";
 import ContentStudioHeader from "./ContentStudioHeader";
 import ContentMetadataForm from "./ContentMetadataForm";
 import SeoPanel, { type SeoErrors } from "./SeoPanel";
@@ -172,6 +174,44 @@ export default function ContentStudio({
     setCanonicalUrl(value);
     if (seoErrors.canonicalUrl) setSeoErrors((prev) => ({ ...prev, canonicalUrl: undefined }));
     editor.markDirty();
+  }
+
+  /**
+   * A1: what a plain Enter inside a ParagraphBlock does now, reversing the SingleParagraphEnter
+   * decision from Phase 2.3.1. Owns the actual block-array decision RichTextInput's payload only
+   * describes -- RichTextInput doesn't know about the block array at all, it just reports where
+   * the cursor was and what was on each side of it.
+   *
+   * `atStart` is checked before the after===null/after!==null split on purpose: an empty
+   * paragraph (nothing typed yet) has the cursor at both "the start" and "the end" of its content
+   * simultaneously, and in that case "add an empty block above, don't move focus" is the more
+   * useful reading of pressing Enter than "split off nothing and jump away."
+   */
+  function handleParagraphEnter(blockId: string, index: number, payload: ParagraphEnterPayload) {
+    const { before, after, atStart } = payload;
+
+    if (atStart) {
+      editor.addBlockAt("paragraph", index);
+      return;
+    }
+
+    const currentBlock = editor.blocks.find((b) => b.id === blockId);
+    if (!currentBlock || currentBlock.type !== "paragraph") return; // onEnter is only ever wired for paragraph blocks
+
+    editor.updateBlock({ ...currentBlock, text: before });
+
+    if (after === null) {
+      const newId = editor.addBlockAt("paragraph", index + 1);
+      editor.requestFocus(newId);
+      return;
+    }
+
+    // Carries the split-off content over, plus the original block's own alignment (a fresh
+    // createParagraphBlock() always starts unaligned/left -- the new block is a continuation of
+    // the same paragraph, so it should keep reading the same way, not reset to the default).
+    const splitBlock: ParagraphBlock = { ...createParagraphBlock(), text: after, align: currentBlock.align };
+    editor.insertBlockAt(splitBlock, index + 1);
+    editor.requestFocus(splitBlock.id);
   }
 
   function handleBack() {
@@ -403,6 +443,9 @@ export default function ContentStudio({
           onRemoveBlock={editor.removeBlock}
           onMoveBlock={editor.moveBlock}
           token={token}
+          pendingFocusBlockId={editor.pendingFocusBlockId}
+          requestFocus={editor.requestFocus}
+          onParagraphEnter={handleParagraphEnter}
         />
         <PreviewPanel blocks={editor.blocks} />
       </div>

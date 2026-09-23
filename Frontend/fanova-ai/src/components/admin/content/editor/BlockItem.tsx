@@ -3,6 +3,7 @@
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import type { ContentBlock } from "@/types/contentBlocks";
 import { contentBlockLabel } from "@/types/contentBlocks";
+import type { ParagraphEnterPayload } from "./RichTextInput";
 import HeadingBlockEditor from "./blocks/HeadingBlockEditor";
 import ParagraphBlockEditor from "./blocks/ParagraphBlockEditor";
 import QuoteBlockEditor from "./blocks/QuoteBlockEditor";
@@ -29,11 +30,15 @@ interface BlockItemProps {
    * here rather than via context, matching how every other admin surface in this app passes the
    * auth token explicitly. */
   token: string;
+  /** A1: only meaningful for a "paragraph" block -- BlockFields only forwards these to
+   * ParagraphBlockEditor; every other block type's editor simply never receives them. */
+  onEnter?: (payload: ParagraphEnterPayload) => void;
+  autoFocus?: boolean;
 }
 
 /** Shared chrome (border/hover/active + reorder/remove actions) around one block's type-specific
  * editor. Reordering uses plain up/down buttons, not a drag-and-drop library (out of scope). */
-export default function BlockItem({ block, index, total, active, onFocus, onChange, onRemove, onMoveUp, onMoveDown, token }: BlockItemProps) {
+export default function BlockItem({ block, index, total, active, onFocus, onChange, onRemove, onMoveUp, onMoveDown, token, onEnter, autoFocus }: BlockItemProps) {
   const label = contentBlockLabel(block.type);
 
   return (
@@ -85,19 +90,27 @@ export default function BlockItem({ block, index, total, active, onFocus, onChan
         </div>
       </div>
 
-      <BlockFields block={block} onChange={onChange} token={token} />
+      <BlockFields block={block} onChange={onChange} token={token} onEnter={onEnter} autoFocus={autoFocus} />
     </div>
   );
 }
 
 /** Dispatches to the right type-specific editor. Exhaustive switch, no `default`: a new
- * ContentBlockType without a case here is a compile error. */
-function BlockFields({ block, onChange, token }: { block: ContentBlock; onChange: (block: ContentBlock) => void; token: string }) {
+ * ContentBlockType without a case here is a compile error. `onEnter`/`autoFocus` are only ever
+ * passed to ParagraphBlockEditor -- every other case ignores them, which is what "other blocks
+ * ignore these two props" means in practice: there's simply no plumbing to them. */
+function BlockFields({ block, onChange, token, onEnter, autoFocus }: {
+  block: ContentBlock;
+  onChange: (block: ContentBlock) => void;
+  token: string;
+  onEnter?: (payload: ParagraphEnterPayload) => void;
+  autoFocus?: boolean;
+}) {
   switch (block.type) {
     case "heading":
       return <HeadingBlockEditor block={block} onChange={onChange} />;
     case "paragraph":
-      return <ParagraphBlockEditor block={block} onChange={onChange} />;
+      return <ParagraphBlockEditor block={block} onChange={onChange} onEnter={onEnter} autoFocus={autoFocus} />;
     case "quote":
       return <QuoteBlockEditor block={block} onChange={onChange} />;
     case "divider":

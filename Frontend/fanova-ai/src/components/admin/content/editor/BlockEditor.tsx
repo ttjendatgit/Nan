@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ContentBlock, ContentBlockType } from "@/types/contentBlocks";
+import type { ParagraphEnterPayload } from "./RichTextInput";
 import BlockToolbar from "./BlockToolbar";
 import BlockCanvas from "./BlockCanvas";
 
@@ -12,6 +13,11 @@ interface BlockEditorProps {
   onRemoveBlock: (id: string) => void;
   onMoveBlock: (id: string, direction: -1 | 1) => void;
   token: string;
+  /** A1: owned by useContentEditor via ContentStudio -- BlockEditor has nothing to add here, it
+   * just carries these three through to BlockCanvas alongside its own local activeBlockId. */
+  pendingFocusBlockId: string | null;
+  requestFocus: (blockId: string | null) => void;
+  onParagraphEnter: (blockId: string, index: number, payload: ParagraphEnterPayload) => void;
 }
 
 /**
@@ -21,7 +27,10 @@ interface BlockEditorProps {
  * locally, since it's pure UI ("which block reads as focused") that nothing outside this
  * component needs to know about.
  */
-export default function BlockEditor({ blocks, onAddBlock, onUpdateBlock, onRemoveBlock, onMoveBlock, token }: BlockEditorProps) {
+export default function BlockEditor({
+  blocks, onAddBlock, onUpdateBlock, onRemoveBlock, onMoveBlock, token,
+  pendingFocusBlockId, requestFocus, onParagraphEnter,
+}: BlockEditorProps) {
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
 
   function handleAddBlock(type: ContentBlockType) {
@@ -45,6 +54,9 @@ export default function BlockEditor({ blocks, onAddBlock, onUpdateBlock, onRemov
         onRemoveBlock={handleRemoveBlock}
         onMoveBlock={onMoveBlock}
         token={token}
+        pendingFocusBlockId={pendingFocusBlockId}
+        requestFocus={requestFocus}
+        onParagraphEnter={onParagraphEnter}
       />
     </div>
   );

@@ -3,7 +3,7 @@
 import { useId } from "react";
 import type { BlockAlign, ParagraphBlock } from "@/types/contentBlocks";
 import BlockFieldLabel from "./BlockFieldLabel";
-import RichTextInput from "../RichTextInput";
+import RichTextInput, { type ParagraphEnterPayload } from "../RichTextInput";
 
 const ALIGN_OPTIONS: BlockAlign[] = ["left", "center", "right"];
 const ALIGN_LABELS: Record<BlockAlign, string> = {
@@ -15,9 +15,13 @@ const ALIGN_LABELS: Record<BlockAlign, string> = {
 interface ParagraphBlockEditorProps {
   block: ParagraphBlock;
   onChange: (block: ParagraphBlock) => void;
+  /** A1: splits this paragraph on plain Enter. See RichTextInput.tsx for the full explanation --
+   * both props just pass straight through here, this component owns no split/focus logic itself. */
+  onEnter?: (payload: ParagraphEnterPayload) => void;
+  autoFocus?: boolean;
 }
 
-export default function ParagraphBlockEditor({ block, onChange }: ParagraphBlockEditorProps) {
+export default function ParagraphBlockEditor({ block, onChange, onEnter, autoFocus }: ParagraphBlockEditorProps) {
   const alignId = useId();
   const textId = useId();
 
@@ -42,6 +46,8 @@ export default function ParagraphBlockEditor({ block, onChange }: ParagraphBlock
           onChange={(text) => onChange({ ...block, text })}
           placeholder="Nhập nội dung đoạn văn..."
           align={block.align ?? "left"}
+          onEnter={onEnter}
+          autoFocus={autoFocus}
         />
       </div>
     </div>

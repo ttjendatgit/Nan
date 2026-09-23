@@ -228,17 +228,63 @@ block, horizontal rule, strike, underline), pasted font styles, colors, and stru
 bold/italic/link have no schema slot to land in and are dropped automatically, while the words
 themselves are kept. This is a property of the schema being narrow, not a separate cleanup pass.
 
-**One accepted edge case**: Enter is remapped to a hard break (not a new paragraph node), so
-normal typing can never turn one ParagraphBlock into multiple paragraphs internally -- adding
-another paragraph is still a BlockToolbar action, matching how every other block type works.
-Pasting external content that contains multiple `<p>` elements is the one path that can still
-produce more than one top-level paragraph node in the stored doc (paste preserves structure
-rather than collapsing it). `RichTextRenderer` handles this correctly if it happens -- each
-paragraph node renders as its own `<p>` -- so it degrades gracefully rather than losing content or
-breaking the page; it just isn't collapsed into a single `<p>` the way typed content always is.
+**Enter's behavior changed again in Phase A1 -- see the section below.** The paragraph immediately
+below described Phase 2.3.1's original decision (Enter always remapped to a hard break); that
+decision has since been reversed and no longer reflects what the editor does. Kept only as
+history, not as documentation of current behavior: Enter was remapped to a hard break (not a new
+paragraph node), so normal typing could never turn one ParagraphBlock into multiple paragraphs
+internally -- adding another paragraph was a BlockToolbar action only, matching how every other
+block type works. Pasting external content that contains multiple `<p>` elements was (and still
+is) the one path that can produce more than one top-level paragraph node in a single block's
+stored doc (paste preserves structure rather than collapsing it) -- `RichTextRenderer` still
+handles that correctly, rendering each paragraph node as its own `<p>`.
 
 **Nan gold highlight**: `--accent-gold` already existed in `globals.css` (the storefront's
 "Accent Gold — use sparingly" token). Reused as-is for the Highlight mark's fixed color
 (`.cs-highlight` in `globals.css`, blended to 45% via `color-mix()` so text stays readable) rather
 than defining a second gold -- `Highlight` is configured with `multicolor: false`, so there is no
 color picker and no way to store a different color even if the JSON were hand-edited.
+
+## Enter splits a paragraph instead of hard-breaking (Phase A1 -- reverses Phase 2.3.1)
+
+Phase 2.3.1 deliberately made plain Enter insert a hard break inside a ParagraphBlock, keeping
+one block permanently equal to one paragraph and pushing "start a new paragraph" onto the
+BlockToolbar. That decision is reversed as of this phase, on product grounds, not a technical
+correction: an article with 15 paragraphs meant 15 trips to the mouse to add the "Đoạn văn"
+block before typing each one -- editing felt like filling out a form field by field, not writing.
+Enter now behaves the way every other block-based or plain-text editor's Enter behaves (splitting
+into a new unit at the cursor), and Shift+Enter is what still produces a hard break within one
+paragraph -- unchanged from before this phase.
+
+**No schema change.** `ParagraphBlock` is exactly what Phase 2.3.1 left it -- `text: string |
+TipTapDocument`, optional `align`. A1 is purely an input-handling change: pressing Enter now
+produces *more ParagraphBlock entries in the array* via `useContentEditor`'s `addBlockAt`/
+`insertBlockAt`, instead of more content inside one block's own TipTap doc. Nothing about how a
+`ParagraphBlock` is shaped, serialized, or parsed is different, so every backward-compatibility
+guarantee from Phase 2.1/2.2/2.3.1 still holds unchanged.
+
+**Where the split happens**: `RichTextInput.tsx` intercepts plain Enter in `editorProps.
+handleKeyDown` (not a keyboard-shortcut Extension -- an Extension is created once at module scope
+and would close over a stale `onEnter`, exactly the kind of bug a `useRef`-backed "always read the
+latest callback" pattern avoids) and cuts the live ProseMirror doc at the cursor with `Node.cut()`
+rather than slicing text, so marks spanning the cut point (bold, italic, link, highlight) land
+correctly on whichever side they end up on. It hands the two pieces up as a
+`{ before, after, atStart }` payload and does not touch the block array itself -- it has no
+concept of one. `ContentStudio.handleParagraphEnter` is the actual decision-maker: cursor at doc
+start -> insert an empty block above without moving focus; cursor at the end -> update the current
+block with `before` and insert a fresh empty block after it, focused; cursor mid-paragraph ->
+update the current block with `before` and insert a new block carrying `after` (plus the original
+block's `align`, so the continuation reads the same way) after it, focused.
+
+**Focus after a split** is expressed as data, not imperative DOM calls reaching across components:
+`useContentEditor` gained `pendingFocusBlockId`/`requestFocus`, threaded down through
+ContentStudio -> EditorPanel -> BlockEditor -> BlockCanvas (the extra two components exist between
+ContentStudio and BlockCanvas in the real component tree and just pass these three straight
+through) -> BlockItem -> ParagraphBlockEditor -> RichTextInput's `autoFocus` prop. BlockCanvas
+clears the pending id back to null via the same `onFocusCapture` signal BlockItem already had for
+its own "which block is active" tracking, once the newly split block's editor actually receives
+DOM focus -- not the moment the request is made, so a stale request can never re-fire.
+
+**Deliberately not undo-able yet.** Creating a block via Enter doesn't participate in any
+undo/redo mechanism (there isn't one at the document level in Content Studio at all) -- known and
+accepted for this phase, not a gap this phase was scoped to close.

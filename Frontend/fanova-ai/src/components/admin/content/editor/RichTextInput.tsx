@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent, type Content } from "@tiptap/react";
-import { Extension } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Highlight from "@tiptap/extension-highlight";
@@ -10,19 +9,22 @@ import { Bold, Highlighter, Italic, Link as LinkIcon, Unlink, X } from "lucide-r
 import { isSafeHref } from "@/lib/richText";
 import type { TipTapDocument } from "@/lib/tiptapContent";
 
-/** Enter inserts a hard break instead of splitting into a second paragraph node -- keeps typed
- * input to "one ParagraphBlock is one paragraph" (matching Phase 2.1's contentEditable behavior),
- * so adding another paragraph stays a BlockToolbar action, not something Enter can do by
- * accident. Only overrides plain Enter; Shift-Enter already inserts a hard break by itself via
- * HardBreak's own default shortcut, so this doesn't need to touch that. */
-const SingleParagraphEnter = Extension.create({
-  name: "singleParagraphEnter",
-  addKeyboardShortcuts() {
-    return {
-      Enter: () => this.editor.commands.setHardBreak(),
-    };
-  },
-});
+/**
+ * What Enter hands back to the block layer when it's asked to split a paragraph (A1, reversing
+ * the earlier SingleParagraphEnter decision). `before`/`after` are cut from the live ProseMirror
+ * doc via `Node.cut()`, not by slicing text, so every mark spanning the split point (bold,
+ * italic, link, highlight) survives on whichever side it ends up on.
+ */
+export interface ParagraphEnterPayload {
+  /** Everything from the start of the doc up to the cursor -- stays in the current block. */
+  before: TipTapDocument;
+  /** Everything from the cursor to the end of the doc, or null when there's nothing there (the
+   * cursor was at the very end) -- goes to a new block below, when there's anything to move. */
+  after: TipTapDocument | null;
+  /** True when the cursor was at the very start of the doc with nothing selected -- the caller
+   * treats this as "add an empty block above", not a split. */
+  atStart: boolean;
+}
 
 interface RichTextInputProps {
   id: string;
@@ -30,6 +32,16 @@ interface RichTextInputProps {
   onChange: (value: TipTapDocument) => void;
   placeholder?: string;
   align?: "left" | "center" | "right";
+  /** Handles a plain Enter keypress by splitting this paragraph into two, instead of the default
+   * hard-break-in-place behavior. Optional and only meaningful for ParagraphBlock -- when omitted,
+   * Enter falls back to inserting a hard break (the old SingleParagraphEnter behavior), so any
+   * future caller that doesn't wire this still gets a safe default instead of TipTap's raw
+   * splitBlock. Shift-Enter always inserts a hard break regardless, via HardBreak's own default
+   * shortcut -- this only ever intercepts plain Enter. */
+  onEnter?: (payload: ParagraphEnterPayload) => void;
+  /** When true, focuses the start of this editor once it's mounted and ready -- what a newly
+   * split-off block uses to pick up the cursor without the admin having to click into it. */
+  autoFocus?: boolean;
 }
 
 const TOOLBAR_BTN =
@@ -55,9 +67,10 @@ function resolveInitialContent(value: string | TipTapDocument): Content {
 
 /**
  * TipTap-based rich text input for ParagraphBlock, replacing Phase 2.1's contentEditable +
- * execCommand implementation (RichTextEditor.tsx, removed this phase). Controlled the same way
+ * execCommand implementation (RichTextEditor.tsx, removed Phase 2.3.1). Controlled the same way
  * every other block editor is: `value` in, `onChange` out, no state owned beyond what TipTap
- * itself needs to run its own editor instance.
+ * itself needs to run its own editor instance, plus the small amount of local UI state the Link
+ * popover needs.
  *
  * Scope is deliberately narrow -- Bold, Italic, Link, Highlight only. Every other StarterKit node
  * (headings, lists, blockquote, code block, horizontal rule, strike, underline) is turned off in
@@ -66,18 +79,35 @@ function resolveInitialContent(value: string | TipTapDocument): Content {
  * paste from Word/Docs/a web page loses font styles, colors, and any structure outside this list
  * for free, without a separate cleanup pass -- there is no schema slot for them to land in.
  *
- * Enter inserts a hard break rather than splitting into a second paragraph node, matching Phase
- * 2.1's `defaultParagraphSeparator: "br"` behavior: one ParagraphBlock is still one paragraph.
- * Adding another paragraph stays a BlockToolbar action, not something typing inside this one can
- * accidentally do. A multi-paragraph HTML paste is the one case that can still produce more than
- * one paragraph node in the doc (pasted structure is preserved, not merged) -- RichTextRenderer
- * renders that correctly if it happens, so it degrades gracefully rather than breaking anything.
+ * Enter (A1): a plain Enter no longer inserts a hard break in place -- it calls `onEnter` with the
+ * doc split at the cursor (marks preserved via ProseMirror's `Node.cut`, not string slicing) and
+ * lets the block layer (BlockCanvas/ContentStudio) decide what that means for the block array.
+ * This reverses Phase 2.3.1's SingleParagraphEnter decision, which forced one ParagraphBlock to
+ * stay one paragraph forever and made writing anything longer than a couple of paragraphs mean
+ * repeatedly reaching for the mouse. Shift-Enter is untouched -- still a hard break, via
+ * HardBreak's own default shortcut, since this only intercepts plain Enter. When `onEnter` isn't
+ * supplied, plain Enter falls back to the old hard-break behavior instead of TipTap's raw
+ * splitBlock, so any caller that doesn't wire A1's split logic still gets a safe, contained
+ * default rather than a silently-appearing second paragraph node inside one block's own doc.
+ *
+ * The Enter interception lives in `editorProps.handleKeyDown`, not a keyboard-shortcut Extension
+ * -- an Extension is `.create()`d once at module scope (as SingleParagraphEnter itself was) and
+ * would close over whatever `onEnter` happened to be in scope at that point, not this specific
+ * render's prop. `handleKeyDown` is a plain function recreated with the editor's config on every
+ * relevant change, but even that isn't reactive to a prop changing without recreating the whole
+ * editor instance -- so the handler always reads the *latest* onEnter through `onEnterRef` rather
+ * than closing over the prop value directly.
  */
-export default function RichTextInput({ id, value, onChange, placeholder, align = "left" }: RichTextInputProps) {
+export default function RichTextInput({ id, value, onChange, placeholder, align = "left", onEnter, autoFocus }: RichTextInputProps) {
   const lastEmittedRef = useRef<string | TipTapDocument>(value);
+  const onEnterRef = useRef(onEnter);
   const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkError, setLinkError] = useState<string | null>(null);
+
+  useEffect(() => {
+    onEnterRef.current = onEnter;
+  }, [onEnter]);
 
   const editor = useEditor({
     // Next.js renders once on the server for the initial HTML; TipTap's own guidance for SSR
@@ -119,7 +149,6 @@ export default function RichTextInput({ id, value, onChange, placeholder, align 
         multicolor: false, // one fixed color -- no color picker, per spec
         HTMLAttributes: { class: "cs-highlight" },
       }),
-      SingleParagraphEnter,
     ],
     editorProps: {
       attributes: {
@@ -128,6 +157,87 @@ export default function RichTextInput({ id, value, onChange, placeholder, align 
         role: "textbox",
         "aria-multiline": "true",
         ...(placeholder ? { "aria-placeholder": placeholder } : {}),
+      },
+      // Plain Enter only -- Shift-Enter/Mod-Enter etc. fall through to TipTap's own handling
+      // (HardBreak's default shortcut covers Shift-Enter). Returning true tells ProseMirror this
+      // key was fully handled, so its own default Enter behavior (splitBlock) never runs.
+      handleKeyDown(view, event) {
+        if (event.key !== "Enter" || event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
+          return false;
+        }
+        // Mid-IME-composition Enter (confirming a candidate, common with Vietnamese input
+        // methods) is not "the user wants a new paragraph" -- let the browser/IME handle it.
+        if (event.isComposing) return false;
+
+        const handler = onEnterRef.current;
+        if (!handler) {
+          // No split behavior wired -- safe fallback is the old hard-break-in-place, not TipTap's
+          // raw splitBlock (which would silently let one ParagraphBlock's own doc grow a second
+          // paragraph node, the exact thing SingleParagraphEnter existed to prevent). Dispatched
+          // directly against `view` rather than via `editor.commands` -- `view` is handleKeyDown's
+          // own parameter, unambiguously safe to use regardless of where in this function it's
+          // referenced (unlike `editor`, the closured outer variable used below once we know a
+          // handler exists and the codepath is no longer reachable before `editor` is assigned).
+          const hardBreakType = view.state.schema.nodes.hardBreak;
+          if (hardBreakType) {
+            view.dispatch(view.state.tr.replaceSelectionWith(hardBreakType.create()).scrollIntoView());
+          }
+          return true;
+        }
+
+        // `editor` (the React-side wrapper) is typed Editor | null because of
+        // immediatelyRender: false -- in practice this handler only ever runs in response to a
+        // real keydown against a live EditorView, which can't exist before `editor` does, but
+        // TypeScript can't prove that here. Bailing to the browser's default Enter behavior in
+        // the theoretical null case is a safe last resort, not a real code path.
+        if (!editor) return false;
+
+        // A1-fix: replaces the original calculation, which had two bugs.
+        //   N1 -- atStart was checked as `pos === 0`. Position 0 in ProseMirror is *before* the
+        //   first block node, not the start of its text content (the first real cursor position
+        //   inside a paragraph is 1), so that check was never true and every Enter fell into the
+        //   split branch below, including at the very start of a paragraph (L1, and L3 as its
+        //   repeated-Enter consequence). Fixed by resolving position, not comparing a raw number:
+        //   collapsed selection + at offset 0 of its parent + that parent is the doc's first child.
+        //   N2 -- `after` was cut starting at `selection.from`, which still includes a
+        //   non-collapsed selection's own text, so a selected range survived into `after` instead
+        //   of disappearing (L2). Fixed by cutting `before` up to `from` and `after` from `to` --
+        //   whatever sits between `from` and `to` (the selected range) is cut out of the document
+        //   entirely, on both sides.
+        const { state } = editor;
+        const { from, to, $from } = state.selection;
+        const docSize = state.doc.content.size;
+
+        // (1) A fully empty paragraph is treated like "at the end" (open an empty block below,
+        // move focus there), not "at the start" -- even though the cursor is trivially at the
+        // start of empty content too. Letting atStart win here would mean pressing Enter
+        // repeatedly on an empty block never visibly does anything (focus never moves), which
+        // reads as a broken key rather than "add another empty paragraph."
+        if (editor.isEmpty) {
+          handler({ before: state.doc.toJSON() as TipTapDocument, after: null, atStart: false });
+          return true;
+        }
+
+        // (2) Cursor collapsed at the very start of the first block's own content.
+        const atStart = from === to && $from.parentOffset === 0 && $from.index(0) === 0;
+        if (atStart) {
+          handler({ before: state.doc.toJSON() as TipTapDocument, after: null, atStart: true });
+          return true;
+        }
+
+        // (3) Split. Node.cut() operates on the actual node/fragment tree, not serialized text,
+        // so every mark spanning the cut point (bold, italic, link, highlight) survives on
+        // whichever side it ends up on -- a text-slicing approach couldn't guarantee that.
+        const beforeDoc = state.doc.cut(0, from);
+        const afterDoc = state.doc.cut(to, docSize);
+        const afterIsEmpty = afterDoc.textContent.length === 0;
+
+        handler({
+          before: beforeDoc.toJSON() as TipTapDocument,
+          after: afterIsEmpty ? null : (afterDoc.toJSON() as TipTapDocument),
+          atStart: false,
+        });
+        return true;
       },
     },
     onUpdate: ({ editor }) => {
@@ -150,6 +260,18 @@ export default function RichTextInput({ id, value, onChange, placeholder, align 
     lastEmittedRef.current = value;
     editor.commands.setContent(resolveInitialContent(value), { emitUpdate: false });
   }, [value, editor]);
+
+  // `immediatelyRender: false` means the editor instance doesn't exist on the very first render
+  // (it mounts asynchronously to avoid the Next.js SSR hydration mismatch noted above), so this
+  // can't just focus inline during render -- it has to wait for `editor` to actually show up.
+  // A newly split-off block (A1) renders with autoFocus true for exactly one render, cleared
+  // right back to false by BlockCanvas once this fires and the resulting DOM focus event bubbles
+  // up to it -- so this effect firing again later with editor unchanged and autoFocus still true
+  // isn't a case that normally recurs, but re-focusing is harmless if it ever did.
+  useEffect(() => {
+    if (!editor || !autoFocus) return;
+    editor.commands.focus("start");
+  }, [editor, autoFocus]);
 
   function openLinkPopover() {
     // Pre-fills with the current link's href when the cursor is already inside one, so editing
