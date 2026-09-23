@@ -8,6 +8,9 @@ import ParagraphBlockEditor from "./blocks/ParagraphBlockEditor";
 import QuoteBlockEditor from "./blocks/QuoteBlockEditor";
 import DividerBlockEditor from "./blocks/DividerBlockEditor";
 import ImageBlockEditor from "./blocks/ImageBlockEditor";
+import ListBlockEditor from "./blocks/ListBlockEditor";
+import GalleryBlockEditor from "./blocks/GalleryBlockEditor";
+import CalloutBlockEditor from "./blocks/CalloutBlockEditor";
 
 const ICON_BTN =
   "admin-focus-ring flex h-8 w-8 items-center justify-center rounded-lg transition-colors disabled:opacity-30 disabled:pointer-events-none";
@@ -22,11 +25,15 @@ interface BlockItemProps {
   onRemove: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  /** Only ImageBlockEditor actually needs this (to open the Media Picker) -- threaded through
+   * here rather than via context, matching how every other admin surface in this app passes the
+   * auth token explicitly. */
+  token: string;
 }
 
 /** Shared chrome (border/hover/active + reorder/remove actions) around one block's type-specific
  * editor. Reordering uses plain up/down buttons, not a drag-and-drop library (out of scope). */
-export default function BlockItem({ block, index, total, active, onFocus, onChange, onRemove, onMoveUp, onMoveDown }: BlockItemProps) {
+export default function BlockItem({ block, index, total, active, onFocus, onChange, onRemove, onMoveUp, onMoveDown, token }: BlockItemProps) {
   const label = contentBlockLabel(block.type);
 
   return (
@@ -78,14 +85,14 @@ export default function BlockItem({ block, index, total, active, onFocus, onChan
         </div>
       </div>
 
-      <BlockFields block={block} onChange={onChange} />
+      <BlockFields block={block} onChange={onChange} token={token} />
     </div>
   );
 }
 
 /** Dispatches to the right type-specific editor. Exhaustive switch, no `default`: a new
  * ContentBlockType without a case here is a compile error. */
-function BlockFields({ block, onChange }: { block: ContentBlock; onChange: (block: ContentBlock) => void }) {
+function BlockFields({ block, onChange, token }: { block: ContentBlock; onChange: (block: ContentBlock) => void; token: string }) {
   switch (block.type) {
     case "heading":
       return <HeadingBlockEditor block={block} onChange={onChange} />;
@@ -96,6 +103,12 @@ function BlockFields({ block, onChange }: { block: ContentBlock; onChange: (bloc
     case "divider":
       return <DividerBlockEditor block={block} onChange={onChange} />;
     case "image":
-      return <ImageBlockEditor block={block} onChange={onChange} />;
+      return <ImageBlockEditor block={block} onChange={onChange} token={token} />;
+    case "list":
+      return <ListBlockEditor block={block} onChange={onChange} />;
+    case "gallery":
+      return <GalleryBlockEditor block={block} onChange={onChange} token={token} />;
+    case "callout":
+      return <CalloutBlockEditor block={block} onChange={onChange} />;
   }
 }

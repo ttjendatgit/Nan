@@ -13,6 +13,11 @@ public class ContentDocumentDto
     public string Status { get; set; } = string.Empty;
     public string? BlocksJson { get; set; }
     public string? DraftBlocksJson { get; set; }
+    public string? SeoTitle { get; set; }
+    public string? SeoDescription { get; set; }
+    public string? SeoKeywords { get; set; }
+    public string? SeoImageUrl { get; set; }
+    public string? CanonicalUrl { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

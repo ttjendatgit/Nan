@@ -148,6 +148,11 @@ export default function EditContentDocumentPage() {
       initialSlug={document.slug}
       initialEditableBlocksJson={resolveEditableBlocksJson(document)}
       initialPublishedBlocksJson={document.blocksJson ?? null}
+      initialSeoTitle={document.seoTitle ?? null}
+      initialSeoDescription={document.seoDescription ?? null}
+      initialSeoKeywords={document.seoKeywords ?? null}
+      initialSeoImageUrl={document.seoImageUrl ?? null}
+      initialCanonicalUrl={document.canonicalUrl ?? null}
     />
   );
 }

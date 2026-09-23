@@ -9,6 +9,7 @@ import {
   FileText,
   CircleDollarSign,
   Newspaper,
+  Image as ImageIcon,
   Palette,
   Users,
   LogOut,
@@ -31,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Yêu cầu báo giá",  href: "/admin/quote-requests", icon: FileText,         available: true  },
   { label: "Quy tắc giá",       href: "/admin/pricing-rules",  icon: CircleDollarSign, available: true  },
   { label: "Nội dung",          href: "/admin/content",        icon: Newspaper,        available: true  },
+  { label: "Thư viện Media",    href: "/admin/media",          icon: ImageIcon,        available: true  },
   { label: "Design Files",      href: "/admin/design-files",   icon: Palette,          available: false },
   { label: "Users",             href: "/admin/users",          icon: Users,            available: false },
 ];

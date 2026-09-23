@@ -12,6 +12,11 @@
  * wires this up to ContentDocument.BlocksJson/DraftBlocksJson.
  */
 
+import { sanitizeRichText } from "@/lib/richText";
+import { isTipTapDocument, type TipTapDocument } from "@/lib/tiptapContent";
+
+export type { TipTapDocument };
+
 export type HeadingLevel = "h1" | "h2" | "h3";
 
 export interface HeadingBlock {
@@ -21,10 +26,30 @@ export interface HeadingBlock {
   text: string;
 }
 
+export type BlockAlign = "left" | "center" | "right";
+
 export interface ParagraphBlock {
   type: "paragraph";
   id: string;
-  text: string;
+  /**
+   * Two valid shapes, both handled by RichTextRenderer (components/content/RichTextRenderer.tsx):
+   *   - `string` -- plain text, or the constrained inline-HTML subset (b/strong, i/em, a[href],
+   *     br) Phase 2.1's editor produced. Every ParagraphBlock saved before Phase 2.3.1 is this
+   *     shape. Still sanitized via lib/richText.ts wherever it's read -- never trusted on its own.
+   *   - `TipTapDocument` (added Phase 2.3.1) -- TipTap's own JSONContent doc shape, produced by
+   *     RichTextInput.tsx. Structural nodes/marks only, never an HTML string -- see
+   *     lib/tiptapContent.ts for what "valid" means here and why storing JSON instead of HTML was
+   *     the point of this phase.
+   * A block only ever moves string -> TipTapDocument, one-way, the first time someone edits it in
+   * the new editor (RichTextInput re-parses an incoming string through its own schema and renders
+   * it identically; it doesn't rewrite `text` until an actual edit happens). Old data is never
+   * migrated in the database -- see contentSchemaNotes.md.
+   */
+  text: string | TipTapDocument;
+  /** Optional, added Phase 2.2. Omitted entirely on every block saved before this phase, which
+   * is fine: the renderer treats a missing value as "left", the same as browser default text
+   * alignment those blocks already rendered with -- no visual change for old data. */
+  align?: BlockAlign;
 }
 
 export interface QuoteBlock {
@@ -48,6 +73,47 @@ export interface ImageBlock {
    * needs to change. See contentSchemaNotes.md for the (not yet implemented) `source` field this
    * paves the way for once upload/Cloudinary support exists. */
   caption?: string;
+  /** Optional, added Phase 2.2. Missing/undefined renders exactly as every pre-2.2 image block
+   * already did (full-width) -- "center" is defined to mean the same thing, so no behavior
+   * changes for old data. Only "left"/"right" visibly differ (a narrower, side-aligned image). */
+  align?: BlockAlign;
+}
+
+export type ListStyle = "bullet" | "ordered";
+
+/** New block type, Phase 2.2. A simple flat list -- no nesting, no per-item rich text, matching
+ * every other block's plain-content scope (Quote, Callout). */
+export interface ListBlock {
+  type: "list";
+  id: string;
+  style: ListStyle;
+  items: string[];
+}
+
+export interface GalleryImage {
+  url: string;
+  alt: string;
+}
+
+/** New block type, Phase 2.2. Deliberately its own `images: GalleryImage[]` rather than reusing
+ * ImageBlock -- a gallery item only ever needs url+alt (no per-image caption/align), and giving
+ * it ImageBlock's full shape would invite fields that make no sense in a grid. */
+export interface GalleryBlock {
+  type: "gallery";
+  id: string;
+  images: GalleryImage[];
+}
+
+export type CalloutTone = "info" | "success" | "warning";
+
+/** New block type, Phase 2.2. Plain title + plain text (no rich text) -- same scope decision as
+ * QuoteBlock; a callout is a short highlighted note, not a place for inline formatting. */
+export interface CalloutBlock {
+  type: "callout";
+  id: string;
+  tone: CalloutTone;
+  title: string;
+  text: string;
 }
 
 /**
@@ -57,7 +123,15 @@ export interface ImageBlock {
  * switches with no `default` case, so TypeScript refuses to compile until every one of them
  * handles the new type.
  */
-export type ContentBlock = HeadingBlock | ParagraphBlock | QuoteBlock | DividerBlock | ImageBlock;
+export type ContentBlock =
+  | HeadingBlock
+  | ParagraphBlock
+  | QuoteBlock
+  | DividerBlock
+  | ImageBlock
+  | ListBlock
+  | GalleryBlock
+  | CalloutBlock;
 
 export type ContentBlockType = ContentBlock["type"];
 
@@ -81,6 +155,18 @@ export function isDividerBlock(block: ContentBlock): block is DividerBlock {
 
 export function isImageBlock(block: ContentBlock): block is ImageBlock {
   return block.type === "image";
+}
+
+export function isListBlock(block: ContentBlock): block is ListBlock {
+  return block.type === "list";
+}
+
+export function isGalleryBlock(block: ContentBlock): block is GalleryBlock {
+  return block.type === "gallery";
+}
+
+export function isCalloutBlock(block: ContentBlock): block is CalloutBlock {
+  return block.type === "callout";
 }
 
 // ─── Id generation ──────────────────────────────────────────────────────────
@@ -117,6 +203,20 @@ export function createImageBlock(): ImageBlock {
   return { type: "image", id: generateBlockId(), url: "", alt: "", caption: "" };
 }
 
+// A fresh list starts with one empty item (rather than []) so the editor immediately shows an
+// editable row instead of just an "add item" button with nothing to look at.
+export function createListBlock(): ListBlock {
+  return { type: "list", id: generateBlockId(), style: "bullet", items: [""] };
+}
+
+export function createGalleryBlock(): GalleryBlock {
+  return { type: "gallery", id: generateBlockId(), images: [] };
+}
+
+export function createCalloutBlock(): CalloutBlock {
+  return { type: "callout", id: generateBlockId(), tone: "info", title: "", text: "" };
+}
+
 /** Dispatches to the right factory by type -- what BlockToolbar calls. Exhaustive switch, no
  * `default`: adding a new ContentBlockType without a case here is a compile error. */
 export function createBlock(type: ContentBlockType): ContentBlock {
@@ -131,12 +231,19 @@ export function createBlock(type: ContentBlockType): ContentBlock {
       return createDividerBlock();
     case "image":
       return createImageBlock();
+    case "list":
+      return createListBlock();
+    case "gallery":
+      return createGalleryBlock();
+    case "callout":
+      return createCalloutBlock();
   }
 }
 
 // ─── Display metadata ───────────────────────────────────────────────────────
 
-export const CONTENT_BLOCK_TYPES: readonly ContentBlockType[] = ["heading", "paragraph", "quote", "divider", "image"];
+export const CONTENT_BLOCK_TYPES: readonly ContentBlockType[] =
+  ["heading", "paragraph", "quote", "divider", "image", "list", "gallery", "callout"];
 
 const CONTENT_BLOCK_LABELS: Record<ContentBlockType, string> = {
   heading: "Tiêu đề",
@@ -144,6 +251,9 @@ const CONTENT_BLOCK_LABELS: Record<ContentBlockType, string> = {
   quote: "Trích dẫn",
   divider: "Đường kẻ",
   image: "Hình ảnh",
+  list: "Danh sách",
+  gallery: "Bộ sưu tập ảnh",
+  callout: "Hộp ghi chú",
 };
 
 export function contentBlockLabel(type: ContentBlockType): string {
@@ -229,6 +339,10 @@ function coerceContentBlock(value: unknown): ContentBlock | null {
 
   const id = typeof v.id === "string" && v.id.length > 0 ? v.id : generateBlockId();
   const asString = (field: unknown): string => (typeof field === "string" ? field : "");
+  // Missing/invalid -> undefined, never a made-up default value -- undefined is itself the
+  // meaningful "not set, render as before this field existed" state for both callers.
+  const asAlign = (field: unknown): BlockAlign | undefined =>
+    field === "left" || field === "center" || field === "right" ? field : undefined;
 
   switch (v.type) {
     case "heading": {
@@ -236,7 +350,7 @@ function coerceContentBlock(value: unknown): ContentBlock | null {
       return { type: "heading", id, level, text: asString(v.text) };
     }
     case "paragraph":
-      return { type: "paragraph", id, text: asString(v.text) };
+      return { type: "paragraph", id, text: coerceParagraphText(v.text), align: asAlign(v.align) };
     case "quote":
       return { type: "quote", id, text: asString(v.text) };
     case "divider":
@@ -248,8 +362,49 @@ function coerceContentBlock(value: unknown): ContentBlock | null {
         url: asString(v.url),
         alt: asString(v.alt),
         ...(typeof v.caption === "string" ? { caption: v.caption } : {}),
+        align: asAlign(v.align),
       };
+    case "list": {
+      const style: ListStyle = v.style === "ordered" ? "ordered" : "bullet";
+      const items = Array.isArray(v.items) ? v.items.filter((item): item is string => typeof item === "string") : [];
+      return { type: "list", id, style, items };
+    }
+    case "gallery": {
+      const images = Array.isArray(v.images) ? v.images.map(coerceGalleryImage).filter((img): img is GalleryImage => img !== null) : [];
+      return { type: "gallery", id, images };
+    }
+    case "callout": {
+      const tone: CalloutTone = v.tone === "success" || v.tone === "warning" ? v.tone : "info";
+      return { type: "callout", id, tone, title: asString(v.title), text: asString(v.text) };
+    }
     default:
       return null;
   }
+}
+
+/**
+ * ParagraphBlock.text's two valid shapes (Phase 2.3.1) get two different treatments:
+ *   - a string is the legacy path -- sanitized exactly as before, unchanged behavior.
+ *   - a structurally-plausible TipTap doc is trusted as-is here (isTipTapDocument is a shallow
+ *     shape check only); RichTextRenderer independently re-validates every node/mark inside it at
+ *     render time regardless (unknown types degrade gracefully, hrefs are re-checked) -- the same
+ *     "don't rely on one layer alone" posture sanitizeRichText already established for strings.
+ * Anything else (a number, an array, an object that isn't doc-shaped) has no safe interpretation
+ * as paragraph content, so it falls back to an empty string -- same "invalid -> safe default"
+ * convention as every other coerced field in this function.
+ */
+function coerceParagraphText(value: unknown): string | TipTapDocument {
+  if (typeof value === "string") return sanitizeRichText(value);
+  if (isTipTapDocument(value)) return value;
+  return "";
+}
+
+/** A gallery image with no `url` is not recoverable as anything useful (nothing to show) -- that
+ * one entry is dropped rather than the whole gallery, matching coerceContentBlock's own
+ * "degrade the smallest possible unit" philosophy. */
+function coerceGalleryImage(value: unknown): GalleryImage | null {
+  if (typeof value !== "object" || value === null) return null;
+  const v = value as Record<string, unknown>;
+  if (typeof v.url !== "string" || !v.url) return null;
+  return { url: v.url, alt: typeof v.alt === "string" ? v.alt : "" };
 }

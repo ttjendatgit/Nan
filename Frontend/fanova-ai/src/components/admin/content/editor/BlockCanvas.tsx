@@ -11,9 +11,10 @@ interface BlockCanvasProps {
   onUpdateBlock: (block: ContentBlock) => void;
   onRemoveBlock: (id: string) => void;
   onMoveBlock: (id: string, direction: -1 | 1) => void;
+  token: string;
 }
 
-export default function BlockCanvas({ blocks, activeBlockId, onFocusBlock, onUpdateBlock, onRemoveBlock, onMoveBlock }: BlockCanvasProps) {
+export default function BlockCanvas({ blocks, activeBlockId, onFocusBlock, onUpdateBlock, onRemoveBlock, onMoveBlock, token }: BlockCanvasProps) {
   if (blocks.length === 0) {
     return (
       <div className="rounded-lg border border-dashed px-4 py-10 text-center" style={{ borderColor: "var(--admin-border-strong)" }}>
@@ -39,6 +40,7 @@ export default function BlockCanvas({ blocks, activeBlockId, onFocusBlock, onUpd
           onRemove={() => onRemoveBlock(block.id)}
           onMoveUp={() => onMoveBlock(block.id, -1)}
           onMoveDown={() => onMoveBlock(block.id, 1)}
+          token={token}
         />
       ))}
     </div>

@@ -33,5 +33,21 @@ public class CreateContentDocumentRequestValidator : AbstractValidator<CreateCon
             .Empty()
             .WithMessage("ProductId must be empty unless Type is ProductContent.")
             .When(x => !string.Equals(x.Type, nameof(ContentDocumentType.ProductContent), StringComparison.OrdinalIgnoreCase));
+
+        RuleFor(x => x.SeoTitle).MaximumLength(200);
+        RuleFor(x => x.SeoDescription).MaximumLength(500);
+        RuleFor(x => x.SeoKeywords).MaximumLength(500);
+
+        RuleFor(x => x.SeoImageUrl).MaximumLength(500);
+        RuleFor(x => x.SeoImageUrl)
+            .Must(url => Uri.TryCreate(url, UriKind.Absolute, out _))
+            .WithMessage("'Seo Image Url' must be a valid absolute URL.")
+            .When(x => !string.IsNullOrEmpty(x.SeoImageUrl));
+
+        RuleFor(x => x.CanonicalUrl).MaximumLength(500);
+        RuleFor(x => x.CanonicalUrl)
+            .Must(url => Uri.TryCreate(url, UriKind.Absolute, out _))
+            .WithMessage("'Canonical Url' must be a valid absolute URL.")
+            .When(x => !string.IsNullOrEmpty(x.CanonicalUrl));
     }
 }

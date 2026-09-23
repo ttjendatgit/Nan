@@ -11,6 +11,7 @@ import type { ContentDocument } from "@/types/content";
 import type { Product } from "@/types/catalog";
 import ContentStudioHeader from "./ContentStudioHeader";
 import ContentMetadataForm from "./ContentMetadataForm";
+import SeoPanel, { type SeoErrors } from "./SeoPanel";
 import EditorPanel from "./EditorPanel";
 import PreviewPanel from "./PreviewPanel";
 
@@ -32,10 +33,24 @@ interface ContentStudioProps {
   /** The document's own BlocksJson field, unresolved -- tracked separately so a "Save draft"
    * can send it back unchanged instead of overwriting published content with draft content. */
   initialPublishedBlocksJson: string | null;
+  initialSeoTitle: string | null;
+  initialSeoDescription: string | null;
+  initialSeoKeywords: string | null;
+  initialSeoImageUrl: string | null;
+  initialCanonicalUrl: string | null;
 }
 
 type Notice = { type: "success" | "error"; text: string };
 type MetadataErrors = { type?: string; productId?: string };
+
+function isValidAbsoluteUrl(value: string): boolean {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Main workspace layout and orchestrator: header (back nav + title + status + dirty indicator +
@@ -48,6 +63,7 @@ export default function ContentStudio({
   token, documentId: initialDocumentId, initialTitle, initialStatus,
   initialType, initialProductId, initialSlug,
   initialEditableBlocksJson, initialPublishedBlocksJson,
+  initialSeoTitle, initialSeoDescription, initialSeoKeywords, initialSeoImageUrl, initialCanonicalUrl,
 }: ContentStudioProps) {
   const router = useRouter();
 
@@ -58,6 +74,13 @@ export default function ContentStudio({
   const [productId, setProductId] = useState(initialProductId ?? "");
   const [slug, setSlug] = useState(initialSlug ?? "");
   const [publishedBlocksJson, setPublishedBlocksJson] = useState(initialPublishedBlocksJson);
+
+  const [seoTitle, setSeoTitle] = useState(initialSeoTitle ?? "");
+  const [seoDescription, setSeoDescription] = useState(initialSeoDescription ?? "");
+  const [seoKeywords, setSeoKeywords] = useState(initialSeoKeywords ?? "");
+  const [seoImageUrl, setSeoImageUrl] = useState(initialSeoImageUrl ?? "");
+  const [canonicalUrl, setCanonicalUrl] = useState(initialCanonicalUrl ?? "");
+  const [seoErrors, setSeoErrors] = useState<SeoErrors>({});
 
   // Type is immutable once a document exists (matches the backend's UpdateContentDocumentRequest,
   // which has no field for it) -- as soon as the first save gives us a real documentId,
@@ -121,6 +144,36 @@ export default function ContentStudio({
     editor.markDirty();
   }
 
+  function handleSeoTitleChange(value: string) {
+    setSeoTitle(value);
+    if (seoErrors.seoTitle) setSeoErrors((prev) => ({ ...prev, seoTitle: undefined }));
+    editor.markDirty();
+  }
+
+  function handleSeoDescriptionChange(value: string) {
+    setSeoDescription(value);
+    if (seoErrors.seoDescription) setSeoErrors((prev) => ({ ...prev, seoDescription: undefined }));
+    editor.markDirty();
+  }
+
+  function handleSeoKeywordsChange(value: string) {
+    setSeoKeywords(value);
+    if (seoErrors.seoKeywords) setSeoErrors((prev) => ({ ...prev, seoKeywords: undefined }));
+    editor.markDirty();
+  }
+
+  function handleSeoImageUrlChange(value: string) {
+    setSeoImageUrl(value);
+    if (seoErrors.seoImageUrl) setSeoErrors((prev) => ({ ...prev, seoImageUrl: undefined }));
+    editor.markDirty();
+  }
+
+  function handleCanonicalUrlChange(value: string) {
+    setCanonicalUrl(value);
+    if (seoErrors.canonicalUrl) setSeoErrors((prev) => ({ ...prev, canonicalUrl: undefined }));
+    editor.markDirty();
+  }
+
   function handleBack() {
     if (editor.dirty) {
       const confirmed = window.confirm(
@@ -138,10 +191,16 @@ export default function ContentStudio({
     setProductId(doc.productId ?? "");
     setStatus(doc.status);
     setPublishedBlocksJson(doc.blocksJson ?? null);
+    setSeoTitle(doc.seoTitle ?? "");
+    setSeoDescription(doc.seoDescription ?? "");
+    setSeoKeywords(doc.seoKeywords ?? "");
+    setSeoImageUrl(doc.seoImageUrl ?? "");
+    setCanonicalUrl(doc.canonicalUrl ?? "");
   }
 
-  /** Title required (≤200 chars), Type required, Product required when Type is ProductContent --
-   * mirrors the backend's own validators so an obviously-invalid request is never sent. */
+  /** Title required (≤200 chars), Type required, Product required when Type is ProductContent,
+   * SEO Image URL/Canonical URL must be a valid absolute URL when provided -- mirrors the
+   * backend's own validators so an obviously-invalid request is never sent. */
   function validate(trimmedTitle: string): boolean {
     let valid = true;
 
@@ -166,6 +225,17 @@ export default function ContentStudio({
     }
     setMetadataErrors(errors);
 
+    const nextSeoErrors: SeoErrors = {};
+    if (seoImageUrl.trim() && !isValidAbsoluteUrl(seoImageUrl.trim())) {
+      nextSeoErrors.seoImageUrl = "SEO Image URL phải là một đường dẫn hợp lệ.";
+      valid = false;
+    }
+    if (canonicalUrl.trim() && !isValidAbsoluteUrl(canonicalUrl.trim())) {
+      nextSeoErrors.canonicalUrl = "Canonical URL phải là một đường dẫn hợp lệ.";
+      valid = false;
+    }
+    setSeoErrors(nextSeoErrors);
+
     return valid;
   }
 
@@ -182,6 +252,14 @@ export default function ContentStudio({
     setNotice(null);
     try {
       const trimmedSlug = slug.trim() || null;
+      const seoFields = {
+        seoTitle: seoTitle.trim() || null,
+        seoDescription: seoDescription.trim() || null,
+        seoKeywords: seoKeywords.trim() || null,
+        seoImageUrl: seoImageUrl.trim() || null,
+        canonicalUrl: canonicalUrl.trim() || null,
+      };
+
       let saved: ContentDocument;
       if (documentId) {
         saved = await updateContentDocument(documentId, {
@@ -190,6 +268,7 @@ export default function ContentStudio({
           status: params.status,
           blocksJson: params.blocksJson,
           draftBlocksJson: params.draftBlocksJson,
+          ...seoFields,
         }, token);
       } else {
         saved = await createContentDocument({
@@ -200,6 +279,7 @@ export default function ContentStudio({
           status: params.status,
           blocksJson: params.blocksJson,
           draftBlocksJson: params.draftBlocksJson,
+          ...seoFields,
         }, token);
       }
 
@@ -268,6 +348,22 @@ export default function ContentStudio({
         productError={metadataErrors.productId}
       />
 
+      <SeoPanel
+        seoTitle={seoTitle}
+        onSeoTitleChange={handleSeoTitleChange}
+        seoDescription={seoDescription}
+        onSeoDescriptionChange={handleSeoDescriptionChange}
+        seoKeywords={seoKeywords}
+        onSeoKeywordsChange={handleSeoKeywordsChange}
+        seoImageUrl={seoImageUrl}
+        onSeoImageUrlChange={handleSeoImageUrlChange}
+        canonicalUrl={canonicalUrl}
+        onCanonicalUrlChange={handleCanonicalUrlChange}
+        fallbackTitle={title}
+        slug={slug}
+        errors={seoErrors}
+      />
+
       {notice && (
         <div
           role="status"
@@ -306,6 +402,7 @@ export default function ContentStudio({
           onUpdateBlock={editor.updateBlock}
           onRemoveBlock={editor.removeBlock}
           onMoveBlock={editor.moveBlock}
+          token={token}
         />
         <PreviewPanel blocks={editor.blocks} />
       </div>

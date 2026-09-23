@@ -23,6 +23,12 @@ public class ContentDocumentConfiguration : IEntityTypeConfiguration<ContentDocu
         builder.Property(x => x.BlocksJson).HasColumnType("text");
         builder.Property(x => x.DraftBlocksJson).HasColumnType("text");
 
+        builder.Property(x => x.SeoTitle).HasMaxLength(200);
+        builder.Property(x => x.SeoDescription).HasMaxLength(500);
+        builder.Property(x => x.SeoKeywords).HasMaxLength(500);
+        builder.Property(x => x.SeoImageUrl).HasMaxLength(500);
+        builder.Property(x => x.CanonicalUrl).HasMaxLength(500);
+
         // A document can never share a slug with another document of the same Type (e.g. two
         // blog posts), but a Page and a BlogPost may coincidentally share one -- they live in
         // separate URL namespaces once routed, so that's not a real collision.

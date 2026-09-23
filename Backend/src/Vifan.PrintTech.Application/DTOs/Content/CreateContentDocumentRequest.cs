@@ -21,4 +21,11 @@ public class CreateContentDocumentRequest
 
     public string? BlocksJson { get; set; }
     public string? DraftBlocksJson { get; set; }
+
+    // ── SEO metadata (Phase 1.9) -- all optional ──────────────────────────
+    public string? SeoTitle { get; set; }
+    public string? SeoDescription { get; set; }
+    public string? SeoKeywords { get; set; }
+    public string? SeoImageUrl { get; set; }
+    public string? CanonicalUrl { get; set; }
 }

@@ -232,6 +232,20 @@
   border-radius: inherit;
 }
 
+/* Content Studio rich text highlight mark (Phase 2.3.1) -- the one fixed "Nan gold" color the
+   Highlight toolbar button applies (no color picker, multicolor is off in the extension config).
+   Shared by both the live TipTap editing surface (RichTextInput) and the read-only preview
+   (RichTextRenderer) so a highlighted phrase looks identical in both places. --accent-gold is the
+   existing storefront "Accent Gold" token (globals.css, used sparingly for dots/dividers/focus
+   rings) -- reused here rather than inventing a second gold, per "no new colors". Blended to 45%
+   over the surface rather than applied solid so admin-text (near-black) stays comfortably
+   readable on top of it. */
+.cs-highlight {
+  background-color: color-mix(in srgb, var(--accent-gold) 45%, transparent);
+  border-radius: 0.15em;
+  padding: 0 0.05em;
+}
+
 /* ════════════════════════════════════════════════════════
    ADMIN FAN MOTIF
    A restrained, architectural nod to the fan/craft identity:

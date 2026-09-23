@@ -71,6 +71,11 @@ export default function NewContentDocumentPage() {
       initialSlug={null}
       initialEditableBlocksJson={null}
       initialPublishedBlocksJson={null}
+      initialSeoTitle={null}
+      initialSeoDescription={null}
+      initialSeoKeywords={null}
+      initialSeoImageUrl={null}
+      initialCanonicalUrl={null}
     />
   );
 }

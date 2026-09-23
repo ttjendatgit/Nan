@@ -11,6 +11,7 @@ interface BlockEditorProps {
   onUpdateBlock: (block: ContentBlock) => void;
   onRemoveBlock: (id: string) => void;
   onMoveBlock: (id: string, direction: -1 | 1) => void;
+  token: string;
 }
 
 /**
@@ -20,7 +21,7 @@ interface BlockEditorProps {
  * locally, since it's pure UI ("which block reads as focused") that nothing outside this
  * component needs to know about.
  */
-export default function BlockEditor({ blocks, onAddBlock, onUpdateBlock, onRemoveBlock, onMoveBlock }: BlockEditorProps) {
+export default function BlockEditor({ blocks, onAddBlock, onUpdateBlock, onRemoveBlock, onMoveBlock, token }: BlockEditorProps) {
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
 
   function handleAddBlock(type: ContentBlockType) {
@@ -43,6 +44,7 @@ export default function BlockEditor({ blocks, onAddBlock, onUpdateBlock, onRemov
         onUpdateBlock={onUpdateBlock}
         onRemoveBlock={handleRemoveBlock}
         onMoveBlock={onMoveBlock}
+        token={token}
       />
     </div>
   );

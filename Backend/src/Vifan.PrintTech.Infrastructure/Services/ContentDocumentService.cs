@@ -73,7 +73,12 @@ public class ContentDocumentService : IContentDocumentService
             Title = request.Title.Trim(),
             Status = status,
             BlocksJson = request.BlocksJson,
-            DraftBlocksJson = request.DraftBlocksJson
+            DraftBlocksJson = request.DraftBlocksJson,
+            SeoTitle = Normalize(request.SeoTitle),
+            SeoDescription = Normalize(request.SeoDescription),
+            SeoKeywords = Normalize(request.SeoKeywords),
+            SeoImageUrl = Normalize(request.SeoImageUrl),
+            CanonicalUrl = Normalize(request.CanonicalUrl)
         };
 
         await _contentDocumentRepository.AddAsync(document, cancellationToken);
@@ -105,6 +110,11 @@ public class ContentDocumentService : IContentDocumentService
         document.Status = status;
         document.BlocksJson = request.BlocksJson;
         document.DraftBlocksJson = request.DraftBlocksJson;
+        document.SeoTitle = Normalize(request.SeoTitle);
+        document.SeoDescription = Normalize(request.SeoDescription);
+        document.SeoKeywords = Normalize(request.SeoKeywords);
+        document.SeoImageUrl = Normalize(request.SeoImageUrl);
+        document.CanonicalUrl = Normalize(request.CanonicalUrl);
 
         _contentDocumentRepository.Update(document);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -181,6 +191,11 @@ public class ContentDocumentService : IContentDocumentService
         return candidate;
     }
 
+    // Same empty-string-becomes-null convention PricingRuleService uses for its optional text
+    // fields -- avoids storing "" vs. null inconsistently for "not set."
+    private static string? Normalize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
     private static ContentDocumentType ParseType(string value)
     {
         if (!Enum.TryParse<ContentDocumentType>(value, ignoreCase: true, out var parsed))
@@ -217,6 +232,11 @@ public class ContentDocumentService : IContentDocumentService
             Status = document.Status.ToString(),
             BlocksJson = document.BlocksJson,
             DraftBlocksJson = document.DraftBlocksJson,
+            SeoTitle = document.SeoTitle,
+            SeoDescription = document.SeoDescription,
+            SeoKeywords = document.SeoKeywords,
+            SeoImageUrl = document.SeoImageUrl,
+            CanonicalUrl = document.CanonicalUrl,
             CreatedAt = document.CreatedAt,
             UpdatedAt = document.UpdatedAt
         };

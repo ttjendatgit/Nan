@@ -1,6 +1,6 @@
 "use client";
 
-import { Heading, Image as ImageIcon, Minus, Pilcrow, Plus, Quote } from "lucide-react";
+import { Heading, Image as ImageIcon, Images, List, Minus, Pilcrow, Plus, Quote, StickyNote } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { CONTENT_BLOCK_TYPES, contentBlockLabel } from "@/types/contentBlocks";
 import type { ContentBlockType } from "@/types/contentBlocks";
@@ -11,6 +11,9 @@ const BLOCK_ICONS: Record<ContentBlockType, LucideIcon> = {
   quote: Quote,
   divider: Minus,
   image: ImageIcon,
+  list: List,
+  gallery: Images,
+  callout: StickyNote,
 };
 
 interface BlockToolbarProps {

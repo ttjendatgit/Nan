@@ -14,6 +14,11 @@ export interface ContentDocument {
   status: string;
   blocksJson?: string | null;
   draftBlocksJson?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  seoKeywords?: string | null;
+  seoImageUrl?: string | null;
+  canonicalUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -26,6 +31,11 @@ export interface CreateContentDocumentInput {
   status: string;
   blocksJson?: string | null;
   draftBlocksJson?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  seoKeywords?: string | null;
+  seoImageUrl?: string | null;
+  canonicalUrl?: string | null;
 }
 
 /** ProductId and Type are not included -- the backend's UpdateContentDocumentRequest has no
@@ -36,4 +46,9 @@ export interface UpdateContentDocumentInput {
   status: string;
   blocksJson?: string | null;
   draftBlocksJson?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  seoKeywords?: string | null;
+  seoImageUrl?: string | null;
+  canonicalUrl?: string | null;
 }

@@ -104,6 +104,8 @@ public static class DependencyInjection
         services.AddScoped<IQuoteStatusNotificationService, QuoteStatusNotificationService>();
         services.AddScoped<IContentDocumentRepository, ContentDocumentRepository>();
         services.AddScoped<IContentDocumentService, ContentDocumentService>();
+        services.AddScoped<IMediaAssetRepository, MediaAssetRepository>();
+        services.AddScoped<IMediaService, MediaService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;

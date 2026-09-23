@@ -9,9 +9,10 @@ interface EditorPanelProps {
   onUpdateBlock: (block: ContentBlock) => void;
   onRemoveBlock: (id: string) => void;
   onMoveBlock: (id: string, direction: -1 | 1) => void;
+  token: string;
 }
 
-export default function EditorPanel({ blocks, onAddBlock, onUpdateBlock, onRemoveBlock, onMoveBlock }: EditorPanelProps) {
+export default function EditorPanel({ blocks, onAddBlock, onUpdateBlock, onRemoveBlock, onMoveBlock, token }: EditorPanelProps) {
   return (
     <section
       aria-labelledby="editor-panel-heading"
@@ -29,6 +30,7 @@ export default function EditorPanel({ blocks, onAddBlock, onUpdateBlock, onRemov
           onUpdateBlock={onUpdateBlock}
           onRemoveBlock={onRemoveBlock}
           onMoveBlock={onMoveBlock}
+          token={token}
         />
       </div>
     </section>

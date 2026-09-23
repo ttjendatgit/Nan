@@ -32,4 +32,26 @@ export type MediaFolder =
   | "design-uploads"
   | "temp"
   | "collections"
-  | "hero";
+  | "hero"
+  | "content";
+
+// ─── Media Library (Phase 2.0) ─────────────────────────────────────────────
+// Mirrors the backend MediaAssetDto exactly. Deliberately a separate shape from
+// MediaUploadResult above (different field names: url vs secureUrl, size vs bytes, ...) --
+// that type is tied to the legacy upload response contract (ContentBlockEditor,
+// useCatalogImageUpload) and is left untouched.
+
+export interface MediaAsset {
+  id: string;
+  fileName: string;
+  originalName: string;
+  url: string;
+  publicId: string;
+  mimeType: string;
+  size: number;
+  width?: number | null;
+  height?: number | null;
+  folder?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

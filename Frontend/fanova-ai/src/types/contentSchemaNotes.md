@@ -95,3 +95,150 @@ schema surface with no real distinguishing purpose. When upload/Cloudinary suppo
 as `source?: "url" | "upload"` (optional, so old blocks with no `source` keep parsing — treat a
 missing `source` as `"url"` in `coerceContentBlock`, matching how every other optional field here
 already degrades).
+
+## `paragraph` block's rich text (Phase 2.1)
+
+`ParagraphBlock.text` went from plain text to optionally holding a constrained inline-HTML
+subset — bold, italic, link, line break — produced by the new `RichTextEditor`. Three extension
+shapes were considered:
+
+1. **Rename/replace `text` with an `html` field.** Rejected outright: breaks every serialized
+   `ParagraphBlock` ever saved (the field they have is called `text`), and forces every read site
+   to branch on which field is present.
+2. **Add a new optional field alongside `text`** (e.g. `richText?: string`), keeping `text` as a
+   permanent plain-text fallback. Rejected: creates two sources of truth for one block's content
+   and an ambiguous "which one is authoritative, and when" question with no clean answer.
+3. **Keep `text: string` exactly as it is — same name, same type — and reinterpret what it may
+   contain.** Chosen. A plain string with zero tags (every `ParagraphBlock` saved before this
+   phase) is *already* valid content under the new interpretation: no tags means nothing to
+   strip, so it renders identically before and after. No field rename, no version flag, no
+   migration, and both old and new editor code read/write the exact same property.
+
+**Compatibility mechanics**: `coerceContentBlock` (`types/contentBlocks.ts`) now runs `text`
+through `sanitizeRichText()` (`lib/richText.ts`) at parse time — an allowlist sanitizer that keeps
+only `<b>/<strong>/<i>/<em>/<a href>/<br>`, stripping everything else while preserving its text
+content (so a plain string, or a pasted Word doc, or a hand-edited API payload, all degrade
+gracefully rather than crashing or smuggling something unsafe into state). The same sanitizer runs
+again in `BlockRenderer`'s paragraph case immediately before `dangerouslySetInnerHTML` — sanitizing
+once at parse time is not treated as sufficient justification to trust the value at every later
+render site.
+
+**Not implemented this phase, deliberately**: no `align`/`tone`/list/heading-level formatting
+inside a paragraph (those remain separate block types or aren't supported at all), no toolbar
+"active state" highlighting (e.g. Bold showing pressed when the cursor is inside bold text) — a
+scoped simplification given no way to visually verify contentEditable selection-state UI this
+session, not a silent gap.
+
+## Three new block types + `align` settings (Phase 2.2)
+
+Added `ListBlock`, `GalleryBlock`, `CalloutBlock` to the union, plus an optional `align` field on
+`ParagraphBlock` and `ImageBlock`. All additive — no existing field was renamed, retyped, or
+removed, so this phase adds zero migration risk on its own.
+
+**New block types**: each follows the same shape philosophy already established here — plain,
+JSON-serializable, no nested rich text (list items and callout text are plain strings, same scope
+decision as `QuoteBlock`). `GalleryBlock.images` is its own `{ url, alt }[]`, deliberately not
+reusing `ImageBlock` — a gallery item never needs a caption or per-image alignment, so giving it
+`ImageBlock`'s full shape would just invite fields that don't apply. Old documents have no `list`,
+`gallery`, or `callout` items, so nothing about them changes; `coerceContentBlock`'s three new
+`case` branches only ever fire on new data.
+
+**`align` on `ParagraphBlock`/`ImageBlock`**: same reasoning as Phase 2.1's paragraph rich text —
+extend by adding an *optional* field rather than requiring one. `align` is `"left" | "center" |
+"right" | undefined`. The important compatibility property: **`undefined` is defined to render
+identically to how the block already rendered before `align` existed** —
+- Paragraph: no `align` = browser-default left alignment, which is exactly what every paragraph
+  already had (nothing previously set `text-align`).
+- Image: no `align` = full-width, which is exactly what every image block already had (there was
+  no narrower/side-aligned rendering before this phase). "center" is defined as the same full-width
+  behavior, so it round-trips through old data with zero visual change; only explicit "left"/"right"
+  visibly differ.
+
+This means `parseBlocksJson()` needs no special-casing for legacy paragraph/image blocks at all —
+`v.align` is simply `undefined` on old JSON, `asAlign()` maps that straight through to `undefined`,
+and every renderer/editor already treats `undefined` as the pre-2.2 default.
+
+**Parser resilience for the new types**, matching the existing "degrade the smallest unit, not the
+whole block" pattern:
+- `list`: non-string items are dropped individually (`items.filter(typeof === "string")`); the
+  block itself always survives with whatever items remain, even zero.
+- `gallery`: each image is validated independently (`coerceGalleryImage`) and a missing/non-string
+  `url` drops just that one image, not the gallery.
+- `callout`: an unrecognized `tone` falls back to `"info"`, matching the "invalid enum -> safe
+  default" convention already used for `heading.level`.
+
+## `paragraph` rich text moves from an HTML string to TipTap JSON (Phase 2.3.1)
+
+`ParagraphBlock.text` changed from `string` to `string | TipTapDocument`. This is a bigger change
+than Phase 2.1's or 2.2's (both stayed inside `string`), so it gets its own extended writeup.
+
+**Why not migrate every string to TipTap JSON up front?** Rejected outright, twice over: the task
+explicitly said not to (no database migration this phase), and it would also be strictly worse
+engineering even if allowed -- a migration script is one more failure mode (partial runs, bad
+rows) for zero benefit, when a union type gets the same result for free and non-destructively.
+
+**Why a union instead of a second field (`text` + `tiptapText?`)?** Same reasoning Phase 2.1
+already used for the same fork in the road: two fields is two sources of truth for one block's
+content, with no clean answer for which one wins if both are ever present. A union keeps `text`
+the single source of truth for both eras of data.
+
+**How old data still renders identically:** `RichTextInput.tsx` (the editor) doesn't require its
+input to already be TipTap JSON -- TipTap's own `content` option accepts a plain HTML string and
+parses it through the editor's registered schema, which is exactly what Phase 2.1's sanitizer
+allowlist already was a subset of (bold/italic/link). So a legacy string -- plain text, or
+Phase 2.1's constrained HTML -- loads into the new editor and displays exactly as before, with no
+conversion step. `RichTextRenderer.tsx` (the read-only preview) branches on `typeof content ===
+"string"` first and, for that branch, renders through the *exact same* `sanitizeRichText` +
+`dangerouslySetInnerHTML` path BlockRenderer used directly before this phase -- untouched
+behavior, just relocated into a shared component so both the admin preview and any future public
+renderer get it for free.
+
+**The upgrade is one-way and lazy, not a migration:** a block's `text` stays a plain string
+forever unless someone actually edits it in the new editor. The moment they do, `onUpdate` fires
+`editor.getJSON()` and `text` becomes a `TipTapDocument` from then on (in memory; nothing reaches
+the database until the existing Save/Publish flow persists it, exactly as any other edit would).
+Untouched paragraphs in an untouched document stay plain strings indefinitely. This is the same
+"the old shape is still valid new-schema content, so nothing has to change unless it's touched"
+principle Phase 2.1 and 2.2 both already established -- extended here to a real structural change
+instead of just a new optional field, because storing HTML strings long-term (Priority 2's ask)
+doesn't hold up once formatting needs to compose (bold *and* highlighted *and* linked, all at
+once) the way a real editor's toolbar implies -- DOM-string sanitization handles that fine to
+render, but JSON is the more honest source of truth to keep editing and re-editing indefinitely.
+
+**Trust boundary for the new shape:** `lib/tiptapContent.ts` is the TipTap-JSON equivalent of
+`lib/richText.ts` -- `isTipTapDocument()` is a shallow `{ type: "doc", content: [...] }` shape
+check used at parse time (`coerceContentBlock`) to decide whether an unrecognized `text` value
+should be trusted as TipTap JSON or fall back to `""`. It is deliberately not a full ProseMirror
+schema validator; `RichTextRenderer.tsx` independently re-validates every individual node and mark
+at render time regardless (unrecognized node/mark types degrade to their text content or are
+dropped, link hrefs are re-checked against the same `isSafeHref` allowlist used everywhere else in
+this codebase) -- the same "don't trust one layer alone" posture `sanitizeRichText` already
+established for the string path, applied to the new one.
+
+**No HTML string is ever stored or rendered via `dangerouslySetInnerHTML` for the TipTap path.**
+`RichTextRenderer` turns JSON nodes into real React elements (`<strong>`, `<em>`, `<a>`, `<mark>`,
+`<br>`) directly -- there's no HTML-injection surface to sanitize away in the first place for this
+half of the union. A link's `href` is still independently validated before being used as a real
+`href` attribute, since React does not sanitize that for you the way it does text content.
+
+**Paste behavior**: no manual sanitizer runs on paste for the TipTap path. ProseMirror's paste-HTML
+parser only ever produces node/mark types the editor's own extension config registers -- with
+every StarterKit node except paragraph/text/hardBreak disabled (no heading, list, blockquote, code
+block, horizontal rule, strike, underline), pasted font styles, colors, and structure outside
+bold/italic/link have no schema slot to land in and are dropped automatically, while the words
+themselves are kept. This is a property of the schema being narrow, not a separate cleanup pass.
+
+**One accepted edge case**: Enter is remapped to a hard break (not a new paragraph node), so
+normal typing can never turn one ParagraphBlock into multiple paragraphs internally -- adding
+another paragraph is still a BlockToolbar action, matching how every other block type works.
+Pasting external content that contains multiple `<p>` elements is the one path that can still
+produce more than one top-level paragraph node in the stored doc (paste preserves structure
+rather than collapsing it). `RichTextRenderer` handles this correctly if it happens -- each
+paragraph node renders as its own `<p>` -- so it degrades gracefully rather than losing content or
+breaking the page; it just isn't collapsed into a single `<p>` the way typed content always is.
+
+**Nan gold highlight**: `--accent-gold` already existed in `globals.css` (the storefront's
+"Accent Gold — use sparingly" token). Reused as-is for the Highlight mark's fixed color
+(`.cs-highlight` in `globals.css`, blended to 45% via `color-mix()` so text stays readable) rather
+than defining a second gold -- `Highlight` is configured with `multicolor: false`, so there is no
+color picker and no way to store a different color even if the JSON were hand-edited.

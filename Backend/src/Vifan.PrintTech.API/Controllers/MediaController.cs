@@ -10,29 +10,55 @@ namespace Vifan.PrintTech.API.Controllers;
 //       Currently any authenticated user can upload. For public-facing design upload flows
 //       (e.g. AI Designer mockup), the Customer role is sufficient.
 //       For admin dashboard image management (hero, products, materials), restrict to Staff/Manager.
-
+//
+// Media Library note (Content Studio Phase 2.0): Upload/UploadMultiple now also index every
+// upload as a MediaAsset row via IMediaService, so the class-level [Authorize] here deliberately
+// stays as broad as it already was -- tightening it to Manager-only would break the existing
+// Customer-facing AI Designer upload flow this controller already serves. GetList (the new
+// Media Library browsing endpoint) is Manager-only on its own action instead, since it's a purely
+// new admin surface with no existing caller to preserve.
 [Route("api/[controller]")]
 [Authorize]
 public class MediaController : BaseApiController
 {
     private readonly IMediaUploadService _mediaUploadService;
+    private readonly IMediaService _mediaService;
 
     // Supported folder slugs a caller may supply as ?folder=<slug>
     private static readonly HashSet<string> AllowedFolders = new(StringComparer.OrdinalIgnoreCase)
     {
         "homepage", "products", "categories", "materials", "design-uploads", "temp",
-        "collections", "hero"
+        "collections", "hero", "content"
     };
 
     private const int MaxFilesPerRequest = 10;
 
-    public MediaController(IMediaUploadService mediaUploadService)
+    public MediaController(IMediaUploadService mediaUploadService, IMediaService mediaService)
     {
         _mediaUploadService = mediaUploadService;
+        _mediaService = mediaService;
     }
 
     /// <summary>
-    /// Upload a single image or video to Cloudinary.
+    /// Get a paginated list of indexed Media Library assets, optionally filtered by filename.
+    /// </summary>
+    /// <remarks>
+    /// GET /api/Media?search=&amp;pageNumber=&amp;pageSize=
+    ///
+    /// Only assets uploaded through this controller (or a later phase's Product/Category
+    /// retrofit) appear here -- Cloudinary assets uploaded before the Media Library existed are
+    /// not backfilled by this phase.
+    /// </remarks>
+    [HttpGet]
+    [Authorize(Roles = Roles.Manager)]
+    public async Task<IActionResult> GetList([FromQuery] MediaAssetQueryParameters query, CancellationToken cancellationToken)
+    {
+        var result = await _mediaService.GetListAsync(query, cancellationToken);
+        return OkResponse(result);
+    }
+
+    /// <summary>
+    /// Upload a single image or video to Cloudinary and index it in the Media Library.
     /// </summary>
     /// <remarks>
     /// POST /api/Media/upload?folder=products
@@ -54,18 +80,22 @@ public class MediaController : BaseApiController
         var resolvedFolder = ResolveFolder(folder);
 
         await using var stream = file.OpenReadStream();
-        var result = await _mediaUploadService.UploadSingleAsync(
+        var asset = await _mediaService.UploadAsync(
             stream,
             file.FileName,
             file.ContentType,
             resolvedFolder,
             cancellationToken);
 
-        return OkResponse(result, "File uploaded successfully.");
+        // Response shape is deliberately unchanged (MediaUploadResultDto, not MediaAssetDto):
+        // existing callers (ContentBlockEditor.tsx, useCatalogImageUpload.ts) already read
+        // .secureUrl/.publicId from this exact endpoint. Both map directly and losslessly from
+        // the new MediaAsset fields; nothing here is reconstructed or guessed.
+        return OkResponse(ToLegacyUploadResult(asset), "File uploaded successfully.");
     }
 
     /// <summary>
-    /// Upload multiple images (up to 10) to Cloudinary in one request.
+    /// Upload multiple images (up to 10) to Cloudinary and index them in the Media Library.
     /// </summary>
     /// <remarks>
     /// POST /api/Media/upload-multiple?folder=products
@@ -89,35 +119,66 @@ public class MediaController : BaseApiController
 
         var resolvedFolder = ResolveFolder(folder);
 
-        var fileInputs = files.Select<IFormFile, (Stream, string, string)>(
-            f => (f.OpenReadStream(), f.FileName, f.ContentType));
+        var results = new List<MediaUploadResultDto>();
+        foreach (var file in files)
+        {
+            await using var stream = file.OpenReadStream();
+            var asset = await _mediaService.UploadAsync(
+                stream, file.FileName, file.ContentType, resolvedFolder, cancellationToken);
+            results.Add(ToLegacyUploadResult(asset));
+        }
 
-        var results = await _mediaUploadService.UploadMultipleAsync(fileInputs, resolvedFolder, cancellationToken);
         return OkResponse(results, $"{results.Count} file(s) uploaded successfully.");
     }
 
     /// <summary>
-    /// Delete a media asset from Cloudinary by its public ID.
+    /// Delete a media asset, both from the Media Library index and from Cloudinary.
     /// </summary>
     /// <remarks>
-    /// DELETE /api/Media/{publicId}
+    /// DELETE /api/Media/{id} -- id is a MediaAsset GUID (the new Media Library path).
     ///
-    /// The publicId must be URL-encoded if it contains slashes (e.g. nan%2Fproducts%2Fabc123).
+    /// DELETE /api/Media/{publicId} still works for a raw Cloudinary public ID (the original,
+    /// pre-Media-Library behavior) -- e.g. an asset uploaded before this phase, with no
+    /// MediaAsset row to look up. The publicId must be URL-encoded if it contains slashes
+    /// (e.g. nan%2Fproducts%2Fabc123). A public ID is never a valid GUID, so the two cases never
+    /// collide.
     /// </remarks>
-    [HttpDelete("{*publicId}")]
+    [HttpDelete("{*idOrPublicId}")]
     [Authorize(Roles = $"{Roles.Staff},{Roles.Manager}")]
-    public async Task<IActionResult> Delete(string publicId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Delete(string idOrPublicId, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(publicId))
-            return FailResponse("publicId is required.", StatusCodes.Status400BadRequest);
+        if (string.IsNullOrWhiteSpace(idOrPublicId))
+            return FailResponse("id is required.", StatusCodes.Status400BadRequest);
 
-        await _mediaUploadService.DeleteAsync(publicId, cancellationToken);
+        if (Guid.TryParse(idOrPublicId, out var mediaAssetId))
+        {
+            await _mediaService.DeleteAsync(mediaAssetId, cancellationToken);
+            return OkResponse("Asset deleted.");
+        }
+
+        await _mediaUploadService.DeleteAsync(idOrPublicId, cancellationToken);
         return OkResponse("Asset deleted.");
     }
 
-    // GET /api/Media — TODO: implement paginated media list via Cloudinary Admin API
-    // This requires the cloudinary Admin API which uses the API secret server-side.
-    // Deferred until the admin dashboard CMS module is built.
+    private static MediaUploadResultDto ToLegacyUploadResult(MediaAssetDto asset)
+    {
+        var extension = asset.FileName.Contains('.') ? asset.FileName[(asset.FileName.LastIndexOf('.') + 1)..] : string.Empty;
+        var resourceType = asset.MimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase) ? "video" : "image";
+
+        return new MediaUploadResultDto
+        {
+            PublicId = asset.PublicId,
+            SecureUrl = asset.Url,
+            OriginalFilename = asset.OriginalName,
+            ResourceType = resourceType,
+            Format = extension,
+            Width = asset.Width,
+            Height = asset.Height,
+            Bytes = asset.Size,
+            Folder = asset.Folder ?? string.Empty,
+            CreatedAt = asset.CreatedAt
+        };
+    }
 
     private static string? ResolveFolder(string? folder)
     {
