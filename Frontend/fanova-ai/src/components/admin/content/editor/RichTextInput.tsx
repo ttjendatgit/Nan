@@ -171,6 +171,7 @@ export default function RichTextInput({
   const onEnterRef = useRef(onEnter);
   const onBackspaceAtStartRef = useRef(onBackspaceAtStart);
   const onPasteBlocksRef = useRef(onPasteBlocks);
+  const onMergeAppliedRef = useRef(onMergeApplied);
   const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkError, setLinkError] = useState<string | null>(null);
@@ -186,6 +187,10 @@ export default function RichTextInput({
   useEffect(() => {
     onPasteBlocksRef.current = onPasteBlocks;
   }, [onPasteBlocks]);
+
+  useEffect(() => {
+    onMergeAppliedRef.current = onMergeApplied;
+  }, [onMergeApplied]);
 
   const editor = useEditor({
     // Next.js renders once on the server for the initial HTML; TipTap's own guidance for SSR
@@ -433,7 +438,13 @@ export default function RichTextInput({
     // The insert above already ran onUpdate -> onChange with the merged content, same as any
     // other edit -- that's correct and required (this block's text really did change), not
     // something to suppress. onMergeApplied only clears the *request*, not the content change.
-    onMergeApplied?.();
+    //
+    // Read through a ref, not the `onMergeApplied` prop directly -- deliberately kept out of this
+    // effect's own dependency array (same reasoning as onEnterRef/onBackspaceAtStartRef/
+    // onPasteBlocksRef above): re-running this effect on every render where a new inline
+    // onMergeApplied identity happens to be passed would risk re-applying the merge, when what
+    // should actually re-trigger it is only `pendingMerge` itself changing.
+    onMergeAppliedRef.current?.();
   }, [editor, pendingMerge]);
 
   function openLinkPopover() {

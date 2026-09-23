@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AlertTriangle, CheckCircle2, ImageIcon, Images, Info } from "lucide-react";
 import type {
   CalloutBlock as CalloutBlockType,
@@ -99,40 +99,17 @@ const IMAGE_ALIGN_CLASS: Record<"left" | "center" | "right", string> = {
 };
 
 function ImageBlockPreview({ block }: { block: ImageBlockType }) {
-  const [errored, setErrored] = useState(false);
-
-  // A URL edit deserves a fresh attempt -- otherwise fixing a broken link would stay stuck on
-  // the fallback forever, since React doesn't reset state just because a prop changed.
-  useEffect(() => {
-    setErrored(false);
-  }, [block.url]);
-
-  const showImage = block.url.trim().length > 0 && !errored;
-
   return (
     <figure className={`m-0 ${IMAGE_ALIGN_CLASS[block.align ?? "center"]}`}>
       <div
         className="relative aspect-video overflow-hidden rounded-lg"
         style={{ border: "1px solid var(--admin-border)", background: "var(--admin-surface-muted)" }}
       >
-        {showImage ? (
-          // Raw <img>, not next/image: the URL is free-text from ImageBlockEditor, not a
-          // configured remote pattern -- upload/Cloudinary integration is a later phase.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={block.url}
-            alt={block.alt}
-            onError={() => setErrored(true)}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-1.5 px-4 text-center">
-            <ImageIcon className="h-6 w-6" style={{ color: "var(--admin-text-subtle)" }} aria-hidden="true" />
-            <span className="text-[11px]" style={{ color: "var(--admin-text-subtle)" }}>
-              {block.url.trim() ? "Không thể tải hình ảnh" : "Chưa có hình ảnh"}
-            </span>
-          </div>
-        )}
+        {/* Keyed by url, not an effect -- a URL edit deserves a fresh attempt (otherwise fixing a
+            broken link would stay stuck on the fallback forever), and the key is what gets React
+            to discard the old ImageWithFallback instance and mount a new one when the url changes,
+            which resets its `errored` state to false for free. */}
+        <ImageWithFallback key={block.url} url={block.url} alt={block.alt} />
       </div>
       {block.caption && (
         <figcaption className="mt-2 text-center text-xs" style={{ color: "var(--admin-text-subtle)" }}>
@@ -140,6 +117,29 @@ function ImageBlockPreview({ block }: { block: ImageBlockType }) {
         </figcaption>
       )}
     </figure>
+  );
+}
+
+function ImageWithFallback({ url, alt }: { url: string; alt: string }) {
+  const [errored, setErrored] = useState(false);
+  const showImage = url.trim().length > 0 && !errored;
+
+  if (showImage) {
+    return (
+      // Raw <img>, not next/image: the URL is free-text from ImageBlockEditor, not a configured
+      // remote pattern -- upload/Cloudinary integration is a later phase.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={url} alt={alt} onError={() => setErrored(true)} className="h-full w-full object-cover" />
+    );
+  }
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-1.5 px-4 text-center">
+      <ImageIcon className="h-6 w-6" style={{ color: "var(--admin-text-subtle)" }} aria-hidden="true" />
+      <span className="text-[11px]" style={{ color: "var(--admin-text-subtle)" }}>
+        {url.trim() ? "Không thể tải hình ảnh" : "Chưa có hình ảnh"}
+      </span>
+    </div>
   );
 }
 

@@ -453,6 +453,19 @@ function FinalPriceSection({
   );
 }
 
+// ─── DrawerField ───────────────────────────────────────────────────────────────
+
+function DrawerField({ label, value, fallback }: { label: string; value?: string | null; fallback?: string }) {
+  const hasValue = value?.trim();
+  const display = hasValue ? value! : (fallback ?? "—");
+  return (
+    <div>
+      <p className="text-[10px] font-mono uppercase tracking-[0.12em]" style={{ color: "var(--admin-text-subtle)" }}>{label}</p>
+      <p className="mt-0.5 text-sm" style={{ color: hasValue ? "var(--admin-text)" : "var(--admin-text-subtle)" }}>{display}</p>
+    </div>
+  );
+}
+
 // ─── DetailDrawer ──────────────────────────────────────────────────────────────
 
 function DetailDrawer({
@@ -513,17 +526,6 @@ function DetailDrawer({
     } finally {
       setSaving(false);
     }
-  }
-
-  function DrawerField({ label, value, fallback }: { label: string; value?: string | null; fallback?: string }) {
-    const hasValue = value?.trim();
-    const display = hasValue ? value! : (fallback ?? "—");
-    return (
-      <div>
-        <p className="text-[10px] font-mono uppercase tracking-[0.12em]" style={{ color: "var(--admin-text-subtle)" }}>{label}</p>
-        <p className="mt-0.5 text-sm" style={{ color: hasValue ? "var(--admin-text)" : "var(--admin-text-subtle)" }}>{display}</p>
-      </div>
-    );
   }
 
   return (
@@ -733,8 +735,6 @@ export default function AdminQuoteRequestsPage() {
     return () => window.clearTimeout(id);
   }, [search]);
 
-  useEffect(() => { setPage(1); }, [statusFilter]);
-
   const loadCounts = useCallback(async (tk: string) => {
     try {
       const [total, newRes, contactedRes, quotedRes] = await Promise.all([
@@ -873,7 +873,7 @@ export default function AdminQuoteRequestsPage() {
             {STATUS_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
-                onClick={() => setStatusFilter(opt.value as QuoteRequestStatus | "all")}
+                onClick={() => { setStatusFilter(opt.value as QuoteRequestStatus | "all"); setPage(1); }}
                 aria-pressed={statusFilter === opt.value}
                 className="admin-focus-ring rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.10em] transition-colors"
                 style={

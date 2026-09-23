@@ -92,10 +92,7 @@ export default function MediaUpload({
       );
 
       setFiles((prev) =>
-        prev.map((f, _i) => {
-          const match = results.find(
-            (r) => r.originalFilename === f.file.name || f.status === "uploading",
-          );
+        prev.map((f) => {
           if (f.status === "uploading") {
             const result = results[pending.findIndex((p) => p.id === f.id)];
             return result

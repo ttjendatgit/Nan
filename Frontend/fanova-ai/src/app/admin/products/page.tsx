@@ -101,7 +101,7 @@ export default function AdminProductsPage() {
       loadProducts();
       loadCategories();
     }
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -117,13 +117,6 @@ export default function AdminProductsPage() {
     } finally {
       setLoginLoading(false);
     }
-  }
-
-  function handleLogout() {
-    setToken(null);
-    sessionStorage.removeItem("nan_admin_token");
-    setProducts([]);
-    setCategories([]);
   }
 
   async function loadProducts() {
