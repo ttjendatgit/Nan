@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { createBlock, parseBlocksJson } from "@/types/contentBlocks";
 import type { ContentBlock, ContentBlockType } from "@/types/contentBlocks";
+import type { TipTapDocument } from "@/lib/tiptapContent";
 
 export interface UseContentEditorResult {
   blocks: ContentBlock[];
@@ -25,18 +26,34 @@ export interface UseContentEditorResult {
   updateBlock: (block: ContentBlock) => void;
   removeBlock: (id: string) => void;
   moveBlock: (id: string, direction: -1 | 1) => void;
-  /** The id of the block that should receive focus on its next render, or null when nothing is
-   * pending. This is focus *intent*, not "which block currently has focus" (that stays local UI
-   * state in BlockEditor, as it always has) -- it exists so that an action which both mutates
-   * `blocks` and needs to move focus (A1's Enter-to-split) can express both through the same
-   * state owner, per the "ContentStudio/useContentEditor is the only state owner" rule, instead
-   * of reaching into a sibling component's local state. */
-  pendingFocusBlockId: string | null;
-  /** Sets (or clears, with null) which block should auto-focus next. The block that actually
-   * receives that focus is expected to clear it back to null once it does (BlockCanvas does this
-   * via the same onFocus signal it already had), so a stale request never re-fires on a later,
-   * unrelated render. */
-  requestFocus: (blockId: string | null) => void;
+  /** The block that should receive focus on its next render, and which end of its content --
+   * "start" (A1's Enter-to-split, the default) or "end" (A2's Backspace-to-merge, landing back on
+   * the block that just absorbed another one's content). Null when nothing is pending. This is
+   * focus *intent*, not "which block currently has focus" (that stays local UI state in
+   * BlockEditor, as it always has) -- it exists so that an action which both mutates `blocks` and
+   * needs to move focus can express both through the same state owner, per the
+   * "ContentStudio/useContentEditor is the only state owner" rule, instead of reaching into a
+   * sibling component's local state. */
+  pendingFocus: { blockId: string; position: "start" | "end" } | null;
+  /** Sets (or clears, with null) which block should auto-focus next, and where. `position`
+   * defaults to "start" so every existing A1 call site (which never passed a third argument)
+   * keeps behaving exactly as before. The block that actually receives that focus is expected to
+   * clear this back to null once it does (BlockCanvas does this via the same onFocus signal it
+   * already had), so a stale request never re-fires on a later, unrelated render. */
+  requestFocus: (blockId: string | null, position?: "start" | "end") => void;
+  /** A2: a merge in progress -- `incoming` is the full doc of a ParagraphBlock that's being
+   * deleted, to be appended onto the end of the block identified by `blockId` (the one immediately
+   * before it). Null when no merge is pending. See RichTextInput.tsx for why the actual splice
+   * happens inside that target block's own live TipTap editor instead of as a JSON operation at
+   * this layer. */
+  pendingMerge: { blockId: string; incoming: TipTapDocument } | null;
+  requestMerge: (blockId: string, incoming: TipTapDocument) => void;
+  /** Called once the target block's RichTextInput has applied a pending merge, so it isn't
+   * reapplied on some later, unrelated render -- the same "clear once consumed" contract
+   * pendingFocus already has, just without a DOM-focus-event trigger to hang it off of (a merge
+   * has no equivalent "it landed" signal from the browser the way focus does), so the consumer
+   * calls this explicitly right after the splice. */
+  clearMerge: () => void;
   /** Replaces the current blocks with the result of parsing `json`, and resets dirty to false
    * (this is a load, not an edit). Returns a warning string if parsing degraded in any way
    * (invalid JSON, wrong shape, unrecognized items skipped) so the caller can surface it --
@@ -61,7 +78,8 @@ export interface UseContentEditorResult {
 export function useContentEditor(initialBlocks: ContentBlock[] = []): UseContentEditorResult {
   const [blocks, setBlocks] = useState<ContentBlock[]>(initialBlocks);
   const [dirty, setDirty] = useState(false);
-  const [pendingFocusBlockId, setPendingFocusBlockId] = useState<string | null>(null);
+  const [pendingFocus, setPendingFocus] = useState<{ blockId: string; position: "start" | "end" } | null>(null);
+  const [pendingMerge, setPendingMerge] = useState<{ blockId: string; incoming: TipTapDocument } | null>(null);
 
   // A1-fix-2: every mutation below uses the functional setBlocks(prev => ...) form, reading the
   // latest array from `prev` rather than closing over the `blocks` variable. React batches state
@@ -132,9 +150,10 @@ export function useContentEditor(initialBlocks: ContentBlock[] = []): UseContent
     const result = parseBlocksJson(json);
     setBlocks(result.blocks);
     setDirty(false);
-    // A focus request from whatever document was open before (if any) has nothing to do with
-    // this newly-loaded one -- stale intent, so it's cleared the same way dirty is.
-    setPendingFocusBlockId(null);
+    // A focus/merge request from whatever document was open before (if any) has nothing to do
+    // with this newly-loaded one -- stale intent, so both are cleared the same way dirty is.
+    setPendingFocus(null);
+    setPendingMerge(null);
     return result.error;
   }, []);
 
@@ -142,12 +161,21 @@ export function useContentEditor(initialBlocks: ContentBlock[] = []): UseContent
 
   const markDirty = useCallback(() => setDirty(true), []);
   const clearDirty = useCallback(() => setDirty(false), []);
-  // Pure focus intent, not a content change -- deliberately does not call markDirty(). Nothing
-  // about which block is about to be focused is part of the document being saved.
-  const requestFocus = useCallback((blockId: string | null) => setPendingFocusBlockId(blockId), []);
+  // Pure focus/merge intent, not a content change -- deliberately does not call markDirty().
+  // Nothing about which block is about to be focused, or which merge is about to be applied, is
+  // itself part of the document being saved (the merge's actual content change goes through
+  // updateBlock/removeBlock, same as any other edit, and marks dirty there).
+  const requestFocus = useCallback((blockId: string | null, position: "start" | "end" = "start") => {
+    setPendingFocus(blockId ? { blockId, position } : null);
+  }, []);
+  const requestMerge = useCallback((blockId: string, incoming: TipTapDocument) => {
+    setPendingMerge({ blockId, incoming });
+  }, []);
+  const clearMerge = useCallback(() => setPendingMerge(null), []);
 
   return {
     blocks, dirty, addBlock, addBlockAt, insertBlockAt, updateBlock, removeBlock, moveBlock,
-    pendingFocusBlockId, requestFocus, loadBlocks, serializeBlocks, markDirty, clearDirty,
+    pendingFocus, requestFocus, pendingMerge, requestMerge, clearMerge,
+    loadBlocks, serializeBlocks, markDirty, clearDirty,
   };
 }

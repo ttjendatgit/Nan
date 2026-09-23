@@ -3,7 +3,8 @@
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import type { ContentBlock } from "@/types/contentBlocks";
 import { contentBlockLabel } from "@/types/contentBlocks";
-import type { ParagraphEnterPayload } from "./RichTextInput";
+import type { TipTapDocument } from "@/lib/tiptapContent";
+import type { ParagraphBackspacePayload, ParagraphEnterPayload } from "./RichTextInput";
 import HeadingBlockEditor from "./blocks/HeadingBlockEditor";
 import ParagraphBlockEditor from "./blocks/ParagraphBlockEditor";
 import QuoteBlockEditor from "./blocks/QuoteBlockEditor";
@@ -30,15 +31,21 @@ interface BlockItemProps {
    * here rather than via context, matching how every other admin surface in this app passes the
    * auth token explicitly. */
   token: string;
-  /** A1: only meaningful for a "paragraph" block -- BlockFields only forwards these to
+  /** A1/A2: only meaningful for a "paragraph" block -- BlockFields only forwards these to
    * ParagraphBlockEditor; every other block type's editor simply never receives them. */
   onEnter?: (payload: ParagraphEnterPayload) => void;
-  autoFocus?: boolean;
+  onBackspaceAtStart?: (payload: ParagraphBackspacePayload) => void;
+  autoFocus?: false | "start" | "end";
+  pendingMerge?: TipTapDocument | null;
+  onMergeApplied?: () => void;
 }
 
 /** Shared chrome (border/hover/active + reorder/remove actions) around one block's type-specific
  * editor. Reordering uses plain up/down buttons, not a drag-and-drop library (out of scope). */
-export default function BlockItem({ block, index, total, active, onFocus, onChange, onRemove, onMoveUp, onMoveDown, token, onEnter, autoFocus }: BlockItemProps) {
+export default function BlockItem({
+  block, index, total, active, onFocus, onChange, onRemove, onMoveUp, onMoveDown, token,
+  onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied,
+}: BlockItemProps) {
   const label = contentBlockLabel(block.type);
 
   return (
@@ -90,27 +97,40 @@ export default function BlockItem({ block, index, total, active, onFocus, onChan
         </div>
       </div>
 
-      <BlockFields block={block} onChange={onChange} token={token} onEnter={onEnter} autoFocus={autoFocus} />
+      <BlockFields
+        block={block} onChange={onChange} token={token}
+        onEnter={onEnter} onBackspaceAtStart={onBackspaceAtStart}
+        autoFocus={autoFocus} pendingMerge={pendingMerge} onMergeApplied={onMergeApplied}
+      />
     </div>
   );
 }
 
 /** Dispatches to the right type-specific editor. Exhaustive switch, no `default`: a new
- * ContentBlockType without a case here is a compile error. `onEnter`/`autoFocus` are only ever
- * passed to ParagraphBlockEditor -- every other case ignores them, which is what "other blocks
- * ignore these two props" means in practice: there's simply no plumbing to them. */
-function BlockFields({ block, onChange, token, onEnter, autoFocus }: {
+ * ContentBlockType without a case here is a compile error. The A1/A2 props are only ever passed
+ * to ParagraphBlockEditor -- every other case ignores them, which is what "other blocks ignore
+ * these props" means in practice: there's simply no plumbing to them. */
+function BlockFields({ block, onChange, token, onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied }: {
   block: ContentBlock;
   onChange: (block: ContentBlock) => void;
   token: string;
   onEnter?: (payload: ParagraphEnterPayload) => void;
-  autoFocus?: boolean;
+  onBackspaceAtStart?: (payload: ParagraphBackspacePayload) => void;
+  autoFocus?: false | "start" | "end";
+  pendingMerge?: TipTapDocument | null;
+  onMergeApplied?: () => void;
 }) {
   switch (block.type) {
     case "heading":
       return <HeadingBlockEditor block={block} onChange={onChange} />;
     case "paragraph":
-      return <ParagraphBlockEditor block={block} onChange={onChange} onEnter={onEnter} autoFocus={autoFocus} />;
+      return (
+        <ParagraphBlockEditor
+          block={block} onChange={onChange}
+          onEnter={onEnter} onBackspaceAtStart={onBackspaceAtStart}
+          autoFocus={autoFocus} pendingMerge={pendingMerge} onMergeApplied={onMergeApplied}
+        />
+      );
     case "quote":
       return <QuoteBlockEditor block={block} onChange={onChange} />;
     case "divider":

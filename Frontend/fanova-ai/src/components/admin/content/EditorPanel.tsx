@@ -1,7 +1,8 @@
 "use client";
 
 import type { ContentBlock, ContentBlockType } from "@/types/contentBlocks";
-import type { ParagraphEnterPayload } from "./editor/RichTextInput";
+import type { TipTapDocument } from "@/lib/tiptapContent";
+import type { ParagraphBackspacePayload, ParagraphEnterPayload } from "./editor/RichTextInput";
 import BlockEditor from "./editor/BlockEditor";
 
 interface EditorPanelProps {
@@ -11,14 +12,17 @@ interface EditorPanelProps {
   onRemoveBlock: (id: string) => void;
   onMoveBlock: (id: string, direction: -1 | 1) => void;
   token: string;
-  pendingFocusBlockId: string | null;
-  requestFocus: (blockId: string | null) => void;
+  pendingFocus: { blockId: string; position: "start" | "end" } | null;
+  requestFocus: (blockId: string | null, position?: "start" | "end") => void;
+  pendingMerge: { blockId: string; incoming: TipTapDocument } | null;
+  clearMerge: () => void;
   onParagraphEnter: (blockId: string, index: number, payload: ParagraphEnterPayload) => void;
+  onParagraphBackspace: (blockId: string, index: number, payload: ParagraphBackspacePayload) => void;
 }
 
 export default function EditorPanel({
   blocks, onAddBlock, onUpdateBlock, onRemoveBlock, onMoveBlock, token,
-  pendingFocusBlockId, requestFocus, onParagraphEnter,
+  pendingFocus, requestFocus, pendingMerge, clearMerge, onParagraphEnter, onParagraphBackspace,
 }: EditorPanelProps) {
   return (
     <section
@@ -38,9 +42,12 @@ export default function EditorPanel({
           onRemoveBlock={onRemoveBlock}
           onMoveBlock={onMoveBlock}
           token={token}
-          pendingFocusBlockId={pendingFocusBlockId}
+          pendingFocus={pendingFocus}
           requestFocus={requestFocus}
+          pendingMerge={pendingMerge}
+          clearMerge={clearMerge}
           onParagraphEnter={onParagraphEnter}
+          onParagraphBackspace={onParagraphBackspace}
         />
       </div>
     </section>

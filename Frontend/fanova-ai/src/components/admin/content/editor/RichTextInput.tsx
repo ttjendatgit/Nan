@@ -26,6 +26,20 @@ export interface ParagraphEnterPayload {
   atStart: boolean;
 }
 
+/**
+ * What Backspace hands back to the block layer when it's pressed at the very start of a
+ * paragraph's content (A2, Enter's inverse). `doc` is this block's entire current content --
+ * unlike Enter, there's nothing to cut, since the whole block is either getting deleted or merged
+ * wholesale into the previous one. `isEmpty` is included rather than left for the caller to derive
+ * from `doc` because "is a TipTap doc empty" is exactly the judgment call `editor.isEmpty` (and
+ * lib/tiptapContent.ts's isTipTapDocEmpty) already exists to make -- no reason to make the caller
+ * re-derive it from raw JSON.
+ */
+export interface ParagraphBackspacePayload {
+  isEmpty: boolean;
+  doc: TipTapDocument;
+}
+
 interface RichTextInputProps {
   id: string;
   value: string | TipTapDocument;
@@ -39,9 +53,26 @@ interface RichTextInputProps {
    * splitBlock. Shift-Enter always inserts a hard break regardless, via HardBreak's own default
    * shortcut -- this only ever intercepts plain Enter. */
   onEnter?: (payload: ParagraphEnterPayload) => void;
-  /** When true, focuses the start of this editor once it's mounted and ready -- what a newly
-   * split-off block uses to pick up the cursor without the admin having to click into it. */
-  autoFocus?: boolean;
+  /** A2: handles a plain Backspace pressed at the very start of this paragraph's content
+   * (collapsed selection) -- reports whether the block is empty and its full current doc, and
+   * lets the block layer decide whether to delete this block or merge it into the previous one.
+   * Same "safe no-op when absent" contract as onEnter: without this wired, Backspace at the start
+   * just falls through to TipTap's own default behavior instead of deleting/merging anything. */
+  onBackspaceAtStart?: (payload: ParagraphBackspacePayload) => void;
+  /** false (or omitted): no auto-focus. "start"/"end": focuses that end of this editor once it's
+   * mounted and ready. A1's newly split-off block uses "start"; A2's target block (the one that
+   * just absorbed a merge) uses "end" -- the cursor's exact join-point position is set explicitly
+   * by the pendingMerge effect below, but the editor still needs DOM focus to place it there. */
+  autoFocus?: false | "start" | "end";
+  /** A2: a merge in progress -- content from a block that's about to be deleted, to be spliced
+   * onto the end of THIS editor's own content. Set by ContentStudio via useContentEditor's
+   * pendingMerge/requestMerge; see the effect below for why the splice happens here, in the
+   * target block's own live editor, rather than as a JSON operation at the state layer. */
+  pendingMerge?: TipTapDocument | null;
+  /** Called once the pendingMerge effect below has applied the merge, so the caller can clear
+   * pendingMerge back to null -- otherwise the same merge would reapply on every future render
+   * where pendingMerge is still set. */
+  onMergeApplied?: () => void;
 }
 
 const TOOLBAR_BTN =
@@ -72,6 +103,12 @@ function resolveInitialContent(value: string | TipTapDocument): Content {
  * itself needs to run its own editor instance, plus the small amount of local UI state the Link
  * popover needs.
  *
+ * Also owns two block-boundary keyboard behaviors that report intent upward rather than acting on
+ * the block array themselves (this component has no concept of "the block array" at all): Enter
+ * (A1, split into a new block) and Backspace at the start of the content (A2, delete or merge into
+ * the previous block). See the `onEnter`/`onBackspaceAtStart` handlers in handleKeyDown below, and
+ * the `pendingMerge` effect for the merge case specifically.
+ *
  * Scope is deliberately narrow -- Bold, Italic, Link, Highlight only. Every other StarterKit node
  * (headings, lists, blockquote, code block, horizontal rule, strike, underline) is turned off in
  * the extension config below, which does double duty as the paste sanitizer: ProseMirror's HTML
@@ -98,9 +135,12 @@ function resolveInitialContent(value: string | TipTapDocument): Content {
  * editor instance -- so the handler always reads the *latest* onEnter through `onEnterRef` rather
  * than closing over the prop value directly.
  */
-export default function RichTextInput({ id, value, onChange, placeholder, align = "left", onEnter, autoFocus }: RichTextInputProps) {
+export default function RichTextInput({
+  id, value, onChange, placeholder, align = "left", onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied,
+}: RichTextInputProps) {
   const lastEmittedRef = useRef<string | TipTapDocument>(value);
   const onEnterRef = useRef(onEnter);
+  const onBackspaceAtStartRef = useRef(onBackspaceAtStart);
   const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkError, setLinkError] = useState<string | null>(null);
@@ -108,6 +148,10 @@ export default function RichTextInput({ id, value, onChange, placeholder, align 
   useEffect(() => {
     onEnterRef.current = onEnter;
   }, [onEnter]);
+
+  useEffect(() => {
+    onBackspaceAtStartRef.current = onBackspaceAtStart;
+  }, [onBackspaceAtStart]);
 
   const editor = useEditor({
     // Next.js renders once on the server for the initial HTML; TipTap's own guidance for SSR
@@ -162,6 +206,30 @@ export default function RichTextInput({ id, value, onChange, placeholder, align 
       // (HardBreak's default shortcut covers Shift-Enter). Returning true tells ProseMirror this
       // key was fully handled, so its own default Enter behavior (splitBlock) never runs.
       handleKeyDown(view, event) {
+        // A2: plain Backspace at the very start of this block's content. Kept as its own early
+        // branch, entirely separate from the Enter logic below it -- different key, different
+        // payload shape, nothing shared beyond both living in this same handleKeyDown callback.
+        if (
+          event.key === "Backspace" && !event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey
+          && !event.isComposing
+        ) {
+          const backspaceHandler = onBackspaceAtStartRef.current;
+          if (!backspaceHandler) return false;
+          if (!editor) return false; // see the identical guard below for why this can't be proven statically
+
+          const { from, to, $from } = editor.state.selection;
+          // Same atStart resolution A1 uses for Enter: collapsed selection, at offset 0 of its
+          // parent, and that parent is the doc's first child.
+          const atStart = from === to && $from.parentOffset === 0 && $from.index(0) === 0;
+          if (!atStart) return false;
+
+          // This handler only ever reports state -- it never deletes/merges anything itself. The
+          // actual block-array decision (delete vs. merge, and into what) is ContentStudio's,
+          // same division of responsibility as onEnter.
+          backspaceHandler({ isEmpty: editor.isEmpty, doc: editor.state.doc.toJSON() as TipTapDocument });
+          return true;
+        }
+
         if (event.key !== "Enter" || event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
           return false;
         }
@@ -270,8 +338,52 @@ export default function RichTextInput({ id, value, onChange, placeholder, align 
   // isn't a case that normally recurs, but re-focusing is harmless if it ever did.
   useEffect(() => {
     if (!editor || !autoFocus) return;
-    editor.commands.focus("start");
+    editor.commands.focus(autoFocus === "end" ? "end" : "start");
   }, [editor, autoFocus]);
+
+  // A2: applies a pending merge -- content from a block that's about to be deleted, appended onto
+  // this editor's own content, with the cursor left exactly at the join point.
+  //
+  // Why this happens here, inside the *target* block's own live editor, instead of ContentStudio
+  // splicing the two blocks' JSON together and telling this block "here's your new content, start
+  // at position N": ContentStudio has no live ProseMirror state to resolve "position N" against
+  // safely -- computing where the join point lands in the merged doc from raw JSON alone is
+  // exactly the class of off-by-one mistake this file's own Enter-splitting logic already had to
+  // get right using real ProseMirror positions (see A1-fix). This editor already has a live
+  // EditorState; asking it to do the splice means the join position is just "where the cursor
+  // already is right before the insert", not a number computed by hand.
+  useEffect(() => {
+    if (!editor || !pendingMerge) return;
+
+    // The end of this block's content *before* the merge is the join point -- captured now,
+    // before anything is inserted, since insertion happens at (not before) this position and so
+    // doesn't shift it.
+    const joinPos = editor.state.doc.content.size - 1;
+
+    // The incoming doc's first paragraph's inline content (text/marks/hardBreaks) joins directly
+    // onto this block's last line; any further paragraph nodes after that (only possible via the
+    // documented multi-paragraph-paste edge case, not through normal typing) are appended as
+    // their own nodes rather than discarded.
+    const nodes = pendingMerge.content ?? [];
+    const firstInline = nodes[0]?.content ?? [];
+    const rest = nodes.slice(1);
+
+    editor
+      .chain()
+      .focus("end")
+      .insertContent([...firstInline, ...rest])
+      // setTextSelection clamps its position to the transaction's own valid range internally
+      // (@tiptap/core's command implementation), so an out-of-range joinPos degrades to the
+      // nearest valid position instead of throwing -- not something this call needs to check
+      // itself first.
+      .setTextSelection(joinPos)
+      .run();
+
+    // The insert above already ran onUpdate -> onChange with the merged content, same as any
+    // other edit -- that's correct and required (this block's text really did change), not
+    // something to suppress. onMergeApplied only clears the *request*, not the content change.
+    onMergeApplied?.();
+  }, [editor, pendingMerge]);
 
   function openLinkPopover() {
     // Pre-fills with the current link's href when the cursor is already inside one, so editing

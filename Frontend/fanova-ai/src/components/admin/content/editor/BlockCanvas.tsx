@@ -2,7 +2,8 @@
 
 import { LayoutList } from "lucide-react";
 import type { ContentBlock } from "@/types/contentBlocks";
-import type { ParagraphEnterPayload } from "./RichTextInput";
+import type { TipTapDocument } from "@/lib/tiptapContent";
+import type { ParagraphBackspacePayload, ParagraphEnterPayload } from "./RichTextInput";
 import BlockItem from "./BlockItem";
 
 interface BlockCanvasProps {
@@ -13,20 +14,25 @@ interface BlockCanvasProps {
   onRemoveBlock: (id: string) => void;
   onMoveBlock: (id: string, direction: -1 | 1) => void;
   token: string;
-  /** A1: which block (if any) should auto-focus on this render -- state owned by useContentEditor
-   * via ContentStudio, threaded all the way down here since this is the component that actually
-   * knows each block's id to compare against it. */
-  pendingFocusBlockId: string | null;
-  requestFocus: (blockId: string | null) => void;
+  /** A1/A2: which block (if any) should auto-focus on this render, and where -- state owned by
+   * useContentEditor via ContentStudio, threaded all the way down here since this is the
+   * component that actually knows each block's id to compare against it. */
+  pendingFocus: { blockId: string; position: "start" | "end" } | null;
+  requestFocus: (blockId: string | null, position?: "start" | "end") => void;
+  /** A2: a merge in progress -- compared against each block's id the same way pendingFocus is, so
+   * only the one target block actually receives `incoming` content to splice in. */
+  pendingMerge: { blockId: string; incoming: TipTapDocument } | null;
+  clearMerge: () => void;
   /** Raw split payload from a paragraph's RichTextInput, plus which block/index it came from --
    * BlockCanvas is where `block.id`/`index` are known, so it's the natural place to close over
    * them before handing the payload up to the real handler in ContentStudio. */
   onParagraphEnter: (blockId: string, index: number, payload: ParagraphEnterPayload) => void;
+  onParagraphBackspace: (blockId: string, index: number, payload: ParagraphBackspacePayload) => void;
 }
 
 export default function BlockCanvas({
   blocks, activeBlockId, onFocusBlock, onUpdateBlock, onRemoveBlock, onMoveBlock, token,
-  pendingFocusBlockId, requestFocus, onParagraphEnter,
+  pendingFocus, requestFocus, pendingMerge, clearMerge, onParagraphEnter, onParagraphBackspace,
 }: BlockCanvasProps) {
   if (blocks.length === 0) {
     return (
@@ -54,7 +60,7 @@ export default function BlockCanvas({
             // request landed where it was supposed to -- clearing it here (rather than the moment
             // the request was made) is what keeps it from re-firing on some unrelated later
             // render, per useContentEditor's own contract for requestFocus.
-            if (block.id === pendingFocusBlockId) requestFocus(null);
+            if (pendingFocus?.blockId === block.id) requestFocus(null);
           }}
           onChange={onUpdateBlock}
           onRemove={() => onRemoveBlock(block.id)}
@@ -62,7 +68,10 @@ export default function BlockCanvas({
           onMoveDown={() => onMoveBlock(block.id, 1)}
           token={token}
           onEnter={(payload) => onParagraphEnter(block.id, index, payload)}
-          autoFocus={block.id === pendingFocusBlockId}
+          onBackspaceAtStart={(payload) => onParagraphBackspace(block.id, index, payload)}
+          autoFocus={pendingFocus?.blockId === block.id ? pendingFocus.position : false}
+          pendingMerge={pendingMerge?.blockId === block.id ? pendingMerge.incoming : null}
+          onMergeApplied={clearMerge}
         />
       ))}
     </div>

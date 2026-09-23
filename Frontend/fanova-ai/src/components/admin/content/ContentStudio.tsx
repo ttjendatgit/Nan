@@ -10,7 +10,7 @@ import type { ParagraphBlock } from "@/types/contentBlocks";
 import { useContentEditor } from "@/hooks/useContentEditor";
 import type { ContentDocument } from "@/types/content";
 import type { Product } from "@/types/catalog";
-import type { ParagraphEnterPayload } from "./editor/RichTextInput";
+import type { ParagraphBackspacePayload, ParagraphEnterPayload } from "./editor/RichTextInput";
 import ContentStudioHeader from "./ContentStudioHeader";
 import ContentMetadataForm from "./ContentMetadataForm";
 import SeoPanel, { type SeoErrors } from "./SeoPanel";
@@ -212,6 +212,47 @@ export default function ContentStudio({
     const splitBlock: ParagraphBlock = { ...createParagraphBlock(), text: after, align: currentBlock.align };
     editor.insertBlockAt(splitBlock, index + 1);
     editor.requestFocus(splitBlock.id);
+  }
+
+  /**
+   * A2: what a plain Backspace at the very start of a ParagraphBlock does -- Enter's inverse.
+   * RichTextInput only ever reports state (is this block empty, and its full current doc); every
+   * decision about what that means for the block array is made here, same division of
+   * responsibility as handleParagraphEnter above.
+   *
+   * The actual content merge does NOT happen here as a JSON splice -- `editor.requestMerge(prev.id,
+   * doc)` only records the intent (which block, what's incoming). The previous block's own
+   * RichTextInput picks that up via its `pendingMerge` prop and performs the splice inside its own
+   * live TipTap editor, where the join-point cursor position is just "wherever the insert landed"
+   * rather than a number this component would have to compute by hand from raw JSON -- see the
+   * `pendingMerge` effect in RichTextInput.tsx for why that matters.
+   *
+   * requestMerge is called before removeBlock on purpose: the target block must stay mounted and
+   * rendered throughout, since its own effect is what performs the splice -- removing it first
+   * (or removing the source block first, though order between removeBlock and requestMerge here
+   * doesn't itself matter) is not what's being guarded against; unmounting the *target* before its
+   * merge effect runs is.
+   */
+  function handleParagraphBackspace(blockId: string, index: number, payload: ParagraphBackspacePayload) {
+    if (index === 0) return; // no previous block to delete into or merge with
+
+    const prev = editor.blocks[index - 1];
+    if (!prev) return;
+
+    if (payload.isEmpty) {
+      editor.removeBlock(blockId);
+      // Only a paragraph has meaningful "end of content" to land the cursor in -- landing focus
+      // on an image/heading/etc. isn't part of this task's scope, so it's simply skipped, leaving
+      // focus wherever it already was (mirrors A1's atStart case, which also sometimes leaves
+      // focus untouched rather than forcing it somewhere).
+      if (prev.type === "paragraph") editor.requestFocus(prev.id, "end");
+      return;
+    }
+
+    if (prev.type !== "paragraph") return; // don't merge text into a non-paragraph block
+
+    editor.requestMerge(prev.id, payload.doc);
+    editor.removeBlock(blockId);
   }
 
   function handleBack() {
@@ -443,9 +484,12 @@ export default function ContentStudio({
           onRemoveBlock={editor.removeBlock}
           onMoveBlock={editor.moveBlock}
           token={token}
-          pendingFocusBlockId={editor.pendingFocusBlockId}
+          pendingFocus={editor.pendingFocus}
           requestFocus={editor.requestFocus}
+          pendingMerge={editor.pendingMerge}
+          clearMerge={editor.clearMerge}
           onParagraphEnter={handleParagraphEnter}
+          onParagraphBackspace={handleParagraphBackspace}
         />
         <PreviewPanel blocks={editor.blocks} />
       </div>

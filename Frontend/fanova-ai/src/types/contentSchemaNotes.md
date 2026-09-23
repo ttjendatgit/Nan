@@ -288,3 +288,63 @@ DOM focus -- not the moment the request is made, so a stale request can never re
 **Deliberately not undo-able yet.** Creating a block via Enter doesn't participate in any
 undo/redo mechanism (there isn't one at the document level in Content Studio at all) -- known and
 accepted for this phase, not a gap this phase was scoped to close.
+
+## Backspace deletes or merges a paragraph (Phase A2 -- Enter's inverse)
+
+Enter's counterpart. Pressing Backspace with a collapsed selection at the very start of a
+ParagraphBlock's content now acts on the block array instead of doing nothing. No schema change
+here either -- same `ParagraphBlock` shape as A1 left it, this is purely input handling.
+
+| Situation | Behavior |
+|---|---|
+| Current block is the first block in the document | Nothing happens (falls through to TipTap's default Backspace) |
+| Current block is EMPTY | Delete the current block. If the previous block is a paragraph, focus lands at the END of its content. If the previous block is any other type (image, divider, heading, ...), just delete -- no focus change |
+| Current block has content, previous block IS a paragraph | Merge the current block's content onto the end of the previous block, delete the current block, cursor lands exactly at the join point |
+| Current block has content, previous block is NOT a paragraph | Nothing happens |
+
+Every mark (bold, italic, link, highlight) on both sides of a merge survives it.
+
+**Why the merge is performed inside the target block's own live editor, not as a JSON splice in
+ContentStudio.** The tempting shortcut is: read both blocks' `text`, concatenate the JSON by hand,
+call `updateBlock` with the combined doc, and tell the surviving block "put the cursor at position
+N." The problem is entirely in that last part -- computing N correctly from raw JSON means
+re-deriving exactly the kind of ProseMirror position arithmetic A1-fix had to fix once already
+(position 0 vs. 1, `parentOffset`, node boundaries). ContentStudio has no live `EditorState` to
+resolve a position against; the target block's own RichTextInput does. So the merge is expressed
+as *intent*, not a data operation: `useContentEditor` gained `pendingMerge`/`requestMerge`/
+`clearMerge` (mirroring `pendingFocus`/`requestFocus` from A1), and `ContentStudio.
+handleParagraphBackspace` only ever calls `requestMerge(prev.id, doc)` -- it hands the previous
+block's id and the deleted block's full doc to the state layer and stops there. RichTextInput.tsx
+picks up `pendingMerge` for the one block whose id matches, and performs the actual splice with
+`editor.chain().focus("end").insertContent([...]).setTextSelection(joinPos).run()` against its own
+live doc, where `joinPos` is just "the position the cursor already sits at, right before inserting"
+-- no arithmetic invented from JSON, only positions the live editor already resolved for itself.
+`setTextSelection`'s own implementation (`@tiptap/core`) clamps its argument to the document's
+valid range internally, so a `joinPos` that happened to be stale or out of range degrades to the
+nearest valid position instead of throwing -- not something this code has to guard separately.
+
+**Legacy string content merges fine, without ever reading `block.text`.** Some ParagraphBlocks
+still hold a plain `string` (pre-Phase-2.3.1 data, untouched since). That block's RichTextInput
+still loaded that string through `resolveInitialContent` into a real TipTap editor instance the
+same as any other paragraph (see the Phase 2.3.1 section above) -- so `editor.state.doc.toJSON()`
+inside its own `handleKeyDown`'s Backspace branch always produces a proper `TipTapDocument`
+regardless of what shape `block.text` started as. `handleParagraphBackspace` and the `pendingMerge`
+effect only ever work with that live-editor-derived `doc`/`incoming` value -- neither reads
+`block.text` directly, so a legacy string block merges exactly like a TipTapDocument one.
+
+**Focus after a merge lands via the same `pendingFocus` mechanism A1 introduced**, extended with a
+`position: "start" | "end"` field (`requestFocus`'s second argument, defaulting to `"start"` so
+every A1 call site keeps behaving exactly as before without being touched). A2 always requests
+`"end"` -- either "focus the previous paragraph's end" (empty-block-delete case) or "focus this
+paragraph's end so autoFocus mounts it, letting the `pendingMerge` effect's own `setTextSelection`
+place the cursor precisely at the join point afterward" (merge case).
+
+**Ordering inside `handleParagraphBackspace` is deliberate**: `requestMerge` is called before
+`removeBlock`. The block being deleted doesn't need to stay mounted for anything; the *target*
+block does, since its own effect is what performs the splice, and removing blocks re-renders the
+whole list -- calling `requestMerge` first just keeps the sequence in the same order the two
+operations will conceptually resolve in (record the intent, then remove what's now redundant).
+
+**Out of scope, unchanged from A1's own list**: Delete (forward) is not handled, only Backspace.
+No cross-type merge (merging into a heading, quote, etc. is not implemented -- only
+paragraph-into-paragraph). No undo/redo participation, same as A1.
