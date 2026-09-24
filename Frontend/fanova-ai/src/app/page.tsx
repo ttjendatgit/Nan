@@ -1,4 +1,3 @@
-import FanIntroWrapper from "@/components/intro/FanIntroWrapper";
 import Navbar from "@/components/common/Navbar";
 import HeroSection from "@/components/homepage/HeroSection";
 import BrandStatementSection from "@/components/homepage/BrandStatementSection";
@@ -17,7 +16,10 @@ import HomepageNarrativeMotif from "@/components/homepage/HomepageNarrativeMotif
 export default function Home() {
   return (
     <main>
-      <FanIntroWrapper />
+      {/* H4: FanIntroWrapper removed from the homepage per the H4 task's own decision point --
+          the ported HeroSilkStage's own ~3s opening animation now plays that role instead.
+          components/intro/ is kept (FanIntroWrapper, FanIntro), just unused here, in case a
+          future decision brings the full-screen intro back. */}
       <Navbar />
 
       {/* 1. Hero — what Nan is, primary CTA */}
