@@ -29,6 +29,29 @@ const HeroVisualStage = dynamic(() => import("./HeroVisualStage"), {
 // isDesktop === false.
 const MOBILE_HERO_VARIANT: "A" | "B" = "B";
 
+// ── Mobile variant B fan sizing (H5-mobile-fit) ──
+// SilkFan's viewBox is "-66 9 1132 648.235" (SilkFan.tsx). The fan body -- silk plus both guard
+// ribs at their fully-open ±78° -- spans x ≈ 77.6..922.4 in it, i.e. ~74% of the viewBox width;
+// the rest is the ray field. At 120% of the screen width the body therefore covers ~89% of the
+// screen (0.746 × 120%) with nothing of it cut off, and only the rays overflow the sides.
+const MOBILE_FAN_WIDTH_PERCENT = 120;
+const SILK_FAN_VIEWBOX = { y: 9, width: 1132, height: 648.235 };
+// Highest point of the silk's scalloped top edge in the fully-open resting pose (rim curves of
+// renderSilk in SilkFan.tsx, sampled numerically): y ≈ 138.73 -- (138.73 - 9) / 648.235 ≈ 20.0% down
+// the viewBox. The rays sit above it and are allowed to run up behind the navbar.
+const SILK_TOP_VIEWBOX_Y = 138.73;
+const MOBILE_SILK_TOP_GAP_PX = 12;
+// The block's height is width × (648.235 / 1132), so the silk top sits
+// (138.73 - 9) / 1132 × 120% ≈ 13.752% of the *section width* below the block's top edge. A
+// percentage margin-top also resolves against the containing block's width, so:
+//   margin-top = navbar height + 12px − 13.752%   → silk top lands exactly 12px under the navbar.
+// Navbar height comes from --nav-height (published by Navbar.tsx from its real rendered size:
+// 126px at 375px wide, where the announcement line wraps; 112.5px at 440px); 112.5px is the
+// single-line fallback before that first measurement lands.
+const MOBILE_SILK_TOP_OFFSET_PERCENT =
+  (((SILK_TOP_VIEWBOX_Y - SILK_FAN_VIEWBOX.y) / SILK_FAN_VIEWBOX.width) * MOBILE_FAN_WIDTH_PERCENT).toFixed(3);
+const MOBILE_FAN_MARGIN_TOP = `calc(var(--nav-height, 112.5px) + ${MOBILE_SILK_TOP_GAP_PX}px - ${MOBILE_SILK_TOP_OFFSET_PERCENT}%)`;
+
 const DESKTOP_BREAKPOINT_QUERY = "(min-width: 768px)";
 
 function subscribeToDesktopBreakpoint(onChange: () => void): () => void {
@@ -51,6 +74,8 @@ export default function HeroSection() {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const isDesktop = useIsDesktop();
+  // Branches that mark their fan wrapper with data-ha="visual": desktop and mobile variant B.
+  const hasVisualTarget = isDesktop === true || (isDesktop === false && MOBILE_HERO_VARIANT === "B");
 
   // Split headline into words for per-word GSAP animation
   const words = heroConfig.headline.split(" ");
@@ -100,9 +125,15 @@ export default function HeroSection() {
      visibility. FanIntro (if it plays) is a fully opaque full-screen overlay
      on top of this, so this animation running underneath it is invisible
      until the overlay itself dissolves -- no coordination between the two
-     is required. ── */
+     is required.
+     H5-fix: gated on isDesktop. While it is still null (server render and the
+     first client render), no branch below is mounted -- not even the text
+     column -- so every selector here would come back empty. Re-runs (with the
+     previous run reverted) when isDesktop resolves or flips across the
+     breakpoint, since that swaps in a freshly mounted branch. ── */
   useGSAP(
     () => {
+      if (isDesktop === null) return;
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (reduced) return;
 
@@ -136,22 +167,28 @@ export default function HeroSection() {
         { opacity: 1, y: 0, duration: 0.5, ease: "power2.out", stagger: 0.07, delay: 0.8, clearProps: "transform" }
       );
 
-      gsap.fromTo(
-        "[data-ha='visual']",
-        { opacity: 0, scale: 0.96 },
-        { opacity: 1, scale: 1, duration: 0.9, ease: "power2.out", delay: 0.1, clearProps: "transform" }
-      );
+      // Mobile variant A renders its fan as an unmarked dim background layer -- no
+      // [data-ha='visual'] exists in that branch, so the tween is skipped there.
+      if (hasVisualTarget) {
+        gsap.fromTo(
+          "[data-ha='visual']",
+          { opacity: 0, scale: 0.96 },
+          { opacity: 1, scale: 1, duration: 0.9, ease: "power2.out", delay: 0.1, clearProps: "transform" }
+        );
+      }
     },
-    { scope: containerRef, dependencies: [] }
+    { scope: containerRef, dependencies: [isDesktop], revertOnUpdate: true }
   );
 
   /* ── Hero scroll-out depth: visual stage and text gently recede as user
      scrolls past the hero into the brand narrative.
-     Runs once on mount (dependencies: []). The load-in animation sets all
+     Same isDesktop gate as the reveal above (textRef and [data-ha='visual']
+     only exist once a branch is mounted). The load-in animation sets all
      elements to their visible state first; these scrubbed ScrollTriggers then
      ease them out as the hero exits the viewport. ── */
   useGSAP(
     () => {
+      if (isDesktop === null) return;
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (reduced || !containerRef.current) return;
 
@@ -206,14 +243,18 @@ export default function HeroSection() {
         );
       }
     },
-    { scope: containerRef, dependencies: [] }
+    { scope: containerRef, dependencies: [isDesktop], revertOnUpdate: true }
   );
 
   // Extracted once so its markup -- textRef, every data-ha attribute GSAP's own fromTo/scrollTrigger
   // selectors target -- stays byte-identical across the mutually-exclusive render branches below,
-  // instead of being duplicated (and risking drifting out of sync) in each one.
+  // instead of being duplicated (and risking drifting out of sync) in each one. The only per-branch
+  // difference is the top padding: mobile variant B starts the text a fixed 24px (pt-6) below the
+  // fan block instead of py-16's 64px, since there the text follows the fan in normal flow rather
+  // than being vertically centered next to / over it.
+  const isMobileB = isDesktop === false && MOBILE_HERO_VARIANT === "B";
   const textColumn = (
-    <div ref={textRef} className="w-full py-16 md:w-[50%] lg:w-[48%]">
+    <div ref={textRef} className={`w-full ${isMobileB ? "pb-16 pt-6" : "py-16"} md:w-[50%] lg:w-[48%]`}>
       <div className="max-w-[480px]">
 
         {/* Badge — CMS: heroConfig.badge */}
@@ -367,31 +408,35 @@ export default function HeroSection() {
           accompanies it, differs. */}
       {isDesktop === false && MOBILE_HERO_VARIANT === "B" && (
         <>
-          {/* Mobile variant B: the fan itself, not a dim background -- full-width, overflow-hidden,
-              scaled up ~1.3x so its ray field spills past the block's own edges. Capped at 40svh so
-              the headline (vertically centered in the *remaining* space below, via the min-h-[60svh]
-              text row) still lands in the first mobile viewport.
-
-              mt-[152px] clears Navbar's fixed header (h-[84px] main bar + the announcement bar --
-              py-[7px] padding plus its text-[9px] line's own height, ≈28px, since Tailwind doesn't
-              pair an automatic line-height with arbitrary text-size values -- ≈112px total) plus the
-              task's own ≥24px minimum gap below it, plus a margin-top so the ray ring reads with
-              clear space under the navbar (a real-device check is still worth doing: this file can't
-              render to measure the navbar's exact height, and the fan's own aspect-fit letterboxing
-              inside this box means the ray ring's actual top could sit a little above or below this
-              block's own top edge, not necessarily flush with it). <section>'s own overflow-hidden
-              (further up this file) establishes a block formatting context, so this margin doesn't
-              collapse with the section's top edge. */}
+          {/* Mobile variant B: the fan itself, not a dim background. The stage box is
+              MOBILE_FAN_WIDTH_PERCENT wide, centered by a negative left margin, and its height
+              follows the SilkFan viewBox's own aspect ratio -- so the SVG fills it exactly (no
+              letterboxing) and the three.js canvases (absolute inset-0 inside HeroSilkStage) cover
+              the same area at real size, with no CSS transform in between. The outer wrapper only
+              clips horizontally: overflow-x: clip (unlike overflow-x: hidden) leaves the vertical
+              axis truly visible, so nothing is ever cut top or bottom. margin-top: see
+              MOBILE_FAN_MARGIN_TOP. <section>'s own overflow-hidden (further up this file)
+              establishes a block formatting context, so this margin doesn't collapse with the
+              section's top edge. */}
           <div
             data-ha="visual"
             aria-hidden="true"
-            className="relative z-[1] mt-[152px] h-[40svh] w-full overflow-hidden"
+            className="relative z-[1] w-full overflow-x-clip"
+            style={{ marginTop: MOBILE_FAN_MARGIN_TOP }}
           >
-            <div className="absolute inset-0 origin-center scale-[1.3]">
+            <div
+              style={{
+                width: `${MOBILE_FAN_WIDTH_PERCENT}%`,
+                marginLeft: `${-(MOBILE_FAN_WIDTH_PERCENT - 100) / 2}%`,
+                aspectRatio: `${SILK_FAN_VIEWBOX.width} / ${SILK_FAN_VIEWBOX.height}`,
+              }}
+            >
               <HeroVisualStage />
             </div>
           </div>
-          <div className="relative z-10 mx-auto flex min-h-[60svh] max-w-7xl items-center px-6 lg:px-12">
+          {/* No min-height / vertical centering here: the text sits directly under the fan block
+              (24px, via textColumn's pt-6) so the first CTA stays inside the first viewport. */}
+          <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-12">
             {textColumn}
           </div>
         </>

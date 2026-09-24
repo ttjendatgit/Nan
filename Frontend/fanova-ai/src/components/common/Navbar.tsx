@@ -266,6 +266,7 @@ export default function Navbar() {
   const searchWrapRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchFetchingRef = useRef(false);
+  const headerRef = useRef<HTMLElement>(null);
 
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const pathname = usePathname();
@@ -306,6 +307,24 @@ export default function Navbar() {
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Publishes the fixed header's real rendered height as --nav-height on <html>, so content that
+  // has to clear it (HeroSection's mobile fan block) can use the actual value instead of a guess.
+  // The height isn't a constant: the announcement bar's text wraps to two lines on narrow phones
+  // (126px total at 375px wide vs 112.5px at 440px, measured).
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const root = document.documentElement;
+    const observer = new ResizeObserver(() => {
+      root.style.setProperty("--nav-height", `${header.getBoundingClientRect().height}px`);
+    });
+    observer.observe(header);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--nav-height");
+    };
   }, []);
 
   // Load the searchable product + category pool once, the first time search
@@ -369,7 +388,7 @@ export default function Navbar() {
     : [];
 
   return (
-    <header className="fixed left-0 top-0 z-[999] w-full">
+    <header ref={headerRef} className="fixed left-0 top-0 z-[999] w-full">
       {/* ── Announcement bar ── */}
       {announcementBar.visible && (
         <div
@@ -378,7 +397,11 @@ export default function Navbar() {
         >
           <div className="flex items-center gap-2">
             <span aria-hidden="true" className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#B6A17B]/60" />
-            <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#F1F0EA]/45">
+            {/* Below 400px the desktop tracking (0.22em) wraps this line onto two rows, which makes
+                the fixed header ~13.5px taller and pushes the whole mobile hero down. Tighter
+                tracking keeps it on one line down to ~352px; below 360px the size also drops to 8px
+                (fits down to ~312px). Tailwind v4's max-[Npx] means width < N. */}
+            <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#F1F0EA]/45 max-[400px]:tracking-[0.12em] max-[360px]:text-[8px] max-[360px]:tracking-[0.1em]">
               {announcementBar.text}
             </span>
             <span aria-hidden="true" className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#B6A17B]/60" />

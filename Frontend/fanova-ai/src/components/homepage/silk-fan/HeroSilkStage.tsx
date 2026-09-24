@@ -110,10 +110,11 @@ const CANVAS_GL = { antialias: true, alpha: true, powerPreference: "high-perform
 //   2. WebGL probe              (creates + immediately releases a test context)
 // The WebGL probe is intentionally deferred to the first moment the canvases are allowed to mount
 // (onOpened fires, or reduceMotion is true) -- not at component mount -- so no context is ever
-// created before the fan finishes its own opening animation. The result is cached in a ref and
-// never re-computed on re-renders or palette switches.
+// created before the fan finishes its own opening animation. The result is cached in the
+// atmosphereEnabled state (null until probed) and never re-computed on re-renders or palette
+// switches.
 function canUseAtmosphere(): boolean {
-  // Guard: must be client-side (lazy ref effect already ensures this, but keep the check inside
+  // Guard: must be client-side (its only caller is a useEffect, which already ensures this, but keep the check inside
   // the function so it is safe to call from anywhere without SSR risk).
   if (typeof window === "undefined" || typeof navigator === "undefined") return false;
 
