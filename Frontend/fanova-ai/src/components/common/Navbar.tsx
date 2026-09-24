@@ -357,15 +357,15 @@ export default function Navbar() {
   const normalizedQuery = normalizeSearchText(trimmedQuery);
   const matchedCategories = normalizedQuery && categoryPool
     ? categoryPool
-        .filter((c) => normalizeSearchText(`${c.name} ${c.description ?? ""}`).includes(normalizedQuery))
-        .slice(0, 4)
+      .filter((c) => normalizeSearchText(`${c.name} ${c.description ?? ""}`).includes(normalizedQuery))
+      .slice(0, 4)
     : [];
   const matchedProducts = normalizedQuery && productPool
     ? productPool
-        .filter((p) =>
-          normalizeSearchText(`${p.name} ${p.description ?? ""} ${p.categoryName ?? ""}`).includes(normalizedQuery),
-        )
-        .slice(0, 5)
+      .filter((p) =>
+        normalizeSearchText(`${p.name} ${p.description ?? ""} ${p.categoryName ?? ""}`).includes(normalizedQuery),
+      )
+      .slice(0, 5)
     : [];
 
   return (
@@ -441,7 +441,7 @@ export default function Navbar() {
           </nav>
 
           {/* Right: icon actions + editorial CTA */}
-          <div className="flex items-center justify-self-end gap-5">
+          <div className="col-start-3 flex items-center justify-self-end gap-5">
             <div className="hidden items-center gap-4 md:flex">
               {/* Search */}
               <div ref={searchWrapRef} className="relative">
@@ -638,9 +638,8 @@ export default function Navbar() {
                     <Link
                       href={item.href}
                       onClick={() => setMobileOpen(false)}
-                      className={`block py-3 font-serif text-[28px] font-medium leading-tight transition-colors ${
-                        active ? "text-[#F1F0EA]" : "text-[#A9ABA5]"
-                      }`}
+                      className={`block py-3 font-serif text-[28px] font-medium leading-tight transition-colors ${active ? "text-[#F1F0EA]" : "text-[#A9ABA5]"
+                        }`}
                     >
                       {item.label}
                     </Link>
