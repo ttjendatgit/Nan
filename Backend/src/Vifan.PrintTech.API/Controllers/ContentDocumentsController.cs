@@ -9,11 +9,11 @@ namespace Vifan.PrintTech.API.Controllers;
 
 /// <summary>
 /// Manages ContentDocument records -- the Content Studio foundation for future product content,
-/// static pages, and blog posts (Phase 1.1/1.2). Manager-only throughout, unlike
-/// Products/Categories: there is no public read path yet, because no publish/visibility logic
-/// exists for Page/BlogPost documents (that's explicitly out of scope for this phase), so an
-/// anonymous GET would leak Draft content. Follows the same all-Manager, no-public-exposure
-/// convention as OptionDefinitionsController/PricingRulesController/ProductOptionsController.
+/// static pages, and blog posts (Phase 1.1/1.2). Manager-only throughout: every action here
+/// returns the admin DTO, including DraftBlocksJson. The anonymous, Published-only read path lives
+/// in PublishedContentDocumentsController (Content Studio B1), deliberately not as
+/// [AllowAnonymous] actions on this controller. Follows the same all-Manager convention as
+/// OptionDefinitionsController/PricingRulesController/ProductOptionsController.
 /// </summary>
 [Route("api/content-documents")]
 [Authorize(Roles = Roles.Manager)]

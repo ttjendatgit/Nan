@@ -14,7 +14,8 @@ function contentDocumentsUrl(path = "", params?: Record<string, string | number 
 }
 
 /** GET /api/content-documents — paginated list, optional Type filter. Requires Manager token
- * (the endpoint is Manager-only throughout; no public read path exists yet). */
+ * (the endpoint is Manager-only throughout; the anonymous Published-only read path is
+ * /api/content-documents/published/{type}[/{slug}]). */
 export async function getContentDocuments(
   params: { type?: string; pageNumber?: number; pageSize?: number },
   token: string,

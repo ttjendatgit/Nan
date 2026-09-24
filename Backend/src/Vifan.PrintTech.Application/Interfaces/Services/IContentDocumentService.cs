@@ -21,4 +21,16 @@ public interface IContentDocumentService
         CancellationToken cancellationToken = default);
 
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>Public read: the Published document of this Type with this Slug. Throws
+    /// NotFoundException when it doesn't exist, has another Type, or is Draft/Archived.</summary>
+    Task<PublishedContentDocumentDto> GetPublishedAsync(
+        string type,
+        string slug,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Public read: Slug + UpdatedAt of every Published document of this Type.</summary>
+    Task<IReadOnlyList<PublishedContentDocumentSummaryDto>> GetPublishedSummariesAsync(
+        string type,
+        CancellationToken cancellationToken = default);
 }

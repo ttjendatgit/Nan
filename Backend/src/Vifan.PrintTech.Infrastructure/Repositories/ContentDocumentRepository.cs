@@ -52,4 +52,30 @@ public class ContentDocumentRepository : Repository<ContentDocument>, IContentDo
 
         return await query.AnyAsync(cancellationToken);
     }
+
+    public async Task<ContentDocument?> GetPublishedBySlugAsync(
+        ContentDocumentType type,
+        string slug,
+        CancellationToken cancellationToken = default)
+    {
+        return await DbSet
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.Type == type && x.Slug == slug && x.Status == ContentStatus.Published,
+                cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<(string Slug, DateTime UpdatedAt)>> GetPublishedSummariesAsync(
+        ContentDocumentType type,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await DbSet
+            .AsNoTracking()
+            .Where(x => x.Type == type && x.Status == ContentStatus.Published)
+            .OrderBy(x => x.Slug)
+            .Select(x => new { x.Slug, x.UpdatedAt })
+            .ToListAsync(cancellationToken);
+
+        return rows.Select(x => (x.Slug, x.UpdatedAt)).ToList();
+    }
 }

@@ -426,7 +426,10 @@ export default function ContentStudio({
 
   function handleSaveDraft() {
     return persist({
-      status: "Draft",
+      // The document's own persisted status, not a hard-coded "Draft": saving a draft of a
+      // Published document must keep it Published (its public BlocksJson stays live), and a Draft
+      // or Archived document stays exactly that. Only Publish changes status.
+      status,
       // Unchanged: a draft save must never silently overwrite what's actually published.
       blocksJson: publishedBlocksJson,
       draftBlocksJson: editor.serializeBlocks(),

@@ -4,6 +4,7 @@ using Vifan.PrintTech.Application.DTOs.Content;
 using Vifan.PrintTech.Application.Exceptions;
 using Vifan.PrintTech.Application.Interfaces.Repositories;
 using Vifan.PrintTech.Application.Interfaces.Services;
+using Vifan.PrintTech.Domain.Constants;
 using Vifan.PrintTech.Domain.Entities;
 using Vifan.PrintTech.Domain.Enums;
 using Vifan.PrintTech.Domain.Helpers;
@@ -131,6 +132,45 @@ public class ContentDocumentService : IContentDocumentService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<PublishedContentDocumentDto> GetPublishedAsync(
+        string type,
+        string slug,
+        CancellationToken cancellationToken = default)
+    {
+        var parsedType = ParseType(type);
+
+        var document = await _contentDocumentRepository.GetPublishedBySlugAsync(parsedType, slug.Trim(), cancellationToken)
+            ?? throw new NotFoundException("Content document not found.");
+
+        return new PublishedContentDocumentDto
+        {
+            Type = document.Type.ToString(),
+            Slug = document.Slug,
+            Title = document.Title,
+            // Published content only -- DraftBlocksJson is never a fallback, even when BlocksJson
+            // is empty, since that would publish unreviewed edits.
+            BlocksJson = document.BlocksJson,
+            SeoTitle = document.SeoTitle,
+            SeoDescription = document.SeoDescription,
+            SeoKeywords = document.SeoKeywords,
+            SeoImageUrl = document.SeoImageUrl,
+            CanonicalUrl = document.CanonicalUrl,
+            UpdatedAt = document.UpdatedAt
+        };
+    }
+
+    public async Task<IReadOnlyList<PublishedContentDocumentSummaryDto>> GetPublishedSummariesAsync(
+        string type,
+        CancellationToken cancellationToken = default)
+    {
+        var parsedType = ParseType(type);
+        var rows = await _contentDocumentRepository.GetPublishedSummariesAsync(parsedType, cancellationToken);
+
+        return rows
+            .Select(x => new PublishedContentDocumentSummaryDto { Slug = x.Slug, UpdatedAt = x.UpdatedAt })
+            .ToList();
+    }
+
     // Enforces the invariant already documented on the entity (Phase 1.1): ProductId is required
     // exactly when Type is ProductContent, and must reference a real Product. This is the
     // entity's own already-declared shape, not a new business rule.
@@ -180,6 +220,14 @@ public class ContentDocumentService : IContentDocumentService
         CancellationToken cancellationToken)
     {
         var slug = SlugHelper.Generate(baseSlug);
+
+        // Checked on the normalized slug (the same value that would be stored), before the
+        // uniqueness suffixing below -- "admin" is rejected, not silently turned into "admin-1".
+        // Covers create and update alike (both resolve their slug here); Type itself can't change
+        // on update, so a document can't become a Page with an already-reserved slug that way.
+        if (type == ContentDocumentType.Page && ReservedSlugs.Page.Contains(slug))
+            throw new ValidationException($"Slug '{slug}' is reserved for a system route and cannot be used for a Page.");
+
         var candidate = slug;
         var suffix = 1;
 

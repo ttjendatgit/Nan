@@ -19,4 +19,18 @@ public interface IContentDocumentRepository : IRepository<ContentDocument>
         string slug,
         Guid? excludeId = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>The Published document with this exact (Type, Slug), or null -- Draft/Archived
+    /// rows are never returned. Read-only (no tracking).</summary>
+    Task<ContentDocument?> GetPublishedBySlugAsync(
+        ContentDocumentType type,
+        string slug,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Slug + UpdatedAt of every Published document of this Type, ordered by Slug.
+    /// Unpaged on purpose (sitemap source -- must not silently drop documents); projects only
+    /// those two columns, never block content.</summary>
+    Task<IReadOnlyList<(string Slug, DateTime UpdatedAt)>> GetPublishedSummariesAsync(
+        ContentDocumentType type,
+        CancellationToken cancellationToken = default);
 }
