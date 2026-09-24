@@ -434,20 +434,52 @@ export default function TuningPanel({ config, onChange, onReset }: TuningPanelPr
               onChange={(v) => updateSection("parallax", { ...config.parallax, damping: v })}
             />
             <SliderRow
-              label="Idle amplitude"
-              value={config.parallax.idleAmplitude}
-              min={0}
-              max={1}
-              step={0.01}
-              onChange={(v) => updateSection("parallax", { ...config.parallax, idleAmplitude: v })}
-            />
-            <SliderRow
               label="Idle period (s)"
               value={config.parallax.idlePeriodSec}
               min={1}
               max={30}
               step={0.5}
               onChange={(v) => updateSection("parallax", { ...config.parallax, idlePeriodSec: v })}
+            />
+            <SliderRow
+              label="Mobile idle amplitude"
+              value={config.parallax.mobileIdleAmplitude}
+              min={0}
+              max={1}
+              step={0.01}
+              onChange={(v) => updateSection("parallax", { ...config.parallax, mobileIdleAmplitude: v })}
+            />
+            <SliderRow
+              label="Scroll influence (mobile)"
+              value={config.parallax.scrollInfluence}
+              min={0}
+              max={2}
+              step={0.05}
+              onChange={(v) => updateSection("parallax", { ...config.parallax, scrollInfluence: v })}
+            />
+            <SliderRow
+              label="Mobile max tilt X (deg)"
+              value={config.parallax.mobileFanMaxTiltXDeg}
+              min={0}
+              max={30}
+              step={0.5}
+              onChange={(v) => updateSection("parallax", { ...config.parallax, mobileFanMaxTiltXDeg: v })}
+            />
+            <SliderRow
+              label="Mobile perspective (px)"
+              value={config.parallax.mobilePerspectivePx}
+              min={300}
+              max={1500}
+              step={10}
+              onChange={(v) => updateSection("parallax", { ...config.parallax, mobilePerspectivePx: v })}
+            />
+            <SliderRow
+              label="Scroll tilt peak at"
+              value={config.parallax.scrollTiltPeakAt}
+              min={0.2}
+              max={1}
+              step={0.05}
+              onChange={(v) => updateSection("parallax", { ...config.parallax, scrollTiltPeakAt: v })}
             />
             <DirectionToggle
               label="Fan tilt direction"

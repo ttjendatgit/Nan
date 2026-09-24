@@ -219,10 +219,16 @@ export default function HeroSilkStage({ text, className, config }: HeroSilkStage
   // IntersectionObserver-derived `visible` state above instead of usePointerField creating a
   // second observer. Already gated correctly (verified for H3-polish): usePointerField's own effect
   // depends on `active` and returns early without scheduling a frame when it's false.
+  //
+  // H6: on pointer:coarse, y follows the scroll-out progress of this stage's own container -- the
+  // fan block itself (see usePointerField's scrollTargetRef).
   const pointerRef = usePointerField({
     damping: stage.parallax.damping,
-    idleAmplitude: stage.parallax.idleAmplitude,
+    mobileIdleAmplitude: stage.parallax.mobileIdleAmplitude,
     idlePeriodSec: stage.parallax.idlePeriodSec,
+    scrollInfluence: stage.parallax.scrollInfluence,
+    scrollTiltPeakAt: stage.parallax.scrollTiltPeakAt,
+    scrollTargetRef: containerRef,
     active: visible,
     reduceMotion,
     coarsePointer,
@@ -261,7 +267,10 @@ export default function HeroSilkStage({ text, className, config }: HeroSilkStage
       const pointer = pointerRef.current;
       tiltRef.current = pointer.x * 2.5;
       const rotateY = pointer.x * stage.parallax.fanMaxTiltYDeg * stage.parallax.fanTiltDirection;
-      const rotateX = -pointer.y * stage.parallax.fanMaxTiltXDeg * stage.parallax.fanTiltDirection;
+      // H6: pointer:coarse gets its own, much larger rotateX cap -- there y is scroll-driven (0..1,
+      // one-sided), not a pointer swinging around the center, so the desktop cap reads as nothing.
+      const maxTiltXDeg = coarsePointer ? stage.parallax.mobileFanMaxTiltXDeg : stage.parallax.fanMaxTiltXDeg;
+      const rotateX = -pointer.y * maxTiltXDeg * stage.parallax.fanTiltDirection;
       if (fanTiltRef.current) {
         fanTiltRef.current.style.transform = `rotateX(${rotateX.toFixed(3)}deg) rotateY(${rotateY.toFixed(3)}deg)`;
       }
@@ -276,6 +285,8 @@ export default function HeroSilkStage({ text, className, config }: HeroSilkStage
     pointerRef,
     stage.parallax.fanMaxTiltYDeg,
     stage.parallax.fanMaxTiltXDeg,
+    stage.parallax.mobileFanMaxTiltXDeg,
+    coarsePointer,
     stage.parallax.fanTiltDirection,
   ]);
 
@@ -359,7 +370,12 @@ export default function HeroSilkStage({ text, className, config }: HeroSilkStage
       </div>
 
       {/* Layer 2: the fan itself, in a perspective wrapper for the CSS 3D tilt */}
-      <div className="absolute inset-0 z-10" style={{ perspective: `${stage.parallax.perspectivePx}px` }}>
+      {/* H6-tune: pointer:coarse uses a shorter perspective, so its scroll-driven rotateX reads as
+          real depth on a small screen instead of a flat squash. */}
+      <div
+        className="absolute inset-0 z-10"
+        style={{ perspective: `${coarsePointer ? stage.parallax.mobilePerspectivePx : stage.parallax.perspectivePx}px` }}
+      >
         <div ref={fanTiltRef} className="h-full w-full" style={{ transformStyle: "preserve-3d" }}>
           <SilkFan
             text={text}

@@ -59,10 +59,23 @@ export interface ParallaxConfig {
   frontCameraShift: number;
   /** usePointerField's smoothing rate (see usePointerField.ts). */
   damping: number;
-  /** usePointerField's pointer:coarse idle-sway amplitude. */
-  idleAmplitude: number;
   /** usePointerField's pointer:coarse idle-sway period, in seconds. */
   idlePeriodSec: number;
+  /** H6, pointer:coarse only: amplitude of the automatic x sway (usePointerField). */
+  mobileIdleAmplitude: number;
+  /** H6, pointer:coarse only: pointer-field y target = the fan block's scroll-out progress (0 at
+   * its initial position, 1 exactly when its bottom edge leaves the viewport's top) × this -- the
+   * fan leans back and both cameras shift as it scrolls away. */
+  scrollInfluence: number;
+  /** H6, pointer:coarse only: max CSS rotateX of the fan's wrapper at pointer.y = 1, replacing
+   * fanMaxTiltXDeg there. Desktop keeps fanMaxTiltXDeg. */
+  mobileFanMaxTiltXDeg: number;
+  /** H6-tune, pointer:coarse only: CSS perspective (px) on the fan's tilt wrapper, replacing
+   * perspectivePx there. Desktop keeps perspectivePx. */
+  mobilePerspectivePx: number;
+  /** H6-tune, pointer:coarse only: scroll progress at which the scroll-driven tilt peaks
+   * (easeOutCubic up to it, then held). See usePointerField. */
+  scrollTiltPeakAt: number;
   /** H3-polish: 1 (default) keeps H3's original "viewer moves" model -- camera shifts +x means the
    * viewer stepped to the right, and CSS rotateY(+) makes the fan's right edge recede accordingly,
    * matching that same viewer-side move. -1 flips *only* the fan's CSS tilt (rotateY and rotateX)
@@ -180,8 +193,12 @@ export const DEFAULT_STAGE_CONFIG: StageConfig = {
     backCameraShift: 0.4,
     frontCameraShift: 1.6,
     damping: 6,
-    idleAmplitude: 0.35,
     idlePeriodSec: 9,
+    mobileIdleAmplitude: 0.5,
+    scrollInfluence: 1.0,
+    mobileFanMaxTiltXDeg: 12,
+    mobilePerspectivePx: 600,
+    scrollTiltPeakAt: 0.5,
     // H4: made official for the real homepage -- "the fan turns toward the cursor" read better
     // than H3's original "viewer moves" default once compared on the actual Hero layout.
     fanTiltDirection: -1,
