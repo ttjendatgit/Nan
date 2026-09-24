@@ -42,7 +42,7 @@ import {
   smooth,
   type RibAngle,
 } from "./silkFanMath";
-import * as palette from "./silkFanPalette";
+import { NAN_PALETTE, ORIGINAL_PALETTE } from "./silkFanPalette";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const XLINK_NS = "http://www.w3.org/1999/xlink";
@@ -53,6 +53,11 @@ export interface SilkFanProps {
    * either (it read `data-text` once, at script load). */
   text?: string;
   className?: string;
+  /** H5: "nan" (default) uses NAN_PALETTE, derived from Nan's own brand tokens; "original" uses
+   * ORIGINAL_PALETTE, Lộc's hand-picked colors from reference/nan-landing.js, unchanged. Read once
+   * per build -- see the effect's dependency array below -- since every color is baked into
+   * gradient stops at construction time; changing it rebuilds the whole fan, same as `text`. */
+  palette?: "original" | "nan";
   /** Same unit as the original's own `target` variable: `((clientX / innerWidth) - 0.5) * 5`.
    * When provided, no internal `pointermove` listener is added -- that decision is made once, at
    * mount, based on whether this prop is defined at that moment; it isn't re-evaluated if a
@@ -60,6 +65,13 @@ export interface SilkFanProps {
    * inside the animation loop (see below), so changing the *value* frame to frame never restarts
    * the effect or rebuilds the SVG. */
   tiltTarget?: number;
+  /** H3: a shared mutable ref updated ~60x/second by HeroSilkStage's own pointer-field loop
+   * (usePointerField), already in the same unit as `target` (`x_normalized * 2.5`, where the
+   * original used `((clientX/innerWidth)-0.5)*5`). When provided, takes priority over both
+   * tiltTarget and the internal pointermove listener -- see isControlledTilt below -- so one
+   * shared, already-smoothed pointer source can drive the fan's tilt, the CSS 3D layer tilt, and
+   * both canvases' camera shift together, instead of the fan smoothing its own separate copy. */
+  tiltRef?: { current: number };
   /** Called at the exact point the original called `addAll('opened')` inside `done()` -- that
    * call added an 'opened' CSS class to every `.nan-s` element on the page, a page-level
    * integration this standalone component has no equivalent for. Read through a ref, same reason
@@ -121,8 +133,16 @@ interface SilkFanBuild {
   rim: SVGPathElement;
 }
 
-export default function SilkFan({ text = "NAN", className, tiltTarget, onOpened }: SilkFanProps) {
+export default function SilkFan({
+  text = "NAN",
+  className,
+  tiltTarget,
+  tiltRef,
+  onOpened,
+  palette = "nan",
+}: SilkFanProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const activePalette = palette === "original" ? ORIGINAL_PALETTE : NAN_PALETTE;
 
   // Sanitized per the task's requirement: useId()'s raw value (e.g. ":r0:") contains characters
   // that are invalid inside a url(#...) reference or a bare id attribute.
@@ -183,22 +203,22 @@ export default function SilkFan({ text = "NAN", className, tiltTarget, onOpened 
       const id = uid("nanrb" + ribCounter++);
       const d = slatPath(o.tail, rEnd, w0, w1, flat);
       el("path", { d, fill: "rgba(20,14,4,.18)", transform: front ? "translate(3 2.6)" : "translate(1.2 1)" }, g);
-      el("path", { d, fill: `url(#${gradId})`, stroke: palette.ribSlatStroke, "stroke-width": ".5" }, g);
+      el("path", { d, fill: `url(#${gradId})`, stroke: activePalette.ribSlatStroke, "stroke-width": ".5" }, g);
       const gs = el("linearGradient", { id: id + "s", gradientUnits: "userSpaceOnUse", x1: -w1 / 2, y1: 0, x2: w1 / 2, y2: 0 }, defs);
       const gh = el("linearGradient", { id: id + "h", gradientUnits: "userSpaceOnUse", x1: -w1 / 2, y1: 0, x2: w1 / 2, y2: 0 }, defs);
-      g._sh = ["0", ".25", ".75", "1"].map((offset) => el("stop", { offset, "stop-color": palette.ribShadeColor, "stop-opacity": "0" }, gs));
-      g._hi = ["0", ".3", ".7", "1"].map((offset) => el("stop", { offset, "stop-color": palette.ribHighlightColor, "stop-opacity": "0" }, gh));
+      g._sh = ["0", ".25", ".75", "1"].map((offset) => el("stop", { offset, "stop-color": activePalette.ribShadeColor, "stop-opacity": "0" }, gs));
+      g._hi = ["0", ".3", ".7", "1"].map((offset) => el("stop", { offset, "stop-color": activePalette.ribHighlightColor, "stop-opacity": "0" }, gh));
       el("path", { d, fill: `url(#${id}s)` }, g);
       el("path", { d, fill: `url(#${id}h)` }, g);
       if (!front) el("path", { d, fill: "url(#" + uid("nanRibAO") + ")" }, g);
-      g._inlay = el("line", { x1: 0, y1: o.tail - 3, x2: 0, y2: -(rEnd - 5), stroke: palette.ribInlayColor, "stroke-width": ".7", opacity: ".8" }, g);
+      g._inlay = el("line", { x1: 0, y1: o.tail - 3, x2: 0, y2: -(rEnd - 5), stroke: activePalette.ribInlayColor, "stroke-width": ".7", opacity: ".8" }, g);
       if (deco) {
         g._gemHi = [];
         deco.forEach((r) => {
           const dd = (w0 + (w1 - w0) * ((r + o.tail) / (rEnd + o.tail))) * 0.28;
           const gd = `M0 ${-r - dd * 1.6} L${dd} ${-r} L0 ${-r + dd * 1.6} L${-dd} ${-r} Z`;
-          el("path", { d: gd, fill: palette.gemFill, stroke: palette.gemStroke, "stroke-width": ".4" }, g);
-          g._gemHi!.push(el("path", { d: gd, fill: palette.gemHighlightFill, opacity: "0" }, g));
+          el("path", { d: gd, fill: activePalette.gemFill, stroke: activePalette.gemStroke, "stroke-width": ".4" }, g);
+          g._gemHi!.push(el("path", { d: gd, fill: activePalette.gemHighlightFill, opacity: "0" }, g));
         });
       }
       return g;
@@ -235,7 +255,7 @@ export default function SilkFan({ text = "NAN", className, tiltTarget, onOpened 
     function buildSilk(o: SilkFanConfig): SilkFanBuild {
       const S = (2 * o.half) / o.n;
       const root = el("g", { transform: `translate(${o.cx} ${o.cy})` }, svgEl);
-      const rays = el("g", { class: "rays", stroke: palette.goldLineStroke, "stroke-width": "1" }, root);
+      const rays = el("g", { class: "rays", stroke: activePalette.goldLineStroke, "stroke-width": "1" }, root);
       for (let k = 0; k <= 36; k++) {
         const a = ((-90 + k * 5) * Math.PI) / 180;
         const q0 = o.r2 + 30, q1 = o.r2 + (k % 2 ? 78 : 128);
@@ -245,28 +265,28 @@ export default function SilkFan({ text = "NAN", className, tiltTarget, onOpened 
           opacity: k % 2 ? ".35" : ".6",
         }, rays);
       }
-      el("path", { d: arc(o.r2 + 22, -o.half - 6, o.half + 6), fill: "none", stroke: palette.goldLineStroke, "stroke-width": "1", opacity: ".5" }, rays);
+      el("path", { d: arc(o.r2 + 22, -o.half - 6, o.half + 6), fill: "none", stroke: activePalette.goldLineStroke, "stroke-width": "1", opacity: ".5" }, rays);
       const fanG = el("g", {}, root);
 
       // silk: opaque sapphire, a touch deeper at the inner edge
       const kk = (o.r1 / (o.r2 + 20)).toFixed(3);
       const sg = el("radialGradient", { id: uid("nanSilk"), gradientUnits: "userSpaceOnUse", cx: 0, cy: 0, r: o.r2 + 20 }, defs);
-      ([[kk, palette.silkStops[0]], [".6", palette.silkStops[1]], [".88", palette.silkStops[2]], ["1", palette.silkStops[3]]] as const)
+      ([[kk, activePalette.silkStops[0]], [".6", activePalette.silkStops[1]], [".88", activePalette.silkStops[2]], ["1", activePalette.silkStops[3]]] as const)
         .forEach(([offset, color]) => el("stop", { offset, "stop-color": color }, sg));
       // moving sheen band
       const sheen = el("linearGradient", { id: uid("nanSheen"), gradientUnits: "userSpaceOnUse", x1: -1100, y1: 0, x2: -800, y2: 0, gradientTransform: "rotate(-28)" }, defs);
       ([["0", "0"], [".5", ".8"], ["1", "0"]] as const).forEach(([offset, op]) =>
-        el("stop", { offset, "stop-color": palette.sheenColor, "stop-opacity": op }, sheen));
+        el("stop", { offset, "stop-color": activePalette.sheenColor, "stop-opacity": op }, sheen));
       // fine weave
       const pat = el("pattern", { id: uid("nanWeave"), patternUnits: "userSpaceOnUse", width: 4, height: 4 }, defs);
-      el("path", { d: "M0 4 L4 0", stroke: palette.weaveStroke, "stroke-width": ".5", opacity: ".5" }, pat);
+      el("path", { d: "M0 4 L4 0", stroke: activePalette.weaveStroke, "stroke-width": ".5", opacity: ".5" }, pat);
       // gold foil ink + one-time shine
       const foil = el("linearGradient", { id: uid("nanSilkFoil"), gradientUnits: "userSpaceOnUse", x1: -220, y1: -380, x2: 220, y2: -250 }, defs);
       (["0", ".28", ".5", ".72", "1"] as const).forEach((offset, i) =>
-        el("stop", { offset, "stop-color": palette.goldFoilStops[i] }, foil));
+        el("stop", { offset, "stop-color": activePalette.goldFoilStops[i] }, foil));
       const shine = el("linearGradient", { id: uid("nanSilkShine"), gradientUnits: "userSpaceOnUse", x1: -760, y1: 0, x2: -500, y2: 0 }, defs);
       ([["0", "0"], [".5", ".85"], ["1", "0"]] as const).forEach(([offset, op]) =>
-        el("stop", { offset, "stop-color": palette.silkShineColor, "stop-opacity": op }, shine));
+        el("stop", { offset, "stop-color": activePalette.silkShineColor, "stop-opacity": op }, shine));
       ([["x1", -760, 420], ["x2", -500, 680]] as const).forEach(([attributeName, from, to]) => {
         shineAnimations.push(el("animate", {
           attributeName, from, to, dur: "2.2s", calcMode: "spline", keyTimes: "0;1", keySplines: ".45 0 .25 1", begin: "indefinite", fill: "freeze",
@@ -279,7 +299,7 @@ export default function SilkFan({ text = "NAN", className, tiltTarget, onOpened 
       const flat = el("g", { id: uid("nanSilkText") }, defs);
       (["url(#" + uid("nanSilkFoil") + ")", "url(#" + uid("nanSilkShine") + ")"]).forEach((fill) => {
         const tx = el("text", {
-          fill, "font-family": palette.fontStack, "font-weight": "400",
+          fill, "font-family": activePalette.fontStack, "font-weight": "400",
           "font-size": o.text.size, "letter-spacing": o.text.spacing,
           "text-anchor": "middle", "dominant-baseline": "middle",
         }, flat);
@@ -289,7 +309,7 @@ export default function SilkFan({ text = "NAN", className, tiltTarget, onOpened 
       });
 
       // natural bamboo: flat face, a touch darker toward the edges
-      ([[uid("nanBamboo"), palette.bambooFace.inner], [uid("nanBambooG"), palette.bambooFace.guard]] as const)
+      ([[uid("nanBamboo"), activePalette.bambooFace.inner], [uid("nanBambooG"), activePalette.bambooFace.guard]] as const)
         .forEach(([id, face]) => {
           const lg = el("linearGradient", { id, gradientUnits: "userSpaceOnUse", x1: -o.slat / 2, y1: 0, x2: o.slat / 2, y2: 0 }, defs);
           ([["0", face.edge], [".18", face.mid], [".7", face.mid], ["1", face.edge]] as const)
@@ -298,7 +318,7 @@ export default function SilkFan({ text = "NAN", className, tiltTarget, onOpened 
       const ao = el("linearGradient", { id: uid("nanRibAO"), gradientUnits: "userSpaceOnUse", x1: 0, y1: o.tail, x2: 0, y2: -(o.r1 + 14) }, defs);
       const tot = o.tail + o.r1 + 14;
       ([[0, 0.28], [(o.tail + 45) / tot, 0], [(o.tail + o.r1 - 40) / tot, 0], [1, 0.42]] as const)
-        .forEach(([offset, opacity]) => el("stop", { offset: offset.toFixed(3), "stop-color": palette.ribAoColor, "stop-opacity": opacity }, ao));
+        .forEach(([offset, opacity]) => el("stop", { offset: offset.toFixed(3), "stop-color": activePalette.ribAoColor, "stop-opacity": opacity }, ao));
 
       const F: SilkFanBuild = { o, S, rays, fanG, sheen, ribs: [], halves: [], ridges: [], creases: [], guards: [], inner: undefined as unknown as SVGPathElement, rim: undefined as unknown as SVGPathElement };
       F.guards[1] = bambooRib(fanG, o, o.r2, o.slat * 0.3, o.slat * 0.78, uid("nanBambooG"), null, true); // back guard, behind the fabric
@@ -318,8 +338,8 @@ export default function SilkFan({ text = "NAN", className, tiltTarget, onOpened 
           u.setAttributeNS(XLINK_NS, "xlink:href", "#" + uid("nanSilkText"));
           const gd = el("linearGradient", { id: "hd" + id, gradientUnits: "userSpaceOnUse" }, defs);
           const gl = el("linearGradient", { id: "hl" + id, gradientUnits: "userSpaceOnUse" }, defs);
-          const sd = ["0", ".5", "1"].map((offset) => el("stop", { offset, "stop-color": palette.foldShadeColor, "stop-opacity": "0" }, gd));
-          const sl = ["0", ".5", "1"].map((offset) => el("stop", { offset, "stop-color": palette.foldLightColor, "stop-opacity": "0" }, gl));
+          const sd = ["0", ".5", "1"].map((offset) => el("stop", { offset, "stop-color": activePalette.foldShadeColor, "stop-opacity": "0" }, gd));
+          const sl = ["0", ".5", "1"].map((offset) => el("stop", { offset, "stop-color": activePalette.foldLightColor, "stop-opacity": "0" }, gl));
           const shade = el("path", { fill: `url(#hd${id})` }, g2);
           const light = el("path", { fill: `url(#hl${id})` }, g2);
           const sh = el("path", { fill: `url(#${uid("nanSheen")})` }, g2);
@@ -327,14 +347,14 @@ export default function SilkFan({ text = "NAN", className, tiltTarget, onOpened 
         }
       }
       const edges = el("g", { fill: "none", "stroke-linecap": "round" }, fanG);
-      for (let j = 1; j < o.n; j++) F.ridges[j] = el("path", { stroke: palette.ridgeStroke, "stroke-width": "3.4" }, edges);
-      for (let p = 0; p < o.n; p++) F.creases[p] = el("path", { stroke: palette.creaseStroke, "stroke-width": "2.4" }, edges);
-      F.inner = el("path", { stroke: palette.goldLineStroke, "stroke-width": o.deco * 0.9, opacity: ".75" }, edges);
-      F.rim = el("path", { stroke: palette.goldLineStroke, "stroke-width": o.deco * 1.6, "stroke-linejoin": "round" }, edges);
+      for (let j = 1; j < o.n; j++) F.ridges[j] = el("path", { stroke: activePalette.ridgeStroke, "stroke-width": "3.4" }, edges);
+      for (let p = 0; p < o.n; p++) F.creases[p] = el("path", { stroke: activePalette.creaseStroke, "stroke-width": "2.4" }, edges);
+      F.inner = el("path", { stroke: activePalette.goldLineStroke, "stroke-width": o.deco * 0.9, opacity: ".75" }, edges);
+      F.rim = el("path", { stroke: activePalette.goldLineStroke, "stroke-width": o.deco * 1.6, "stroke-linejoin": "round" }, edges);
       F.guards[0] = bambooRib(fanG, o, o.r2, o.slat * 0.3, o.slat * 0.78, uid("nanBambooG"), [48, 95, 190, 260, 330, 400], true, true); // front guard, over the fabric
-      el("circle", { r: 10, fill: palette.pivotFill, stroke: palette.pivotFillStroke, "stroke-width": ".8" }, fanG);
-      el("circle", { r: 6.5, fill: "none", stroke: palette.pivotRingStroke, "stroke-width": ".8", opacity: ".8" }, fanG);
-      el("circle", { r: 3.2, fill: palette.pivotCenterFill }, fanG);
+      el("circle", { r: 10, fill: activePalette.pivotFill, stroke: activePalette.pivotFillStroke, "stroke-width": ".8" }, fanG);
+      el("circle", { r: 6.5, fill: "none", stroke: activePalette.pivotRingStroke, "stroke-width": ".8", opacity: ".8" }, fanG);
+      el("circle", { r: 3.2, fill: activePalette.pivotCenterFill }, fanG);
 
       return F;
     }
@@ -434,10 +454,11 @@ export default function SilkFan({ text = "NAN", className, tiltTarget, onOpened 
     let observer: IntersectionObserver | null = null;
     let pointerMoveHandler: ((e: PointerEvent) => void) | null = null;
 
-    // Controlled once, at mount: if a tiltTarget was supplied when this effect started, the
-    // internal pointermove listener is never added at all, and the loop below reads the live
-    // value through tiltTargetRef every frame instead.
-    const isControlledTilt = tiltTarget !== undefined;
+    // Controlled once, at mount: if a tiltTarget or tiltRef was supplied when this effect started,
+    // the internal pointermove listener is never added at all, and the loop below reads the live
+    // value through tiltRef or tiltTargetRef every frame instead.
+    const hasTiltRef = tiltRef !== undefined;
+    const isControlledTilt = hasTiltRef || tiltTarget !== undefined;
     let internalTilt = 0;
 
     function done(): void {
@@ -482,7 +503,7 @@ export default function SilkFan({ text = "NAN", className, tiltTarget, onOpened 
         const amp = Math.min(1, s / 2.5);
         const sway = amp * (1.1 * Math.sin((TAU * s) / 6.4) + 0.35 * Math.sin((TAU * s) / 2.7 + 1.3));
         const bob = amp * 2.4 * Math.sin((TAU * s) / 6.4 + 0.8);
-        const target = isControlledTilt ? tiltTargetRef.current ?? 0 : internalTilt;
+        const target = hasTiltRef ? tiltRef!.current : isControlledTilt ? tiltTargetRef.current ?? 0 : internalTilt;
         tilt += (target - tilt) * 0.02;
         const breath = 1 + amp * 0.012 * Math.sin((TAU * s) / 3.3 + 0.4);
         const base = s < 2.6 ? -1100 + 960 * smooth(s / 2.6) : -140;
@@ -534,7 +555,7 @@ export default function SilkFan({ text = "NAN", className, tiltTarget, onOpened 
     // loop instead, per the task's own requirement that changing their value must not restart this
     // effect/rebuild the SVG.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idPrefix, text]);
+  }, [idPrefix, text, palette]);
 
   return (
     <svg

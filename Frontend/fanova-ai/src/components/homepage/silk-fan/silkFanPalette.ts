@@ -1,69 +1,140 @@
 /**
- * Every literal color and font-family value used by the silk-fan hero port -- buildSilk,
- * bambooRib, lightRib, renderSilk, and the hero init block in reference/nan-landing.js (lines
- * 148-356). Copied verbatim; H1 does not change any color.
+ * Two palettes, same shape: ORIGINAL_PALETTE (Lộc's original hand-picked colors, port of
+ * reference/nan-landing.js verbatim, kept and never deleted) and NAN_PALETTE (H5: every color
+ * re-derived from Nan's own brand tokens). SilkFan.tsx and HeroSilkStage.tsx pick one via
+ * StageConfig.palette ("original" | "nan").
  *
- * Named by role, not consolidated into a smaller shared set: several distinct roles in the
- * original happen to reuse the same hex value (the rays/inner-arc/rim gold line and the rib
- * gem-deco gold are both #C9A84C; the pivot circle's stroke and a gold-foil stop are both
- * #8C6D23). Kept as separate named exports per role anyway, so a future change to one role's
- * color can never silently also change an unrelated one that just happened to match today.
+ * NAN_PALETTE derivation rule (per the H5 task): every gold color (gilt text, sheen band, gold
+ * trim, rays, goldLineStroke, the gold rib inlay/gem decoration) is re-expressed in the hue and
+ * saturation of #B6A17B (globals.css's --nan-material), keeping each original color's own
+ * lightness -- so the metallic-sheen *shape* (which stops are darker/lighter) survives, only the
+ * actual hue/chroma changes. Every silk/fabric color (the fabric gradient, sheen, fold shade/
+ * light, ridge/crease strokes, the pivot's center fill) is re-expressed in the hue and saturation
+ * of #192B88 (--nan-blue), again keeping each original's own lightness, so the fold-shadow effect
+ * reads with the same contrast as before, just recolored. Two colors are already pure white
+ * (weaveStroke, silkShineColor) -- white has no hue/saturation to redirect, so they're identical
+ * in both palettes. Bamboo/rib colors (bambooFace, ribAoColor, ribShadowFill, ribSlatStroke,
+ * ribShadeColor, ribHighlightColor) are explicitly UNCHANGED in NAN_PALETTE -- natural material,
+ * not a brand color, per the task's own instruction.
  */
 
-// ─── Rays + gold accent lines (buildSilk) ──────────────────────────────────
-// Same value used for: the rays group's stroke, the rays' own outer arc stroke, the inner-edge
-// arc (F.inner), and the outer rim (F.rim) -- genuinely the same "thin gold line" role reused
-// across those four strokes in the original, not a coincidence.
-export const goldLineStroke = "#C9A84C";
+import { Cinzel } from "next/font/google";
 
-// ─── Silk fabric gradient (#nanSilk) ───────────────────────────────────────
-// Stop offsets are partly dynamic (the first stop's offset is o.r1/(o.r2+20), computed from the
-// fan's own radii) -- only the fixed colors live here; SilkFan.tsx reconstructs the full
-// {offset, color} stop list the same way buildSilk did.
-export const silkStops: readonly string[] = ["#142A56", "#1C3A73", "#234686", "#1A356E"];
+// Only used by ORIGINAL_PALETTE, and only when someone actually switches to it (the TuningPanel
+// comparison toggle, or a future caller passing palette:"original") -- preload:false per the task,
+// since it's not on the default rendering path.
+const cinzel = Cinzel({ subsets: ["latin"], weight: ["400"], preload: false });
 
-// ─── Moving sheen band (#nanSheen) ──────────────────────────────────────────
-export const sheenColor = "#F2F6FF";
+export interface SilkFanPalette {
+  // ─── Rays + gold accent lines (buildSilk) ──────────────────────────────────
+  goldLineStroke: string;
+  // ─── Silk fabric gradient (#nanSilk) ───────────────────────────────────────
+  silkStops: readonly string[];
+  // ─── Moving sheen band (#nanSheen) ──────────────────────────────────────────
+  sheenColor: string;
+  // ─── Fine weave pattern (#nanWeave) ─────────────────────────────────────────
+  weaveStroke: string;
+  // ─── Gold foil ink + one-time shine on the fan's text (#nanSilkFoil / #nanSilkShine) ───────
+  goldFoilStops: readonly string[];
+  silkShineColor: string;
+  fontStack: string;
+  // ─── Bamboo slat faces (#nanBamboo / #nanBambooG) -- unchanged across palettes ─────────────
+  bambooFace: {
+    inner: { edge: string; mid: string };
+    guard: { edge: string; mid: string };
+  };
+  // ─── Ambient occlusion under the fabric / near the rivet (#nanRibAO) -- unchanged ─────────
+  ribAoColor: string;
+  // ─── Per-fold shade/light gradients (h.gd / h.gl in buildSilk) ─────────────
+  foldShadeColor: string;
+  foldLightColor: string;
+  // ─── Rib ridge/crease strokes (buildSilk's `edges` group) ──────────────────
+  ridgeStroke: string;
+  creaseStroke: string;
+  // ─── Center pivot (buildSilk, drawn over the fabric) ────────────────────────
+  pivotFill: string;
+  pivotFillStroke: string;
+  pivotRingStroke: string;
+  pivotCenterFill: string;
+  // ─── Bamboo rib shading (bambooRib) -- unchanged ────────────────────────────
+  ribShadowFill: string;
+  ribSlatStroke: string;
+  ribShadeColor: string;
+  ribHighlightColor: string;
+  // ─── Rib inlay hairline (Art Deco gold trim) ───────────────────────────────
+  ribInlayColor: string;
+  // ─── Rib gem decoration (bambooRib's `deco` param -- front guard only) ─────
+  gemFill: string;
+  gemStroke: string;
+  gemHighlightFill: string;
+}
 
-// ─── Fine weave pattern (#nanWeave) ─────────────────────────────────────────
-export const weaveStroke = "#FFFFFF";
-
-// ─── Gold foil ink + one-time shine on the fan's text (#nanSilkFoil / #nanSilkShine) ───────
-export const goldFoilStops: readonly string[] = ["#8C6D23", "#EBD38E", "#B8953C", "#F5E6AE", "#9C7C2E"];
-export const silkShineColor = "#FFFFFF";
-export const fontStack = "Cinzel, Georgia, serif";
-
-// ─── Bamboo slat faces (#nanBamboo / #nanBambooG) ───────────────────────────
-export const bambooFace = {
-  inner: { edge: "#D9BF8E", mid: "#F2E6C8" }, // #nanBamboo -- inner slats
-  guard: { edge: "#D2B47E", mid: "#EBDAB2" }, // #nanBambooG -- guard ribs
+// Bamboo/rib colors -- identical in both palettes (natural material, not a brand color).
+const BAMBOO_FACE = {
+  inner: { edge: "#D9BF8E", mid: "#F2E6C8" },
+  guard: { edge: "#D2B47E", mid: "#EBDAB2" },
 } as const;
+const RIB_AO_COLOR = "#1E1204";
+const RIB_SHADOW_FILL = "rgba(20,14,4,.18)";
+const RIB_SLAT_STROKE = "#B89868";
+const RIB_SHADE_COLOR = "#2A1A05";
+const RIB_HIGHLIGHT_COLOR = "#FFF6E0";
 
-// ─── Ambient occlusion under the fabric / near the rivet (#nanRibAO) ───────
-export const ribAoColor = "#1E1204";
+export const ORIGINAL_PALETTE: SilkFanPalette = {
+  goldLineStroke: "#C9A84C",
+  silkStops: ["#142A56", "#1C3A73", "#234686", "#1A356E"],
+  sheenColor: "#F2F6FF",
+  weaveStroke: "#FFFFFF",
+  goldFoilStops: ["#8C6D23", "#EBD38E", "#B8953C", "#F5E6AE", "#9C7C2E"],
+  silkShineColor: "#FFFFFF",
+  fontStack: `${cinzel.style.fontFamily}, Georgia, serif`,
+  bambooFace: BAMBOO_FACE,
+  ribAoColor: RIB_AO_COLOR,
+  foldShadeColor: "#020822",
+  foldLightColor: "#EEF3FF",
+  ridgeStroke: "rgba(5,10,40,.26)",
+  creaseStroke: "#DCE6FF",
+  pivotFill: "#C9A84C",
+  pivotFillStroke: "#8C6D23",
+  pivotRingStroke: "#F3E3A8",
+  pivotCenterFill: "#081243",
+  ribShadowFill: RIB_SHADOW_FILL,
+  ribSlatStroke: RIB_SLAT_STROKE,
+  ribShadeColor: RIB_SHADE_COLOR,
+  ribHighlightColor: RIB_HIGHLIGHT_COLOR,
+  ribInlayColor: "#E3C66E",
+  gemFill: "#C9A84C",
+  gemStroke: "#8C6D23",
+  gemHighlightFill: "#F7EBC0",
+};
 
-// ─── Per-fold shade/light gradients (h.gd / h.gl in buildSilk) ─────────────
-export const foldShadeColor = "#020822";
-export const foldLightColor = "#EEF3FF";
-
-// ─── Rib ridge/crease strokes (buildSilk's `edges` group) ──────────────────
-export const ridgeStroke = "rgba(5,10,40,.26)";
-export const creaseStroke = "#DCE6FF";
-
-// ─── Center pivot (buildSilk, drawn over the fabric) ────────────────────────
-export const pivotFill = "#C9A84C";
-export const pivotFillStroke = "#8C6D23";
-export const pivotRingStroke = "#F3E3A8";
-export const pivotCenterFill = "#081243";
-
-// ─── Bamboo rib shading (bambooRib) ─────────────────────────────────────────
-export const ribShadowFill = "rgba(20,14,4,.18)";
-export const ribSlatStroke = "#B89868";
-export const ribShadeColor = "#2A1A05";
-export const ribHighlightColor = "#FFF6E0";
-export const ribInlayColor = "#E3C66E";
-
-// ─── Rib gem decoration (bambooRib's `deco` param -- front guard only) ─────
-export const gemFill = "#C9A84C";
-export const gemStroke = "#8C6D23";
-export const gemHighlightFill = "#F7EBC0";
+// H5: every value below was computed by converting the ORIGINAL_PALETTE color to HSL, replacing
+// its hue+saturation with #B6A17B's (gold group) or #192B88's (silk group), and converting back --
+// see this file's header comment and the H5 report's old->new table for the full derivation.
+export const NAN_PALETTE: SilkFanPalette = {
+  goldLineStroke: "#AC9469",
+  silkStops: ["#101C5A", "#162679", "#1A2D8F", "#152473"],
+  sheenColor: "#F4F5FD",
+  weaveStroke: "#FFFFFF",
+  goldFoilStops: ["#715F3E", "#D0C2A9", "#9D8457", "#DFD5C4", "#826D48"],
+  silkShineColor: "#FFFFFF",
+  fontStack: "var(--font-eb-garamond), Georgia, serif",
+  bambooFace: BAMBOO_FACE,
+  ribAoColor: RIB_AO_COLOR,
+  foldShadeColor: "#060A1E",
+  foldLightColor: "#F1F3FC",
+  ridgeStroke: "rgba(7,12,38,.26)",
+  creaseStroke: "#E1E5FA",
+  pivotFill: "#AC9469",
+  pivotFillStroke: "#715F3E",
+  pivotRingStroke: "#DCD2BF",
+  pivotCenterFill: "#0C143F",
+  ribShadowFill: RIB_SHADOW_FILL,
+  ribSlatStroke: RIB_SLAT_STROKE,
+  ribShadeColor: RIB_SHADE_COLOR,
+  ribHighlightColor: RIB_HIGHLIGHT_COLOR,
+  ribInlayColor: "#C1B090",
+  gemFill: "#AC9469",
+  gemStroke: "#715F3E",
+  gemHighlightFill: "#E6DED1",
+};

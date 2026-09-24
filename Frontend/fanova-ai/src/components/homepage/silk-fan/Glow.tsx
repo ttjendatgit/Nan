@@ -13,7 +13,8 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { createDustTexture } from "./GoldDust";
+import { createDustTexture, resolveBlending } from "./GoldDust";
+import type { BlendingMode } from "./stageConfig";
 
 export interface GlowProps {
   /** Hex color -- always sourced from silkFanPalette.ts by the caller, never hardcoded here. */
@@ -23,6 +24,7 @@ export interface GlowProps {
   z: number;
   radius: number;
   intensity: number;
+  blending: BlendingMode;
 }
 
 interface GlowResources {
@@ -32,7 +34,7 @@ interface GlowResources {
   mesh: THREE.Mesh;
 }
 
-export default function Glow({ color, offsetX, offsetY, z, radius, intensity }: GlowProps) {
+export default function Glow({ color, offsetX, offsetY, z, radius, intensity, blending }: GlowProps) {
   const groupRef = useRef<THREE.Group>(null);
   const resourcesRef = useRef<GlowResources | null>(null);
 
@@ -47,7 +49,7 @@ export default function Glow({ color, offsetX, offsetY, z, radius, intensity }: 
       color: new THREE.Color(color),
       transparent: true,
       opacity: intensity,
-      blending: THREE.AdditiveBlending,
+      blending: resolveBlending(blending),
       depthWrite: false,
     });
     const mesh = new THREE.Mesh(geometry, material);
@@ -82,7 +84,8 @@ export default function Glow({ color, offsetX, offsetY, z, radius, intensity }: 
     // in GoldDust.tsx for why react-hooks/immutability's cross-effect check doesn't apply here.
     // eslint-disable-next-line react-hooks/immutability
     material.opacity = intensity;
-  }, [color, intensity]);
+    material.blending = resolveBlending(blending);
+  }, [color, intensity, blending]);
 
   return <group ref={groupRef} />;
 }

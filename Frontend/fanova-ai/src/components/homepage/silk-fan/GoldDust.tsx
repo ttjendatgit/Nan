@@ -12,18 +12,26 @@
  * exactly the "drift up, wrap at the edge" behavior asked for, without any JS-side per-frame
  * bookkeeping. Horizontal sway is a per-particle-phased sine on top of that.
  *
+ * Size and opacity are each a per-particle random *factor* in [0,1) (aSizeFactor/aOpacityFactor),
+ * baked once at build time, plus a pair of uMin/uMax uniforms -- the actual size/opacity is
+ * `mix(uMin, uMax, factor)`. That split is what lets HeroSilkStage's tuning panel drag sizeRange/
+ * opacityRange sliders live without rebuilding the particle buffer (per H2.5's own requirement):
+ * only count/spreadX/spreadY/depthRange, which determine per-particle spawn position and count,
+ * need a rebuild.
+ *
  * The geometry/material/texture are built imperatively inside a single useEffect (not useMemo),
- * and later updates (uTime, color, speed...) go through the same ref -- not through a value
- * returned by a hook. Two things force this: the per-particle randomization (Math.random) isn't
- * allowed to run during render under this project's react-hooks/purity rule, and mutating a
- * useMemo-returned object from a later effect trips react-hooks/immutability. A ref holding
- * plain, non-hook-tracked THREE objects is exempt from both -- the same imperative-DOM-in-an-
- * effect shape SilkFan.tsx already uses.
+ * and later updates (uTime, color, speed, size/opacity range, blending...) go through the same ref
+ * -- not through a value returned by a hook. Two things force this: the per-particle randomization
+ * (Math.random) isn't allowed to run during render under this project's react-hooks/purity rule,
+ * and mutating a useMemo-returned object from a later effect trips react-hooks/immutability. A ref
+ * holding plain, non-hook-tracked THREE objects is exempt from both -- the same imperative-DOM-in-
+ * an-effect shape SilkFan.tsx already uses.
  */
 
 import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import type { BlendingMode } from "./stageConfig";
 
 export interface GoldDustProps {
   count: number;
@@ -39,8 +47,13 @@ export interface GoldDustProps {
   spreadY: [number, number];
   swayAmplitude?: number;
   swayFrequency?: number;
+  blending: BlendingMode;
   /** false under prefers-reduced-motion: particles render in their spawn positions and never move. */
   motionEnabled: boolean;
+}
+
+export function resolveBlending(mode: BlendingMode): THREE.Blending {
+  return mode === "additive" ? THREE.AdditiveBlending : THREE.NormalBlending;
 }
 
 /** A soft round dust texture, drawn on a canvas at runtime (no external image asset). Reused by
@@ -72,8 +85,8 @@ function randRange([min, max]: [number, number]): number {
 
 const VERTEX_SHADER = /* glsl */ `
   attribute float aOffset;
-  attribute float aSize;
-  attribute float aOpacity;
+  attribute float aSizeFactor;
+  attribute float aOpacityFactor;
   attribute float aPhase;
   attribute float aSpeedMul;
 
@@ -84,18 +97,21 @@ const VERTEX_SHADER = /* glsl */ `
   uniform float uSwayAmplitude;
   uniform float uSwayFrequency;
   uniform float uScale;
+  uniform float uSizeMin;
+  uniform float uSizeMax;
 
-  varying float vOpacity;
+  varying float vOpacityFactor;
 
   void main() {
     float y = uCycleBottom + mod(aOffset + uTime * uSpeed * aSpeedMul, uCycleHeight);
     float x = position.x + uSwayAmplitude * sin(uTime * uSwayFrequency + aPhase);
     vec3 dustPosition = vec3(x, y, position.z);
 
-    vOpacity = aOpacity;
+    vOpacityFactor = aOpacityFactor;
 
+    float size = mix(uSizeMin, uSizeMax, aSizeFactor);
     vec4 mvPosition = modelViewMatrix * vec4(dustPosition, 1.0);
-    gl_PointSize = aSize * uScale / -mvPosition.z;
+    gl_PointSize = size * uScale / -mvPosition.z;
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
@@ -103,12 +119,15 @@ const VERTEX_SHADER = /* glsl */ `
 const FRAGMENT_SHADER = /* glsl */ `
   uniform sampler2D uMap;
   uniform vec3 uColor;
+  uniform float uOpacityMin;
+  uniform float uOpacityMax;
 
-  varying float vOpacity;
+  varying float vOpacityFactor;
 
   void main() {
     vec4 tex = texture2D(uMap, gl_PointCoord);
-    gl_FragColor = vec4(uColor, tex.a * vOpacity);
+    float opacity = mix(uOpacityMin, uOpacityMax, vOpacityFactor);
+    gl_FragColor = vec4(uColor, tex.a * opacity);
   }
 `;
 
@@ -130,6 +149,7 @@ export default function GoldDust({
   spreadY,
   swayAmplitude = 0.15,
   swayFrequency = 0.3,
+  blending,
   motionEnabled,
 }: GoldDustProps) {
   const groupRef = useRef<THREE.Group>(null);
@@ -139,17 +159,18 @@ export default function GoldDust({
   const viewportHeight = useThree((state) => state.size.height);
   const pixelRatio = useThree((state) => state.viewport.dpr);
 
-  // Build (and, on cleanup, tear down) the whole THREE.Points object. Deliberately a useEffect,
-  // not useMemo: the per-particle randomization below needs to run once per real (re)build, not
-  // during render.
+  // Build (and, on cleanup, tear down) the whole THREE.Points object. Deliberately a useEffect, not
+  // useMemo: the per-particle randomization below needs to run once per real (re)build, not during
+  // render. Only count/spreadX/spreadY/depthRange are deps -- they're the only things that change
+  // per-particle spawn position or count, so they're the only things that justify a rebuild.
   useEffect(() => {
     const group = groupRef.current;
     if (!group) return;
 
     const positions = new Float32Array(count * 3);
     const offsets = new Float32Array(count);
-    const sizes = new Float32Array(count);
-    const opacities = new Float32Array(count);
+    const sizeFactors = new Float32Array(count);
+    const opacityFactors = new Float32Array(count);
     const phases = new Float32Array(count);
     const speedMuls = new Float32Array(count);
     const cycleHeight = spreadY[1] - spreadY[0];
@@ -159,8 +180,8 @@ export default function GoldDust({
       positions[i * 3 + 1] = 0; // unused -- the vertex shader computes y from aOffset/uTime
       positions[i * 3 + 2] = randRange(depthRange);
       offsets[i] = Math.random() * cycleHeight;
-      sizes[i] = randRange(sizeRange);
-      opacities[i] = randRange(opacityRange);
+      sizeFactors[i] = Math.random();
+      opacityFactors[i] = Math.random();
       phases[i] = Math.random() * Math.PI * 2;
       speedMuls[i] = 0.7 + Math.random() * 0.6;
     }
@@ -168,8 +189,8 @@ export default function GoldDust({
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute("aOffset", new THREE.BufferAttribute(offsets, 1));
-    geometry.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
-    geometry.setAttribute("aOpacity", new THREE.BufferAttribute(opacities, 1));
+    geometry.setAttribute("aSizeFactor", new THREE.BufferAttribute(sizeFactors, 1));
+    geometry.setAttribute("aOpacityFactor", new THREE.BufferAttribute(opacityFactors, 1));
     geometry.setAttribute("aPhase", new THREE.BufferAttribute(phases, 1));
     geometry.setAttribute("aSpeedMul", new THREE.BufferAttribute(speedMuls, 1));
 
@@ -184,6 +205,10 @@ export default function GoldDust({
         uSwayAmplitude: { value: swayAmplitude },
         uSwayFrequency: { value: swayFrequency },
         uScale: { value: viewportHeight * pixelRatio * 0.5 },
+        uSizeMin: { value: sizeRange[0] },
+        uSizeMax: { value: sizeRange[1] },
+        uOpacityMin: { value: opacityRange[0] },
+        uOpacityMax: { value: opacityRange[1] },
         uMap: { value: texture },
         uColor: { value: new THREE.Color(color) },
       },
@@ -192,7 +217,7 @@ export default function GoldDust({
       transparent: true,
       depthWrite: false,
       depthTest: true,
-      blending: THREE.AdditiveBlending,
+      blending: resolveBlending(blending),
     });
 
     const points = new THREE.Points(geometry, material);
@@ -208,18 +233,19 @@ export default function GoldDust({
       texture.dispose();
       resourcesRef.current = null;
     };
-    // speed/color/swayAmplitude/swayFrequency/viewportHeight/pixelRatio are intentionally read only
-    // for this build's *initial* uniform values -- their later changes are synced below without
-    // rebuilding the whole geometry/material/texture.
+    // speed/color/swayAmplitude/swayFrequency/sizeRange/opacityRange/blending/viewportHeight/
+    // pixelRatio are intentionally read only for this build's *initial* uniform/material values --
+    // their later changes are synced below without rebuilding the whole geometry/material/texture.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count, spreadX, spreadY, depthRange, sizeRange, opacityRange]);
+  }, [count, spreadX, spreadY, depthRange]);
 
-  // The four mutations below (this effect, the next, and useFrame) write into a THREE.ShaderMaterial
-  // that lives in a plain ref, not React state -- a WebGL uniform has to be updated imperatively,
-  // every frame in uTime's case, which is fundamentally incompatible with treating it as pure render
-  // output. react-hooks/immutability's cross-effect mutation check doesn't have a way to know that
-  // `resourcesRef.current` is an intentional imperative escape hatch (the same role SilkFan.tsx's
-  // whole render effect plays), so each write is individually justified and disabled below.
+  // The mutations below (these effects and useFrame) write into a THREE.ShaderMaterial that lives
+  // in a plain ref, not React state -- a WebGL uniform/material property has to be updated
+  // imperatively, every frame in uTime's case, which is fundamentally incompatible with treating it
+  // as pure render output. react-hooks/immutability's cross-effect mutation check doesn't have a
+  // way to know that `resourcesRef.current` is an intentional imperative escape hatch (the same
+  // role SilkFan.tsx's whole render effect plays), so each write is individually justified and
+  // disabled below.
   useEffect(() => {
     const material = resourcesRef.current?.material;
     if (!material) return;
@@ -228,7 +254,12 @@ export default function GoldDust({
     material.uniforms.uSwayAmplitude.value = swayAmplitude;
     material.uniforms.uSwayFrequency.value = swayFrequency;
     material.uniforms.uColor.value = new THREE.Color(color);
-  }, [speed, swayAmplitude, swayFrequency, color]);
+    material.uniforms.uSizeMin.value = sizeRange[0];
+    material.uniforms.uSizeMax.value = sizeRange[1];
+    material.uniforms.uOpacityMin.value = opacityRange[0];
+    material.uniforms.uOpacityMax.value = opacityRange[1];
+    material.blending = resolveBlending(blending);
+  }, [speed, swayAmplitude, swayFrequency, color, sizeRange, opacityRange, blending]);
 
   useEffect(() => {
     const material = resourcesRef.current?.material;
