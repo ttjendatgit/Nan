@@ -1,15 +1,14 @@
 /**
  * The TipTap extension set ParagraphBlock's rich text is built on -- Bold, Italic, Link,
  * Highlight, on top of StarterKit with everything else (headings, lists, blockquote, code block,
- * horizontal rule, strike, underline) turned off. Moved out of RichTextInput.tsx (Phase A3) so it
- * can be shared with lib/pasteToBlocks.ts's clipboard-to-blocks conversion: pasted HTML is parsed
- * through this exact same array via `generateJSON`, which is what makes a paste go through the
- * identical schema-constrained sanitization the live editor already relies on for its own native
- * paste handling -- no font styles, no color, no disallowed nodes, and every link's href gated by
- * the same `isAllowedUri` check (so `javascript:`/other unsafe protocols are rejected the same
- * way regardless of which code path parsed the HTML). There must be exactly one configured copy
- * of this array in the whole app; a second, separately-configured copy would be exactly the kind
- * of drift this sharing is meant to prevent.
+ * horizontal rule, strike, underline) turned off. This schema is also the paste sanitizer: every
+ * paste into a ParagraphBlock is parsed through it by TipTap's own paste handling, so no font
+ * styles, no color and no disallowed nodes survive, and every link's href is gated by the
+ * `isAllowedUri` check below (so `javascript:`/other unsafe protocols are rejected). There must be
+ * exactly one configured copy of this array in the whole app; a second, separately-configured copy
+ * would be exactly the kind of drift keeping it in one module is meant to prevent. (Phase A3's
+ * lib/pasteToBlocks.ts also parsed through it; that module was removed when pasting into a
+ * paragraph stopped creating new blocks.)
  *
  * Configuration is unchanged from what RichTextInput.tsx had inline before this phase -- moved
  * verbatim, not retuned.
@@ -48,8 +47,8 @@ export const richTextExtensions: AnyExtension[] = [
     HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
     // Belt-and-suspenders with the manual isSafeHref() check RichTextInput's own link popover
     // does before calling setLink() directly -- this gate covers autolink-while-typing,
-    // link-on-paste, and (as of Phase A3) pasteToBlocks.ts's generateJSON-based HTML parsing,
-    // none of which go through that popover's own handler.
+    // and link-on-paste / links inside pasted HTML, none of which go through that popover's own
+    // handler.
     isAllowedUri: (url, ctx) => isSafeHref(url) && ctx.defaultValidate(url),
   }),
   Highlight.configure({

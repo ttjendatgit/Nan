@@ -61,6 +61,22 @@ check("a new image block starts at full width, centered", () => {
   deepStrictEqual(parseBlocksJson(JSON.stringify([block])).blocks, [block]);
 });
 
+check("one paragraph block keeps every inner paragraph, hard break and mark", () => {
+  const para = (...content) => ({ type: "paragraph", content });
+  const text = (t, marks) => ({ type: "text", text: t, ...(marks ? { marks } : {}) });
+  const doc = { type: "doc", content: [
+    para(text("Doan 1 "), text("dam", [{ type: "bold" }])),
+    para(text("Doan 2 dong mot"), { type: "hardBreak" }, text("dong hai")),
+    para(text("Doan 3 "), text("lien ket", [{ type: "link", attrs: { href: "https://example.com" } }])),
+    para(text("Doan 4 "), text("to sang", [{ type: "highlight" }])),
+    para(text("Doan 5 "), text("nghieng", [{ type: "italic" }])),
+  ] };
+  const block = { type: "paragraph", id: "long", text: doc, align: "center" };
+  const { blocks } = parseBlocksJson(JSON.stringify([block]));
+  deepStrictEqual(blocks, [block]);
+  strictEqual(blocks[0].text.content.length, 5);
+});
+
 check("other blocks are untouched by the image change", () => {
   const blocks = [
     { type: "heading", id: "h", level: "h2", text: "T" },

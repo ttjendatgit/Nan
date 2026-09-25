@@ -4,7 +4,7 @@ import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import type { ContentBlock } from "@/types/contentBlocks";
 import { contentBlockLabel } from "@/types/contentBlocks";
 import type { TipTapDocument } from "@/lib/tiptapContent";
-import type { ParagraphBackspacePayload, ParagraphEnterPayload, ParagraphPastePayload } from "./RichTextInput";
+import type { ParagraphBackspacePayload, ParagraphSplitPayload } from "./RichTextInput";
 import HeadingBlockEditor from "./blocks/HeadingBlockEditor";
 import ParagraphBlockEditor from "./blocks/ParagraphBlockEditor";
 import QuoteBlockEditor from "./blocks/QuoteBlockEditor";
@@ -33,19 +33,18 @@ interface BlockItemProps {
   token: string;
   /** A1/A2: only meaningful for a "paragraph" block -- BlockFields only forwards these to
    * ParagraphBlockEditor; every other block type's editor simply never receives them. */
-  onEnter?: (payload: ParagraphEnterPayload) => void;
+  onSplitAtCursor?: (payload: ParagraphSplitPayload) => void;
   onBackspaceAtStart?: (payload: ParagraphBackspacePayload) => void;
   autoFocus?: false | "start" | "end";
   pendingMerge?: TipTapDocument | null;
   onMergeApplied?: () => void;
-  onPasteBlocks?: (payload: ParagraphPastePayload) => void;
 }
 
 /** Shared chrome (border/hover/active + reorder/remove actions) around one block's type-specific
  * editor. Reordering uses plain up/down buttons, not a drag-and-drop library (out of scope). */
 export default function BlockItem({
   block, index, total, active, onFocus, onChange, onRemove, onMoveUp, onMoveDown, token,
-  onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied, onPasteBlocks,
+  onSplitAtCursor, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied,
 }: BlockItemProps) {
   const label = contentBlockLabel(block.type);
 
@@ -100,9 +99,8 @@ export default function BlockItem({
 
       <BlockFields
         block={block} onChange={onChange} token={token}
-        onEnter={onEnter} onBackspaceAtStart={onBackspaceAtStart}
+        onSplitAtCursor={onSplitAtCursor} onBackspaceAtStart={onBackspaceAtStart}
         autoFocus={autoFocus} pendingMerge={pendingMerge} onMergeApplied={onMergeApplied}
-        onPasteBlocks={onPasteBlocks}
       />
     </div>
   );
@@ -113,17 +111,16 @@ export default function BlockItem({
  * passed to ParagraphBlockEditor -- every other case ignores them, which is what "other blocks
  * ignore these props" means in practice: there's simply no plumbing to them. */
 function BlockFields({
-  block, onChange, token, onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied, onPasteBlocks,
+  block, onChange, token, onSplitAtCursor, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied,
 }: {
   block: ContentBlock;
   onChange: (block: ContentBlock) => void;
   token: string;
-  onEnter?: (payload: ParagraphEnterPayload) => void;
+  onSplitAtCursor?: (payload: ParagraphSplitPayload) => void;
   onBackspaceAtStart?: (payload: ParagraphBackspacePayload) => void;
   autoFocus?: false | "start" | "end";
   pendingMerge?: TipTapDocument | null;
   onMergeApplied?: () => void;
-  onPasteBlocks?: (payload: ParagraphPastePayload) => void;
 }) {
   switch (block.type) {
     case "heading":
@@ -132,9 +129,8 @@ function BlockFields({
       return (
         <ParagraphBlockEditor
           block={block} onChange={onChange}
-          onEnter={onEnter} onBackspaceAtStart={onBackspaceAtStart}
+          onSplitAtCursor={onSplitAtCursor} onBackspaceAtStart={onBackspaceAtStart}
           autoFocus={autoFocus} pendingMerge={pendingMerge} onMergeApplied={onMergeApplied}
-          onPasteBlocks={onPasteBlocks}
         />
       );
     case "quote":

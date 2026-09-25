@@ -462,3 +462,28 @@ previous block isn't a paragraph.
 - **Tables become one ParagraphBlock per row** (cells joined with `" · "`), not a real table
   structure, until a `TableBlock` exists. This is a temporary, lossy representation, tracked here
   so it isn't mistaken for the intended final behavior.
+
+## One paragraph block holds many paragraphs (replaces A1's Enter-split and A3's paste-split)
+
+Writing long text in many tiny blocks turned out to be the harder workflow, so the block boundary
+is no longer implicit:
+
+- **Enter** adds a paragraph *inside* the same ParagraphBlock (TipTap's own behavior; its `text`
+  TipTapDocument simply holds several `paragraph` nodes). **Shift+Enter** is a soft line break
+  (`hardBreak`). IME composition is never intercepted.
+- **Paste** always lands in the block being edited, through TipTap's own paste handling and this
+  editor's schema (see `lib/richTextExtensions.ts`): paragraph breaks are kept, the text before and
+  after the cursor/selection is kept, and only paragraph/hardBreak/bold/italic/highlight/safe links
+  survive. Headings/lists in the clipboard become plain paragraphs -- they are not turned into
+  heading/list blocks any more. `lib/pasteToBlocks.ts` (the A3 conversion above) was removed.
+- **"Tách khối tại con trỏ"** (paragraph toolbar button) is now the only way to split a block: the
+  doc is cut at a collapsed cursor with `Node.cut()` (marks and inner paragraph order preserved),
+  `before` stays, `after` becomes a new ParagraphBlock right below (own id, same `align`), and the
+  cursor moves to its start. Disabled while text is selected. No keyboard shortcut.
+- **Backspace** at the very start of the block (first inner paragraph, offset 0, collapsed) keeps
+  A2's delete/merge behavior. At the start of any later inner paragraph it is ProseMirror's own
+  join, inside the block -- blocks are never merged from there.
+
+No schema change and no migration: a ParagraphBlock's `text` was already `string | TipTapDocument`
+and RichTextRenderer already rendered every top-level paragraph node. Existing blocks are left as
+they are (never auto-merged).

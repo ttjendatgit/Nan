@@ -2,28 +2,22 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent, type Content } from "@tiptap/react";
-import { Bold, Highlighter, Italic, Link as LinkIcon, Unlink, X } from "lucide-react";
+import { Bold, Highlighter, Italic, Link as LinkIcon, Scissors, Unlink, X } from "lucide-react";
 import { isSafeHref } from "@/lib/richText";
-import { isTipTapDocEmpty, type TipTapDocument } from "@/lib/tiptapContent";
+import type { TipTapDocument } from "@/lib/tiptapContent";
 import { richTextExtensions } from "@/lib/richTextExtensions";
-import { clipboardToBlocks } from "@/lib/pasteToBlocks";
-import type { ContentBlock } from "@/types/contentBlocks";
 
 /**
- * What Enter hands back to the block layer when it's asked to split a paragraph (A1, reversing
- * the earlier SingleParagraphEnter decision). `before`/`after` are cut from the live ProseMirror
- * doc via `Node.cut()`, not by slicing text, so every mark spanning the split point (bold,
- * italic, link, highlight) survives on whichever side it ends up on.
+ * What "Tách khối tại con trỏ" hands back to the block layer: this block's doc cut at the cursor.
+ * Both halves are cut from the live ProseMirror doc via `Node.cut()`, not by slicing text, so every
+ * mark spanning the cut point (bold, italic, link, highlight) survives on whichever side it ends up
+ * on, and every inner paragraph stays in order on its own side.
  */
-export interface ParagraphEnterPayload {
-  /** Everything from the start of the doc up to the cursor -- stays in the current block. */
+export interface ParagraphSplitPayload {
+  /** Everything up to the cursor -- stays in the current block. */
   before: TipTapDocument;
-  /** Everything from the cursor to the end of the doc, or null when there's nothing there (the
-   * cursor was at the very end) -- goes to a new block below, when there's anything to move. */
-  after: TipTapDocument | null;
-  /** True when the cursor was at the very start of the doc with nothing selected -- the caller
-   * treats this as "add an empty block above", not a split. */
-  atStart: boolean;
+  /** Everything from the cursor on -- becomes a new paragraph block right below. */
+  after: TipTapDocument;
 }
 
 /**
@@ -40,38 +34,17 @@ export interface ParagraphBackspacePayload {
   doc: TipTapDocument;
 }
 
-/**
- * What a multi-block paste (A3) hands back to the block layer. Unlike Enter/Backspace, this one
- * carries the converted `blocks` themselves (pasted content parsed into whatever mix of block
- * types the clipboard's structure implied -- headings, lists, quotes, more paragraphs), since
- * that conversion has to happen here, against the live clipboard event, not something ContentStudio
- * could derive on its own. `before`/`after` are the same cut-at-cursor split A1's Enter already
- * does (marks preserved via `Node.cut()`, selected range excluded from both sides).
- */
-export type ParagraphPastePayload = {
-  before: TipTapDocument;
-  /** Whether `before` has any visible content -- included rather than left for the caller to
-   * derive, same reasoning as ParagraphBackspacePayload.isEmpty: it's a judgment this component
-   * already has to make internally (to decide whether to intervene in the paste at all), so
-   * there's no reason to make the caller re-derive it from raw JSON. */
-  beforeIsEmpty: boolean;
-  after: TipTapDocument | null;
-  blocks: ContentBlock[];
-};
-
 interface RichTextInputProps {
   id: string;
   value: string | TipTapDocument;
   onChange: (value: TipTapDocument) => void;
   placeholder?: string;
   align?: "left" | "center" | "right";
-  /** Handles a plain Enter keypress by splitting this paragraph into two, instead of the default
-   * hard-break-in-place behavior. Optional and only meaningful for ParagraphBlock -- when omitted,
-   * Enter falls back to inserting a hard break (the old SingleParagraphEnter behavior), so any
-   * future caller that doesn't wire this still gets a safe default instead of TipTap's raw
-   * splitBlock. Shift-Enter always inserts a hard break regardless, via HardBreak's own default
-   * shortcut -- this only ever intercepts plain Enter. */
-  onEnter?: (payload: ParagraphEnterPayload) => void;
+  /** Enables the toolbar's "Tách khối tại con trỏ" action: splits this block into two at the
+   * (collapsed) cursor and hands both halves up. Enter itself never splits the block any more --
+   * it adds a paragraph inside this same block (TipTap's own behavior). Without this prop the
+   * button isn't shown. */
+  onSplitAtCursor?: (payload: ParagraphSplitPayload) => void;
   /** A2: handles a plain Backspace pressed at the very start of this paragraph's content
    * (collapsed selection) -- reports whether the block is empty and its full current doc, and
    * lets the block layer decide whether to delete this block or merge it into the previous one.
@@ -92,14 +65,6 @@ interface RichTextInputProps {
    * pendingMerge back to null -- otherwise the same merge would reapply on every future render
    * where pendingMerge is still set. */
   onMergeApplied?: () => void;
-  /** A3: handles a paste whose clipboard content converts to more than one block, or to a single
-   * non-paragraph block (a list, a heading, ...) -- reports the converted blocks plus the doc
-   * split at the cursor (same shape as onEnter), and lets the block layer decide how to splice
-   * them into the array. When the clipboard converts to exactly one plain paragraph, this isn't
-   * called at all -- see handlePaste below, that case is left to TipTap's own default paste so a
-   * "paste a phrase mid-sentence" interaction is never changed by this. Optional, same "safe
-   * no-op when absent" contract as onEnter/onBackspaceAtStart. */
-  onPasteBlocks?: (payload: ParagraphPastePayload) => void;
 }
 
 const TOOLBAR_BTN =
@@ -123,6 +88,21 @@ function resolveInitialContent(value: string | TipTapDocument): Content {
   return value as Content;
 }
 
+function isEmptyParagraph(node: TipTapDocument | undefined): boolean {
+  return node?.type === "paragraph" && (!node.content || node.content.length === 0);
+}
+
+/** Drops empty paragraphs from one edge of a cut doc (keeping at least one paragraph, so an empty
+ * half is still a valid, empty document). */
+function trimEdgeEmptyParagraph(doc: TipTapDocument, edge: "start" | "end"): TipTapDocument {
+  const content = [...(doc.content ?? [])];
+  while (content.length > 1 && isEmptyParagraph(edge === "start" ? content[0] : content[content.length - 1])) {
+    if (edge === "start") content.shift();
+    else content.pop();
+  }
+  return { ...doc, content: content.length > 0 ? content : [{ type: "paragraph" }] };
+}
+
 /**
  * TipTap-based rich text input for ParagraphBlock, replacing Phase 2.1's contentEditable +
  * execCommand implementation (RichTextEditor.tsx, removed Phase 2.3.1). Controlled the same way
@@ -130,12 +110,15 @@ function resolveInitialContent(value: string | TipTapDocument): Content {
  * itself needs to run its own editor instance, plus the small amount of local UI state the Link
  * popover needs.
  *
- * Also owns three block-boundary behaviors that report intent upward rather than acting on the
- * block array themselves (this component has no concept of "the block array" at all): Enter (A1,
- * split into a new block), Backspace at the start of the content (A2, delete or merge into the
- * previous block), and a multi-block paste (A3, split the clipboard's content into several
- * blocks). See the `onEnter`/`onBackspaceAtStart` handlers in handleKeyDown and `onPasteBlocks` in
- * handlePaste below, and the `pendingMerge` effect for A2's merge case specifically.
+ * Writing inside one block works like a regular editor: Enter adds a paragraph inside this same
+ * block, Shift-Enter a soft line break, and a paste lands entirely in this block (TipTap's own
+ * paste, through the schema below) with its paragraph breaks kept and the text around the cursor
+ * or selection preserved -- a deliberate change from A1/A3, where Enter and multi-paragraph pastes
+ * created new blocks. Two behaviors still reach the block layer, reported upward rather than
+ * acting on the block array (this component has no concept of it): Backspace at the very start of
+ * the block's content (A2, delete or merge into the previous block) and the explicit
+ * "Tách khối tại con trỏ" split. See `onBackspaceAtStart` in handleKeyDown, `handleSplitAtCursor`,
+ * and the `pendingMerge` effect for A2's merge case.
  *
  * Scope is deliberately narrow -- Bold, Italic, Link, Highlight only. Every other StarterKit node
  * (headings, lists, blockquote, code block, horizontal rule, strike, underline) is turned off in
@@ -144,49 +127,28 @@ function resolveInitialContent(value: string | TipTapDocument): Content {
  * paste from Word/Docs/a web page loses font styles, colors, and any structure outside this list
  * for free, without a separate cleanup pass -- there is no schema slot for them to land in.
  *
- * Enter (A1): a plain Enter no longer inserts a hard break in place -- it calls `onEnter` with the
- * doc split at the cursor (marks preserved via ProseMirror's `Node.cut`, not string slicing) and
- * lets the block layer (BlockCanvas/ContentStudio) decide what that means for the block array.
- * This reverses Phase 2.3.1's SingleParagraphEnter decision, which forced one ParagraphBlock to
- * stay one paragraph forever and made writing anything longer than a couple of paragraphs mean
- * repeatedly reaching for the mouse. Shift-Enter is untouched -- still a hard break, via
- * HardBreak's own default shortcut, since this only intercepts plain Enter. When `onEnter` isn't
- * supplied, plain Enter falls back to the old hard-break behavior instead of TipTap's raw
- * splitBlock, so any caller that doesn't wire A1's split logic still gets a safe, contained
- * default rather than a silently-appearing second paragraph node inside one block's own doc.
- *
- * The Enter interception lives in `editorProps.handleKeyDown`, not a keyboard-shortcut Extension
- * -- an Extension is `.create()`d once at module scope (as SingleParagraphEnter itself was) and
- * would close over whatever `onEnter` happened to be in scope at that point, not this specific
- * render's prop. `handleKeyDown` is a plain function recreated with the editor's config on every
- * relevant change, but even that isn't reactive to a prop changing without recreating the whole
- * editor instance -- so the handler always reads the *latest* onEnter through `onEnterRef` rather
- * than closing over the prop value directly.
+ * The Backspace interception lives in `editorProps.handleKeyDown`, not a keyboard-shortcut
+ * Extension -- an Extension is `.create()`d once at module scope and would close over whatever
+ * handler happened to be in scope at that point, not this specific render's prop -- so the handler
+ * always reads the *latest* prop through a ref rather than closing over its value directly.
  */
 export default function RichTextInput({
   id, value, onChange, placeholder, align = "left",
-  onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied, onPasteBlocks,
+  onSplitAtCursor, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied,
 }: RichTextInputProps) {
   const lastEmittedRef = useRef<string | TipTapDocument>(value);
-  const onEnterRef = useRef(onEnter);
   const onBackspaceAtStartRef = useRef(onBackspaceAtStart);
-  const onPasteBlocksRef = useRef(onPasteBlocks);
   const onMergeAppliedRef = useRef(onMergeApplied);
+  // Whether the selection is a plain cursor -- drives the split button's enabled state, which
+  // must follow every selection change (the toolbar otherwise only re-renders on content changes).
+  const [selectionCollapsed, setSelectionCollapsed] = useState(true);
   const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkError, setLinkError] = useState<string | null>(null);
 
   useEffect(() => {
-    onEnterRef.current = onEnter;
-  }, [onEnter]);
-
-  useEffect(() => {
     onBackspaceAtStartRef.current = onBackspaceAtStart;
   }, [onBackspaceAtStart]);
-
-  useEffect(() => {
-    onPasteBlocksRef.current = onPasteBlocks;
-  }, [onPasteBlocks]);
 
   useEffect(() => {
     onMergeAppliedRef.current = onMergeApplied;
@@ -198,9 +160,9 @@ export default function RichTextInput({
     // hydration mismatch (the editor's internal ids differ between the two passes otherwise).
     immediatelyRender: false,
     content: resolveInitialContent(value),
-    // Phase A3: moved to lib/richTextExtensions.ts so lib/pasteToBlocks.ts's clipboard-to-blocks
-    // conversion parses pasted HTML through this exact same configured array (via generateJSON),
-    // not a second, separately-maintained copy -- see that file's own header comment.
+    // The one shared, configured extension set (lib/richTextExtensions.ts). It is also the paste
+    // sanitizer: a paste is parsed through this schema, so only paragraphs, hard breaks, bold,
+    // italic, highlight and links whose href passes isAllowedUri can come through.
     extensions: richTextExtensions,
     editorProps: {
       attributes: {
@@ -210,164 +172,46 @@ export default function RichTextInput({
         "aria-multiline": "true",
         ...(placeholder ? { "aria-placeholder": placeholder } : {}),
       },
-      // Plain Enter only -- Shift-Enter/Mod-Enter etc. fall through to TipTap's own handling
-      // (HardBreak's default shortcut covers Shift-Enter). Returning true tells ProseMirror this
-      // key was fully handled, so its own default Enter behavior (splitBlock) never runs.
-      handleKeyDown(view, event) {
-        // A2: plain Backspace at the very start of this block's content. Kept as its own early
-        // branch, entirely separate from the Enter logic below it -- different key, different
-        // payload shape, nothing shared beyond both living in this same handleKeyDown callback.
+      // Only Backspace at the very start of the block is intercepted here. Enter (new paragraph
+      // inside this block), Shift-Enter (hard break) and IME composition are all left to
+      // TipTap/ProseMirror's own handling.
+      handleKeyDown(_view, event) {
+        // A2: plain Backspace at the very start of this block's content -- the first inner
+        // paragraph's first position, collapsed. Backspace at the start of any *later* inner
+        // paragraph is not intercepted: ProseMirror joins it into the paragraph above, inside this
+        // same block, and no Content Studio blocks are merged.
         if (
           event.key === "Backspace" && !event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey
           && !event.isComposing
         ) {
           const backspaceHandler = onBackspaceAtStartRef.current;
           if (!backspaceHandler) return false;
-          if (!editor) return false; // see the identical guard below for why this can't be proven statically
+          // `editor` is typed Editor | null because of immediatelyRender: false -- this handler only
+          // runs for a real keydown on a live EditorView, which can't exist before `editor` does,
+          // but TypeScript can't prove that; bailing to the default behavior is a safe last resort.
+          if (!editor) return false;
 
           const { from, to, $from } = editor.state.selection;
-          // Same atStart resolution A1 uses for Enter: collapsed selection, at offset 0 of its
-          // parent, and that parent is the doc's first child.
+          // Collapsed selection, at offset 0 of its parent, and that parent is the doc's first child.
           const atStart = from === to && $from.parentOffset === 0 && $from.index(0) === 0;
           if (!atStart) return false;
 
           // This handler only ever reports state -- it never deletes/merges anything itself. The
-          // actual block-array decision (delete vs. merge, and into what) is ContentStudio's,
-          // same division of responsibility as onEnter.
+          // actual block-array decision (delete vs. merge, and into what) is ContentStudio's.
           backspaceHandler({ isEmpty: editor.isEmpty, doc: editor.state.doc.toJSON() as TipTapDocument });
           return true;
         }
 
-        if (event.key !== "Enter" || event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
-          return false;
-        }
-        // Mid-IME-composition Enter (confirming a candidate, common with Vietnamese input
-        // methods) is not "the user wants a new paragraph" -- let the browser/IME handle it.
-        if (event.isComposing) return false;
-
-        const handler = onEnterRef.current;
-        if (!handler) {
-          // No split behavior wired -- safe fallback is the old hard-break-in-place, not TipTap's
-          // raw splitBlock (which would silently let one ParagraphBlock's own doc grow a second
-          // paragraph node, the exact thing SingleParagraphEnter existed to prevent). Dispatched
-          // directly against `view` rather than via `editor.commands` -- `view` is handleKeyDown's
-          // own parameter, unambiguously safe to use regardless of where in this function it's
-          // referenced (unlike `editor`, the closured outer variable used below once we know a
-          // handler exists and the codepath is no longer reachable before `editor` is assigned).
-          const hardBreakType = view.state.schema.nodes.hardBreak;
-          if (hardBreakType) {
-            view.dispatch(view.state.tr.replaceSelectionWith(hardBreakType.create()).scrollIntoView());
-          }
-          return true;
-        }
-
-        // `editor` (the React-side wrapper) is typed Editor | null because of
-        // immediatelyRender: false -- in practice this handler only ever runs in response to a
-        // real keydown against a live EditorView, which can't exist before `editor` does, but
-        // TypeScript can't prove that here. Bailing to the browser's default Enter behavior in
-        // the theoretical null case is a safe last resort, not a real code path.
-        if (!editor) return false;
-
-        // A1-fix: replaces the original calculation, which had two bugs.
-        //   N1 -- atStart was checked as `pos === 0`. Position 0 in ProseMirror is *before* the
-        //   first block node, not the start of its text content (the first real cursor position
-        //   inside a paragraph is 1), so that check was never true and every Enter fell into the
-        //   split branch below, including at the very start of a paragraph (L1, and L3 as its
-        //   repeated-Enter consequence). Fixed by resolving position, not comparing a raw number:
-        //   collapsed selection + at offset 0 of its parent + that parent is the doc's first child.
-        //   N2 -- `after` was cut starting at `selection.from`, which still includes a
-        //   non-collapsed selection's own text, so a selected range survived into `after` instead
-        //   of disappearing (L2). Fixed by cutting `before` up to `from` and `after` from `to` --
-        //   whatever sits between `from` and `to` (the selected range) is cut out of the document
-        //   entirely, on both sides.
-        const { state } = editor;
-        const { from, to, $from } = state.selection;
-        const docSize = state.doc.content.size;
-
-        // (1) A fully empty paragraph is treated like "at the end" (open an empty block below,
-        // move focus there), not "at the start" -- even though the cursor is trivially at the
-        // start of empty content too. Letting atStart win here would mean pressing Enter
-        // repeatedly on an empty block never visibly does anything (focus never moves), which
-        // reads as a broken key rather than "add another empty paragraph."
-        if (editor.isEmpty) {
-          handler({ before: state.doc.toJSON() as TipTapDocument, after: null, atStart: false });
-          return true;
-        }
-
-        // (2) Cursor collapsed at the very start of the first block's own content.
-        const atStart = from === to && $from.parentOffset === 0 && $from.index(0) === 0;
-        if (atStart) {
-          handler({ before: state.doc.toJSON() as TipTapDocument, after: null, atStart: true });
-          return true;
-        }
-
-        // (3) Split. Node.cut() operates on the actual node/fragment tree, not serialized text,
-        // so every mark spanning the cut point (bold, italic, link, highlight) survives on
-        // whichever side it ends up on -- a text-slicing approach couldn't guarantee that.
-        const beforeDoc = state.doc.cut(0, from);
-        const afterDoc = state.doc.cut(to, docSize);
-        const afterIsEmpty = afterDoc.textContent.length === 0;
-
-        handler({
-          before: beforeDoc.toJSON() as TipTapDocument,
-          after: afterIsEmpty ? null : (afterDoc.toJSON() as TipTapDocument),
-          atStart: false,
-        });
-        return true;
-      },
-      // A3: a paste whose clipboard content converts to more than one block (or to a single
-      // non-paragraph block) is handed up to the block layer instead of landing inside this one
-      // block's doc as several TipTap paragraph nodes. A paste that converts to exactly one plain
-      // paragraph is deliberately left alone -- returning false here means TipTap's own default
-      // paste handling runs unchanged, so "paste a phrase into the middle of a sentence" is never
-      // affected by any of this.
-      handlePaste(view, event) {
-        const pasteHandler = onPasteBlocksRef.current;
-        if (!pasteHandler) return false;
-        if (!editor) return false; // same unprovable-statically null guard as the Enter/Backspace branches above
-
-        const clipboardData = event.clipboardData;
-        if (!clipboardData) return false;
-
-        const html = clipboardData.getData("text/html");
-        const text = clipboardData.getData("text/plain");
-        if (!html && !text) return false; // nothing this code can read -- let TipTap try its own handling
-
-        const blocks = clipboardToBlocks(html || null, text || null);
-
-        // Nothing usable came out of the conversion (e.g. clipboard content that was only
-        // images/comments/style tags) -- rather than silently eating the paste, fall through to
-        // TipTap's own default handling, which may still be able to do something with it.
-        if (blocks.length === 0) return false;
-
-        // Exactly one plain paragraph -- the common case (copying a word or a sentence from
-        // somewhere) must not change behavior at all.
-        if (blocks.length === 1 && blocks[0].type === "paragraph") return false;
-
-        const { state } = editor;
-        const { from, to } = state.selection;
-        const docSize = state.doc.content.size;
-        // Same cut-at-cursor split A1's Enter uses -- before ends at `from`, after starts at
-        // `to`, so a currently-selected range is excluded from both sides rather than surviving
-        // into one of them.
-        const beforeDoc = state.doc.cut(0, from);
-        const afterDoc = state.doc.cut(to, docSize);
-        const beforeJson = beforeDoc.toJSON() as TipTapDocument;
-        const afterIsEmpty = afterDoc.textContent.length === 0;
-
-        pasteHandler({
-          before: beforeJson,
-          beforeIsEmpty: isTipTapDocEmpty(beforeJson),
-          after: afterIsEmpty ? null : (afterDoc.toJSON() as TipTapDocument),
-          blocks,
-        });
-        return true;
+        return false;
       },
     },
     onUpdate: ({ editor }) => {
       const json = editor.getJSON();
       lastEmittedRef.current = json;
       onChange(json);
+    },
+    onSelectionUpdate: ({ editor }) => {
+      setSelectionCollapsed(editor.state.selection.empty);
     },
   });
 
@@ -417,9 +261,8 @@ export default function RichTextInput({
     const joinPos = editor.state.doc.content.size - 1;
 
     // The incoming doc's first paragraph's inline content (text/marks/hardBreaks) joins directly
-    // onto this block's last line; any further paragraph nodes after that (only possible via the
-    // documented multi-paragraph-paste edge case, not through normal typing) are appended as
-    // their own nodes rather than discarded.
+    // onto this block's last paragraph; every further inner paragraph of the incoming block is
+    // appended after it as its own paragraph node, in order -- nothing is discarded.
     const nodes = pendingMerge.content ?? [];
     const firstInline = nodes[0]?.content ?? [];
     const rest = nodes.slice(1);
@@ -513,13 +356,29 @@ export default function RichTextInput({
     }
   }
 
+  // "Tách khối tại con trỏ": cuts this block's doc at the cursor (only offered for a collapsed
+  // selection) and hands both halves to the block layer, which keeps `before` here and puts
+  // `after` in a new paragraph block right below. A cut exactly at a paragraph boundary leaves an
+  // empty paragraph at the cut edge of one half -- trimmed, so neither block starts or ends with a
+  // stray blank line.
+  function handleSplitAtCursor() {
+    if (!editor || !onSplitAtCursor) return;
+    const { selection, doc } = editor.state;
+    if (!selection.empty) return;
+    const pos = selection.from;
+    onSplitAtCursor({
+      before: trimEdgeEmptyParagraph(doc.cut(0, pos).toJSON() as TipTapDocument, "end"),
+      after: trimEdgeEmptyParagraph(doc.cut(pos, doc.content.size).toJSON() as TipTapDocument, "start"),
+    });
+  }
+
   const isEmpty = !editor || editor.isEmpty;
   const linkActive = editor?.isActive("link") ?? false;
 
   return (
     <div>
       <div
-        className="mb-1.5 flex items-center gap-1 rounded-lg p-1"
+        className="mb-1.5 flex flex-wrap items-center gap-1 rounded-lg p-1"
         style={{ background: "var(--admin-surface-muted)", border: "1px solid var(--admin-border)" }}
         role="toolbar"
         aria-label="Định dạng văn bản"
@@ -576,6 +435,30 @@ export default function RichTextInput({
         >
           <LinkIcon className="h-3.5 w-3.5" />
         </button>
+        {onSplitAtCursor && (
+          <div className="ml-auto flex items-center gap-2">
+            {!selectionCollapsed && (
+              <span id={`${id}-split-hint`} className="text-[10px]" style={{ color: "var(--admin-text-subtle)" }}>
+                Bỏ chọn văn bản để tách khối
+              </span>
+            )}
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={handleSplitAtCursor}
+              disabled={!editor || !selectionCollapsed}
+              aria-describedby={!selectionCollapsed ? `${id}-split-hint` : undefined}
+              title={selectionCollapsed
+                ? "Phần sau con trỏ chuyển sang một khối Đoạn văn mới ngay bên dưới"
+                : "Bỏ chọn văn bản, đặt con trỏ tại vị trí cần tách"}
+              className="admin-focus-ring flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-[11px] font-medium transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              style={{ color: "var(--admin-text-muted)", border: "1px solid var(--admin-border)" }}
+            >
+              <Scissors className="h-3.5 w-3.5" aria-hidden="true" />
+              Tách khối tại con trỏ
+            </button>
+          </div>
+        )}
       </div>
 
       {linkPopoverOpen && (

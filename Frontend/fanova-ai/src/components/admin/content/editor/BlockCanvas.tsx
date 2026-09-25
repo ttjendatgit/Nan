@@ -3,7 +3,7 @@
 import { LayoutList } from "lucide-react";
 import type { ContentBlock } from "@/types/contentBlocks";
 import type { TipTapDocument } from "@/lib/tiptapContent";
-import type { ParagraphBackspacePayload, ParagraphEnterPayload, ParagraphPastePayload } from "./RichTextInput";
+import type { ParagraphBackspacePayload, ParagraphSplitPayload } from "./RichTextInput";
 import BlockItem from "./BlockItem";
 
 interface BlockCanvasProps {
@@ -23,17 +23,17 @@ interface BlockCanvasProps {
    * only the one target block actually receives `incoming` content to splice in. */
   pendingMerge: { blockId: string; incoming: TipTapDocument } | null;
   clearMerge: () => void;
-  /** Raw split payload from a paragraph's RichTextInput, plus which block/index it came from --
+  /** Raw payloads from a paragraph's RichTextInput ("Tách khối tại con trỏ" split, A2 Backspace),
+   * plus which block/index they came from --
    * BlockCanvas is where `block.id`/`index` are known, so it's the natural place to close over
    * them before handing the payload up to the real handler in ContentStudio. */
-  onParagraphEnter: (blockId: string, index: number, payload: ParagraphEnterPayload) => void;
+  onParagraphSplit: (blockId: string, index: number, payload: ParagraphSplitPayload) => void;
   onParagraphBackspace: (blockId: string, index: number, payload: ParagraphBackspacePayload) => void;
-  onParagraphPaste: (blockId: string, index: number, payload: ParagraphPastePayload) => void;
 }
 
 export default function BlockCanvas({
   blocks, activeBlockId, onFocusBlock, onUpdateBlock, onRemoveBlock, onMoveBlock, token,
-  pendingFocus, requestFocus, pendingMerge, clearMerge, onParagraphEnter, onParagraphBackspace, onParagraphPaste,
+  pendingFocus, requestFocus, pendingMerge, clearMerge, onParagraphSplit, onParagraphBackspace,
 }: BlockCanvasProps) {
   if (blocks.length === 0) {
     return (
@@ -68,9 +68,8 @@ export default function BlockCanvas({
           onMoveUp={() => onMoveBlock(block.id, -1)}
           onMoveDown={() => onMoveBlock(block.id, 1)}
           token={token}
-          onEnter={(payload) => onParagraphEnter(block.id, index, payload)}
+          onSplitAtCursor={(payload) => onParagraphSplit(block.id, index, payload)}
           onBackspaceAtStart={(payload) => onParagraphBackspace(block.id, index, payload)}
-          onPasteBlocks={(payload) => onParagraphPaste(block.id, index, payload)}
           autoFocus={pendingFocus?.blockId === block.id ? pendingFocus.position : false}
           pendingMerge={pendingMerge?.blockId === block.id ? pendingMerge.incoming : null}
           onMergeApplied={clearMerge}

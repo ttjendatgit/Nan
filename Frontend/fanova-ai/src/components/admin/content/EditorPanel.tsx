@@ -2,7 +2,7 @@
 
 import type { ContentBlock, ContentBlockType } from "@/types/contentBlocks";
 import type { TipTapDocument } from "@/lib/tiptapContent";
-import type { ParagraphBackspacePayload, ParagraphEnterPayload, ParagraphPastePayload } from "./editor/RichTextInput";
+import type { ParagraphBackspacePayload, ParagraphSplitPayload } from "./editor/RichTextInput";
 import BlockEditor from "./editor/BlockEditor";
 
 interface EditorPanelProps {
@@ -16,14 +16,13 @@ interface EditorPanelProps {
   requestFocus: (blockId: string | null, position?: "start" | "end") => void;
   pendingMerge: { blockId: string; incoming: TipTapDocument } | null;
   clearMerge: () => void;
-  onParagraphEnter: (blockId: string, index: number, payload: ParagraphEnterPayload) => void;
+  onParagraphSplit: (blockId: string, index: number, payload: ParagraphSplitPayload) => void;
   onParagraphBackspace: (blockId: string, index: number, payload: ParagraphBackspacePayload) => void;
-  onParagraphPaste: (blockId: string, index: number, payload: ParagraphPastePayload) => void;
 }
 
 export default function EditorPanel({
   blocks, onAddBlock, onUpdateBlock, onRemoveBlock, onMoveBlock, token,
-  pendingFocus, requestFocus, pendingMerge, clearMerge, onParagraphEnter, onParagraphBackspace, onParagraphPaste,
+  pendingFocus, requestFocus, pendingMerge, clearMerge, onParagraphSplit, onParagraphBackspace,
 }: EditorPanelProps) {
   return (
     <section
@@ -47,9 +46,8 @@ export default function EditorPanel({
           requestFocus={requestFocus}
           pendingMerge={pendingMerge}
           clearMerge={clearMerge}
-          onParagraphEnter={onParagraphEnter}
+          onParagraphSplit={onParagraphSplit}
           onParagraphBackspace={onParagraphBackspace}
-          onParagraphPaste={onParagraphPaste}
         />
       </div>
     </section>

@@ -10,7 +10,7 @@ import type { ParagraphBlock } from "@/types/contentBlocks";
 import { useContentEditor } from "@/hooks/useContentEditor";
 import type { ContentDocument } from "@/types/content";
 import type { Product } from "@/types/catalog";
-import type { ParagraphBackspacePayload, ParagraphEnterPayload, ParagraphPastePayload } from "./editor/RichTextInput";
+import type { ParagraphBackspacePayload, ParagraphSplitPayload } from "./editor/RichTextInput";
 import ContentStudioHeader from "./ContentStudioHeader";
 import ContentMetadataForm from "./ContentMetadataForm";
 import SeoPanel, { type SeoErrors } from "./SeoPanel";
@@ -177,48 +177,29 @@ export default function ContentStudio({
   }
 
   /**
-   * A1: what a plain Enter inside a ParagraphBlock does now, reversing the SingleParagraphEnter
-   * decision from Phase 2.3.1. Owns the actual block-array decision RichTextInput's payload only
-   * describes -- RichTextInput doesn't know about the block array at all, it just reports where
-   * the cursor was and what was on each side of it.
-   *
-   * `atStart` is checked before the after===null/after!==null split on purpose: an empty
-   * paragraph (nothing typed yet) has the cursor at both "the start" and "the end" of its content
-   * simultaneously, and in that case "add an empty block above, don't move focus" is the more
-   * useful reading of pressing Enter than "split off nothing and jump away."
+   * "Tách khối tại con trỏ": the writer explicitly splits one paragraph block into two. Enter no
+   * longer does this -- it adds a paragraph inside the same block -- so a long text stays in one
+   * block until the writer chooses where to break it (e.g. to put an image between the halves).
+   * RichTextInput reports the doc cut at the cursor; the block-array decision is made here:
+   * `before` stays in this block, `after` becomes a new paragraph block right below with its own
+   * id and this block's alignment (it's a continuation of the same text), and the cursor moves to
+   * the start of that new block.
    */
-  function handleParagraphEnter(blockId: string, index: number, payload: ParagraphEnterPayload) {
-    const { before, after, atStart } = payload;
-
-    if (atStart) {
-      editor.addBlockAt("paragraph", index);
-      return;
-    }
-
+  function handleParagraphSplit(blockId: string, index: number, payload: ParagraphSplitPayload) {
     const currentBlock = editor.blocks.find((b) => b.id === blockId);
-    if (!currentBlock || currentBlock.type !== "paragraph") return; // onEnter is only ever wired for paragraph blocks
+    if (!currentBlock || currentBlock.type !== "paragraph") return; // only ever wired for paragraph blocks
 
-    editor.updateBlock({ ...currentBlock, text: before });
-
-    if (after === null) {
-      const newId = editor.addBlockAt("paragraph", index + 1);
-      editor.requestFocus(newId);
-      return;
-    }
-
-    // Carries the split-off content over, plus the original block's own alignment (a fresh
-    // createParagraphBlock() always starts unaligned/left -- the new block is a continuation of
-    // the same paragraph, so it should keep reading the same way, not reset to the default).
-    const splitBlock: ParagraphBlock = { ...createParagraphBlock(), text: after, align: currentBlock.align };
+    editor.updateBlock({ ...currentBlock, text: payload.before });
+    const splitBlock: ParagraphBlock = { ...createParagraphBlock(), text: payload.after, align: currentBlock.align };
     editor.insertBlockAt(splitBlock, index + 1);
-    editor.requestFocus(splitBlock.id);
+    editor.requestFocus(splitBlock.id, "start");
   }
 
   /**
    * A2: what a plain Backspace at the very start of a ParagraphBlock does -- Enter's inverse.
    * RichTextInput only ever reports state (is this block empty, and its full current doc); every
    * decision about what that means for the block array is made here, same division of
-   * responsibility as handleParagraphEnter above.
+   * responsibility as handleParagraphSplit above.
    *
    * The actual content merge does NOT happen here as a JSON splice -- `editor.requestMerge(prev.id,
    * doc)` only records the intent (which block, what's incoming). The previous block's own
@@ -253,48 +234,6 @@ export default function ContentStudio({
 
     editor.requestMerge(prev.id, payload.doc);
     editor.removeBlock(blockId);
-  }
-
-  /**
-   * A3: what a multi-block paste inside a ParagraphBlock does. RichTextInput has already done the
-   * hard part (decided the paste isn't the single-plain-paragraph case, converted the clipboard
-   * into ContentBlock[] via lib/pasteToBlocks.ts, and cut this block's own doc at the cursor the
-   * same way A1's Enter does) -- this only decides where those blocks land in the array, which is
-   * the same "replace vs. keep-and-insert-after" shape handleParagraphEnter already has for
-   * `atStart`, generalized from one new block to several.
-   */
-  function handleParagraphPaste(blockId: string, index: number, payload: ParagraphPastePayload) {
-    const { before, beforeIsEmpty, after, blocks: pastedBlocks } = payload;
-
-    const current = editor.blocks.find((b) => b.id === blockId);
-    if (!current || current.type !== "paragraph") return; // onPasteBlocks is only ever wired for paragraph blocks
-
-    const toInsert = [...pastedBlocks];
-    if (after !== null) {
-      // Whatever was after the cursor becomes its own trailing paragraph, inheriting this
-      // block's align the same way A1's split-block does -- it's a continuation of the same
-      // paragraph, not a fresh default-aligned one.
-      toInsert.push({ ...createParagraphBlock(), text: after, align: current.align });
-    }
-
-    if (beforeIsEmpty) {
-      // Nothing worth keeping before the cursor (an empty block, or the cursor at its start) --
-      // the current block is replaced outright rather than surviving as a leftover empty block
-      // alongside everything just pasted.
-      editor.spliceBlocks(index, 1, toInsert);
-    } else {
-      editor.updateBlock({ ...current, text: before });
-      editor.spliceBlocks(index + 1, 0, toInsert);
-    }
-
-    // Focus the last pasted block only if it's a paragraph -- there's nothing meaningful to
-    // place a text cursor into for a list/heading/quote/divider, so focus is simply left where
-    // it already was rather than forced somewhere it can't usefully land (same reasoning A2's
-    // empty-block-delete case already uses for a non-paragraph previous block).
-    const last = toInsert[toInsert.length - 1];
-    if (last && last.type === "paragraph") {
-      editor.requestFocus(last.id, "end");
-    }
   }
 
   function handleBack() {
@@ -533,9 +472,8 @@ export default function ContentStudio({
           requestFocus={editor.requestFocus}
           pendingMerge={editor.pendingMerge}
           clearMerge={editor.clearMerge}
-          onParagraphEnter={handleParagraphEnter}
+          onParagraphSplit={handleParagraphSplit}
           onParagraphBackspace={handleParagraphBackspace}
-          onParagraphPaste={handleParagraphPaste}
         />
         <PreviewPanel blocks={editor.blocks} documentType={documentType} title={title} />
       </div>

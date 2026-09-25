@@ -5,7 +5,7 @@ import type { BlockAlign, ParagraphBlock } from "@/types/contentBlocks";
 import type { TipTapDocument } from "@/lib/tiptapContent";
 import BlockFieldLabel from "./BlockFieldLabel";
 import RichTextInput, {
-  type ParagraphBackspacePayload, type ParagraphEnterPayload, type ParagraphPastePayload,
+  type ParagraphBackspacePayload, type ParagraphSplitPayload,
 } from "../RichTextInput";
 
 const ALIGN_OPTIONS: BlockAlign[] = ["left", "center", "right"];
@@ -18,19 +18,19 @@ const ALIGN_LABELS: Record<BlockAlign, string> = {
 interface ParagraphBlockEditorProps {
   block: ParagraphBlock;
   onChange: (block: ParagraphBlock) => void;
-  /** A1: splits this paragraph on plain Enter. A2: deletes/merges this paragraph on Backspace at
-   * its start. See RichTextInput.tsx for the full explanation -- every one of these props just
-   * passes straight through here, this component owns no split/merge/focus logic itself. */
-  onEnter?: (payload: ParagraphEnterPayload) => void;
+  /** "Tách khối tại con trỏ": splits this paragraph block into two at the cursor (Enter itself
+   * now stays inside the block as a new inner paragraph). A2: deletes/merges this paragraph on
+   * Backspace at its start. See RichTextInput.tsx for the full explanation -- every one of these
+   * props just passes straight through here, this component owns no split/merge/focus logic. */
+  onSplitAtCursor?: (payload: ParagraphSplitPayload) => void;
   onBackspaceAtStart?: (payload: ParagraphBackspacePayload) => void;
   autoFocus?: false | "start" | "end";
   pendingMerge?: TipTapDocument | null;
   onMergeApplied?: () => void;
-  onPasteBlocks?: (payload: ParagraphPastePayload) => void;
 }
 
 export default function ParagraphBlockEditor({
-  block, onChange, onEnter, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied, onPasteBlocks,
+  block, onChange, onSplitAtCursor, onBackspaceAtStart, autoFocus, pendingMerge, onMergeApplied,
 }: ParagraphBlockEditorProps) {
   const alignId = useId();
   const textId = useId();
@@ -56,12 +56,11 @@ export default function ParagraphBlockEditor({
           onChange={(text) => onChange({ ...block, text })}
           placeholder="Nhập nội dung đoạn văn..."
           align={block.align ?? "left"}
-          onEnter={onEnter}
+          onSplitAtCursor={onSplitAtCursor}
           onBackspaceAtStart={onBackspaceAtStart}
           autoFocus={autoFocus}
           pendingMerge={pendingMerge}
           onMergeApplied={onMergeApplied}
-          onPasteBlocks={onPasteBlocks}
         />
       </div>
     </div>
