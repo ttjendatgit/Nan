@@ -52,3 +52,19 @@ export interface UpdateContentDocumentInput {
   seoImageUrl?: string | null;
   canonicalUrl?: string | null;
 }
+
+/** Public read model -- mirrors PublishedContentDocumentDto (Content Studio B1). Returned by the
+ * anonymous /api/content-documents/published/... endpoints: Published content only, never a
+ * draftBlocksJson. */
+export interface PublishedContentDocument {
+  type: string;
+  slug: string;
+  title: string;
+  blocksJson: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  seoKeywords: string | null;
+  seoImageUrl: string | null;
+  canonicalUrl: string | null;
+  updatedAt: string;
+}

@@ -215,15 +215,15 @@ function SearchResultsPanel({
 }
 
 // ─── Nav content ────────────────────────────────────────────────────────────
-// Public-facing nav. Hash targets point at existing homepage sections
-// (id="about" on BrandStatementSection, id="applications" on UseCaseSection,
-// id="quote" on FinalCTASection) rather than pages that don't exist yet.
+// Public-facing nav. "Ứng dụng" and "Về Nan" open their own Content Studio pages (Page documents
+// served by app/[slug]); "Liên hệ" still points at the homepage's id="quote" section
+// (FinalCTASection).
 
 const NAV_ITEMS = [
   { label: "Trang chủ", href: "/" },
   { label: "Sản phẩm", href: "/products" },
-  { label: "Ứng dụng", href: "/#applications" },
-  { label: "Về Nan", href: "/#about" },
+  { label: "Ứng dụng", href: "/ung-dung" },
+  { label: "Về Nan", href: "/ve-nan" },
   { label: "Liên hệ", href: "/#quote" },
 ] as const;
 
@@ -234,9 +234,9 @@ const QUOTE_HREF = "/#quote";
  * not simple") since there's no reliable way to know which section is in
  * view without a scroll-spy observer, which is out of scope here. */
 function isRouteActive(href: string, pathname: string): boolean {
+  if (href.includes("#")) return false;
   if (href === "/") return pathname === "/";
-  if (href === "/products") return pathname === "/products" || pathname.startsWith("/products/");
-  return false;
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 const mobilePanelVariants = {

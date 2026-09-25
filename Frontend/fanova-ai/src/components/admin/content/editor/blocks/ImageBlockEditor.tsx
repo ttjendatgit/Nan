@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { Image as ImageIcon } from "lucide-react";
-import type { BlockAlign, ImageBlock } from "@/types/contentBlocks";
+import { IMAGE_SIZES, isImageSize, type BlockAlign, type ImageBlock, type ImageSize } from "@/types/contentBlocks";
 import type { MediaAsset } from "@/types/media";
 import MediaPickerModal from "@/components/admin/media/MediaPickerModal";
 import BlockFieldLabel from "./BlockFieldLabel";
@@ -10,8 +10,16 @@ import BlockFieldLabel from "./BlockFieldLabel";
 const ALIGN_OPTIONS: BlockAlign[] = ["left", "center", "right"];
 const ALIGN_LABELS: Record<BlockAlign, string> = {
   left: "Trái",
-  center: "Giữa (toàn chiều rộng)",
+  center: "Giữa",
   right: "Phải",
+};
+
+const SIZE_LABELS: Record<ImageSize, string> = {
+  original: "Gốc (kích thước thật, tối đa bằng cột nội dung)",
+  small: "Nhỏ (25% cột nội dung)",
+  medium: "Vừa (50%)",
+  large: "Lớn (75%)",
+  full: "Toàn chiều rộng (100%)",
 };
 
 interface ImageBlockEditorProps {
@@ -28,6 +36,7 @@ export default function ImageBlockEditor({ block, onChange, token }: ImageBlockE
   const altId = useId();
   const captionId = useId();
   const alignId = useId();
+  const sizeId = useId();
 
   function handleSelect(asset: MediaAsset) {
     onChange({
@@ -101,6 +110,23 @@ export default function ImageBlockEditor({ block, onChange, token }: ImageBlockE
           placeholder="Hiển thị bên dưới hình ảnh"
           className="admin-input text-xs"
         />
+      </div>
+      <div>
+        <BlockFieldLabel htmlFor={sizeId}>Kích thước hiển thị</BlockFieldLabel>
+        {/* Only this block's presentation -- the image file itself is never resized. A block saved
+            before this option existed has no size and keeps its old rendering until one is
+            picked here. */}
+        <select
+          id={sizeId}
+          value={block.size ?? ""}
+          onChange={(e) => {
+            if (isImageSize(e.target.value)) onChange({ ...block, size: e.target.value });
+          }}
+          className="admin-input"
+        >
+          {!block.size && <option value="" disabled>Như trước đây (chưa chọn)</option>}
+          {IMAGE_SIZES.map((size) => <option key={size} value={size}>{SIZE_LABELS[size]}</option>)}
+        </select>
       </div>
       <div>
         <BlockFieldLabel htmlFor={alignId}>Căn lề hình ảnh</BlockFieldLabel>

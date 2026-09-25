@@ -103,7 +103,7 @@ function applyMark(mark: { type: string; attrs?: Record<string, unknown> }, chil
       // text without a link rather than as a dead or dangerous one.
       if (typeof href !== "string" || !isSafeHref(href)) return child;
       return (
-        <a href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--admin-primary)] underline underline-offset-2">
+        <a href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--content-primary,var(--admin-primary))] underline underline-offset-2">
           {child}
         </a>
       );

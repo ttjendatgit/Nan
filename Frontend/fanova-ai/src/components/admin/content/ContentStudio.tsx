@@ -537,7 +537,7 @@ export default function ContentStudio({
           onParagraphBackspace={handleParagraphBackspace}
           onParagraphPaste={handleParagraphPaste}
         />
-        <PreviewPanel blocks={editor.blocks} />
+        <PreviewPanel blocks={editor.blocks} documentType={documentType} title={title} />
       </div>
     </div>
   );

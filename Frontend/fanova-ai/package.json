@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:sanitizer": "node --experimental-strip-types --no-warnings scripts/check-rich-text-sanitizer.mjs",
+    "check:blocks": "node --experimental-strip-types --no-warnings scripts/check-content-blocks-roundtrip.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

@@ -75,8 +75,24 @@ export interface ImageBlock {
   caption?: string;
   /** Optional, added Phase 2.2. Missing/undefined renders exactly as every pre-2.2 image block
    * already did (full-width) -- "center" is defined to mean the same thing, so no behavior
-   * changes for old data. Only "left"/"right" visibly differ (a narrower, side-aligned image). */
+   * changes for old data. Only "left"/"right" visibly differ (a narrower, side-aligned image).
+   * With `size` set, it positions the whole figure (image + caption) within the content column. */
   align?: BlockAlign;
+  /** Optional display width within the content column -- a presentation choice for this block
+   * only; the image file and its Media Library record are never touched. Missing (every block
+   * saved before this field existed) keeps the original rendering exactly: a 16:9 frame, full
+   * column width, or 60% when aligned left/right. Once set, the image keeps its own aspect ratio
+   * (no crop) at: "original" = natural width, capped at the column; "small"/"medium"/"large"/
+   * "full" = 25/50/75/100% of the column. */
+  size?: ImageSize;
+}
+
+export type ImageSize = "original" | "small" | "medium" | "large" | "full";
+
+export const IMAGE_SIZES: readonly ImageSize[] = ["original", "small", "medium", "large", "full"];
+
+export function isImageSize(value: unknown): value is ImageSize {
+  return typeof value === "string" && (IMAGE_SIZES as readonly string[]).includes(value);
 }
 
 export type ListStyle = "bullet" | "ordered";
@@ -199,8 +215,10 @@ export function createDividerBlock(): DividerBlock {
   return { type: "divider", id: generateBlockId() };
 }
 
+// New image blocks start at full column width, centered -- explicit values, so they use the
+// size-aware rendering (natural aspect ratio) rather than the legacy 16:9 frame.
 export function createImageBlock(): ImageBlock {
-  return { type: "image", id: generateBlockId(), url: "", alt: "", caption: "" };
+  return { type: "image", id: generateBlockId(), url: "", alt: "", caption: "", align: "center", size: "full" };
 }
 
 // A fresh list starts with one empty item (rather than []) so the editor immediately shows an
@@ -363,6 +381,9 @@ function coerceContentBlock(value: unknown): ContentBlock | null {
         alt: asString(v.alt),
         ...(typeof v.caption === "string" ? { caption: v.caption } : {}),
         align: asAlign(v.align),
+        // Missing or unrecognized -> omitted, i.e. the valid pre-`size` default rendering (never
+        // silently enlarged).
+        ...(isImageSize(v.size) ? { size: v.size } : {}),
       };
     case "list": {
       const style: ListStyle = v.style === "ordered" ? "ordered" : "bullet";

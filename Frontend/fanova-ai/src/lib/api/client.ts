@@ -1,4 +1,6 @@
-const API_BASE_URL =
+/** Exported for server-side helpers that need the raw HTTP status apiFetch doesn't expose (e.g.
+ * lib/api/publicContent.ts telling a 404 apart from a 5xx). */
+export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5000";
 
 export async function apiFetch<T>(

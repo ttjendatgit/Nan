@@ -1,12 +1,18 @@
 import { Eye } from "lucide-react";
 import type { ContentBlock } from "@/types/contentBlocks";
 import BlockRenderer from "./preview/BlockRenderer";
+import PageArticle from "@/components/content/PageArticle";
 
 interface PreviewPanelProps {
   blocks: ContentBlock[];
+  /** Page documents are previewed exactly as the public /[slug] page renders them (PageArticle on
+   * the --nan-light surface); every other type keeps the original admin-themed preview. */
+  documentType?: string;
+  title?: string;
 }
 
-export default function PreviewPanel({ blocks }: PreviewPanelProps) {
+export default function PreviewPanel({ blocks, documentType, title = "" }: PreviewPanelProps) {
+  const isPage = documentType === "Page";
   return (
     <section
       aria-labelledby="preview-panel-heading"
@@ -24,6 +30,10 @@ export default function PreviewPanel({ blocks }: PreviewPanelProps) {
             <p className="mt-3 text-xs leading-relaxed max-w-[32ch]" style={{ color: "var(--admin-text-subtle)" }}>
               Bản xem trước nội dung sẽ hiển thị ở đây.
             </p>
+          </div>
+        ) : isPage ? (
+          <div className="rounded-lg px-5 py-8" style={{ background: "var(--nan-light)" }}>
+            <PageArticle title={title} blocks={blocks} />
           </div>
         ) : (
           <BlockRenderer blocks={blocks} />
