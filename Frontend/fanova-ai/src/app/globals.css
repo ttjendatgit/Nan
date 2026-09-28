@@ -1,100 +1,68 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════════
+   NAN BRAND TOKENS — R1 "xưởng quạt đương đại"
+   Decisions and measured WCAG contrast: docs/redesign/DECISIONS.md.
+   Declared under --color-* so each one works for every color utility
+   (bg-indigo, text-on-indigo, border-line-on-paper, ...).
+   `static` keeps every variable in the output even before a utility uses
+   it, so inline styles and var() can rely on them too.
+   Rules of use:
+   - indigo is the main background; paper only for the paper areas (max 2
+     on the homepage), paper-raised for cards on them.
+   - On indigo: on-indigo / on-indigo-muted, bamboo. Primary button: paper
+     background, ink text.
+   - On paper: ink / ink-muted, navy. Bamboo there is only bamboo-deep for
+     small labels, or a hairline. Primary button: navy background,
+     on-indigo text. No bamboo/gold buttons anywhere.
+   - navy never goes on a dark surface.
+   - danger is for dark surfaces, danger-on-paper for paper surfaces: no
+     single red reaches 4.5:1 on both.
+═══════════════════════════════════════════════════════ */
+@theme static {
+  /* Surfaces */
+  --color-indigo: #121629;
+  --color-indigo-deep: #0e111f;
+  --color-indigo-raised: #1a1f3a;
+  --color-paper: #f4efe6;
+  --color-paper-raised: #fbf8f2;
+  --color-paper-deep: #ece3d3;
+
+  /* Text */
+  --color-on-indigo: #f4efe6;
+  --color-on-indigo-muted: #b9b2a6;
+  --color-ink: #2a241e;
+  --color-ink-muted: #5e554a;
+
+  /* Accents */
+  --color-bamboo: #b6a17b;
+  --color-bamboo-deep: #735f3e;
+  --color-navy: #192b88;
+
+  /* Status */
+  --color-danger: #e5715f;
+  --color-danger-on-paper: #a8321e;
+
+  /* Hairlines (decorative, not text) */
+  --color-line-on-indigo: rgb(182 161 123 / 0.24);
+  --color-line-on-paper: #d6cbb6;
+}
+
 :root {
   /* ═══════════════════════════════════════════════════════
-     NAN DESIGN SYSTEM v4 — Dark Architectural (Phase 2)
-     Editorial / architectural direction: deep ink, XNRGY-family
-     blue, ivory, stone, warm material accent used sparingly.
-     Extends v3 below rather than replacing it -- sections not
-     yet migrated keep using v3 tokens until a later pass brings
-     them forward.
+     NAN DESIGN SYSTEM v4 — deprecated, thay trong R2/R3.
+     Still read by var() on the [slug] page, Navbar and the Content
+     Studio preview/renderer; new code uses the R1 brand tokens above.
   ═══════════════════════════════════════════════════════ */
-  --nan-dark: #0f1320;
-  --nan-blue: #192b88;
-  --nan-light: #f1f0ea;
-  --nan-muted: #a9aba5;
-  --nan-material: #b6a17b;
+  --nan-dark: #0f1320; /* deprecated, thay trong R2/R3 */
+  --nan-blue: #192b88; /* deprecated, thay trong R2/R3 */
+  --nan-light: #f1f0ea; /* deprecated, thay trong R2/R3 */
+  --nan-muted: #a9aba5; /* deprecated, thay trong R2/R3 */
+  --nan-material: #b6a17b; /* deprecated, thay trong R2/R3 */
 
-  /* ═══════════════════════════════════════════════════════
-     NAN DESIGN SYSTEM — Luxury Blue × Warm Ivory (v3)
-     Core philosophy: premium craftsmanship + modern editorial
-  ═══════════════════════════════════════════════════════ */
-
-  /* ── Core Blue Identity ── */
-  --bg-dark: #081426;
-  /* Deepest bg: Hero, FanIntro, Footer base */
-  --bg-navy: #0D1E36;
-  /* Secondary dark: Hero gradient, FinalCTA */
-  --bg-blue-mid: #0D2A55;
-  /* Mid dark blue for gradients */
-  --brand-primary: #08337D;
-  /* Primary brand: buttons, nav CTA, links */
-  --brand-secondary: #114F99;
-  /* Royal blue: hover, gradient endpoint */
-  --soft-blue: #4A74A7;
-  /* Muted accent: body text on dark, details */
-  --ice-blue: #DCEAF7;
-  /* Light surface: cool section bg, badges */
-
-  /* ── Warm Neutrals ── */
-  --bg-ivory: #F5F2EA;
-  /* Warm ivory: alternating section bg */
-  --bg-warm-white: #FAFAF8;
-  /* Near-white: clean section bg */
-  --bg-cool-white: #F0F6FC;
-  /* Cool light: airy section bg */
-  --surface-card: #FFFFFF;
-  --surface-ice: #EEF5FC;
-  /* Subtle blue-tinted surface */
-
-  /* ── Text ── */
-  --text-primary: #081426;
-  /* Deep navy on light bg */
-  --text-navy: #08337D;
-  /* Brand blue: labels, links */
-  --text-secondary: #2D4A6E;
-  /* Mid navy: section subtitles */
-  --text-muted: #4A74A7;
-  /* Muted blue-gray: body copy, captions */
-  --text-on-dark: #E8F2FC;
-  /* Near-white on dark sections */
-  --text-soft-dark: #8DAFC8;
-  /* Muted on dark sections */
-
-  /* ── Accent Gold — use sparingly: dots, dividers, focus rings ── */
+  /* Content Studio highlight color, read by .cs-highlight below. The only
+     v3 token still in use; the rest of v3 was removed in R1. */
   --accent-gold: #ECCA3E;
-
-  /* ── Borders ── */
-  --border-soft: rgba(8, 51, 125, 0.10);
-  --border-med: rgba(8, 51, 125, 0.17);
-  --border-strong: rgba(8, 51, 125, 0.28);
-
-  /* ── Glows / Shadows ── */
-  --shadow-card: rgba(8, 51, 125, 0.08);
-  --shadow-card-hover: rgba(8, 51, 125, 0.14);
-  --glow-royal: rgba(17, 79, 153, 0.20);
-  --glow-ice: rgba(74, 116, 167, 0.15);
-
-  /* ── Extended DTC palette ── */
-  --deep-navy: #142A44;
-  /* Between abyss and royal */
-  --pearl: #F7FAFF;
-  /* Lightest blue-tinted white */
-  --stone: #D5D3C9;
-  /* Warm neutral for dividers */
-  --surface-card: #FFFFFF;
-
-  /* ── Theme aliases (keep for downstream compatibility) ── */
-  --background: #F7FAFF;
-  --foreground: #081426;
-  --surface: #FFFFFF;
-  --border: rgba(8, 51, 125, 0.10);
-  --text-primary-c: #081426;
-  --text-secondary-c: #08337D;
-  --text-muted-c: rgba(8, 20, 38, 0.58);
-  --accent-blue: #4A74A7;
-  --deep-blue: #08337D;
-  --highlight-blue: #DCEAF7;
 }
 
 :root {
@@ -302,10 +270,10 @@
 .admin-badge-cancelled{ background: rgba(220, 38, 38, 0.08);  color: #dc2626; border-color: rgba(220, 38, 38, 0.20); }
 .admin-badge-hidden   { background: rgba(120, 103, 74, 0.09); color: #78674A; border-color: rgba(120, 103, 74, 0.18); font-size: 0.5625rem; }
 
+/* Fonts (next/font variables set on <html> in layout.tsx). Body text is
+   Be Vietnam Pro, headings EB Garamond; mono is kept only for MetaStat. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-be-vietnam-pro), Arial, Helvetica, sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-eb-garamond), Georgia, serif;
 }
@@ -313,7 +281,7 @@
 body {
   background: #FAFAF8;
   color: #081426;
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-be-vietnam-pro), Arial, Helvetica, sans-serif;
 }
 
 html {
@@ -324,25 +292,6 @@ body {
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-/* Grid textures — calibrated for light backgrounds */
-.bg-grid-dots {
-  background-image: radial-gradient(rgba(25, 43, 136, 0.065) 1px, transparent 1px);
-  background-size: 28px 28px;
-}
-
-.bg-grid-lines {
-  background-image:
-    linear-gradient(rgba(25, 43, 136, 0.048) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(25, 43, 136, 0.048) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-
-/* Grid for warm ivory sections */
-.bg-grid-dots-warm {
-  background-image: radial-gradient(rgba(25, 43, 136, 0.055) 1px, transparent 1px);
-  background-size: 28px 28px;
 }
 
 /* Nan editorial 12-column grid: restrained vertical alignment rules for

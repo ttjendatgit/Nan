@@ -1,13 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, EB_Garamond } from "next/font/google";
+import { Be_Vietnam_Pro, Geist_Mono, EB_Garamond } from "next/font/google";
 import "./globals.css";
 import ClientProviders from "@/components/providers/ClientProviders";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// Body font. Static (not variable) on Google Fonts, so only the weights the UI actually uses:
+// 300 font-light (auth inputs), 400 default, 500 font-medium, 600 font-semibold, 700 font-bold
+// and <strong>/<h*> defaults.
+const beVietnamPro = Be_Vietnam_Pro({
+  variable: "--font-be-vietnam-pro",
+  subsets: ["latin", "vietnamese"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
+// Kept only for MetaStat. next/font does not accept a "vietnamese" subset for Geist Mono (its font
+// metadata lists only latin/latin-ext/cyrillic), but Google's CSS still ships the Vietnamese face
+// (unicode-range U+1EA0-1EF9), which the browser fetches on demand; `subsets` only controls
+// preloading. See docs/redesign/DECISIONS.md.
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -15,7 +23,7 @@ const geistMono = Geist_Mono({
 
 const ebGaramond = EB_Garamond({
   variable: "--font-eb-garamond",
-  subsets: ["latin"],
+  subsets: ["latin", "vietnamese"],
   weight: ["400", "500", "600", "700", "800"],
 });
 
@@ -34,7 +42,7 @@ export default function RootLayout({
     <html
       lang="vi"
       data-scroll-behavior="smooth"
-      className={`${geistSans.variable} ${geistMono.variable} ${ebGaramond.variable} h-full antialiased`}
+      className={`${beVietnamPro.variable} ${geistMono.variable} ${ebGaramond.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#0D131F] overflow-x-hidden">
         <ClientProviders>{children}</ClientProviders>
