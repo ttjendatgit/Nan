@@ -10,20 +10,6 @@ export default function SolutionSection() {
       className="relative overflow-hidden px-6 py-20 md:py-28"
       style={{ background: "#0F1320" }}
     >
-      {/* Grid texture */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
-        }}
-      />
-
-      {/* Ambient glow -- one restrained source, not a stack */}
-      <div className="pointer-events-none absolute left-1/3 top-0 h-72 w-72 rounded-full bg-[#192B88]/10 blur-[80px]" />
-
       <div className="relative mx-auto max-w-7xl">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-20">
           {/* Left — headline holds its ground while the list unfolds beside it */}

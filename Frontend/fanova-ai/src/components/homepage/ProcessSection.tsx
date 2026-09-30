@@ -4,7 +4,6 @@ import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { processSteps } from "@/data/homepageData";
-import EditorialGrid from "./EditorialGrid";
 
 export default function ProcessSection() {
   const reduce = useReducedMotion();
@@ -14,8 +13,6 @@ export default function ProcessSection() {
       className="relative overflow-hidden px-6 py-20 md:py-28"
       style={{ background: "#F1F0EA" }}
     >
-      <EditorialGrid />
-
       <div className="relative mx-auto max-w-7xl">
 
         {/* Section header */}

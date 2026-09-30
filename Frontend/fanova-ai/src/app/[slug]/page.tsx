@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
-import EditorialGrid from "@/components/homepage/EditorialGrid";
 import PageArticle from "@/components/content/PageArticle";
 import { getPublishedPage } from "@/lib/api/publicContent";
 import { parseBlocksJson } from "@/types/contentBlocks";
@@ -63,15 +62,13 @@ export default async function PublicContentPage({ params }: PublicPageProps) {
     // --nav-height) stays dark and the header looks exactly as it does everywhere else.
     <div className="flex min-h-[100dvh] flex-col bg-[#0D131F] pt-[var(--nav-height,112.5px)] text-white">
       <Navbar />
-      {/* Everything between header and footer is one seamless full-width --nan-light surface with
-          the homepage's light-section grid (FAQSection/ProblemSection use the same pair). */}
+      {/* Everything between header and footer is one seamless full-width --nan-light surface. */}
       {/* color: the light section's own dark text, so nothing inside ever inherits the dark
           shell's text-white. */}
       <main
         className="relative flex-1 overflow-hidden px-6 py-16 md:py-24"
         style={{ background: "var(--nan-light)", color: "var(--nan-dark)" }}
       >
-        <EditorialGrid />
         <div className="relative mx-auto max-w-3xl">
           <PageArticle title={page.title} blocks={blocks} hideEmpty />
         </div>

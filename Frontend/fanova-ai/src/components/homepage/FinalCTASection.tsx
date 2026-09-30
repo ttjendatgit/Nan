@@ -19,19 +19,6 @@ export default function FinalCTASection() {
       className="relative overflow-hidden px-6 py-24"
       style={{ background: "#0F1320" }}
     >
-      {/* Ambient glow -- one restrained source, not a stack */}
-      <div className="pointer-events-none absolute left-1/4 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-[#192B88]/12 blur-[80px]" />
-
-      {/* Grid texture */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.035]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
-        }}
-      />
-
       <div className="relative z-10 mx-auto max-w-7xl">
         {/* Top divider line */}
         <div className="mb-20 h-px bg-gradient-to-r from-transparent via-[rgba(241,240,234,0.12)] to-transparent" />
@@ -58,16 +45,6 @@ export default function FinalCTASection() {
               className="absolute inset-0 h-full w-full object-cover opacity-20 mix-blend-luminosity"
             />
           */}
-
-          {/* Inner grid */}
-          <div
-            className="pointer-events-none absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
-              backgroundSize: "40px 40px",
-            }}
-          />
 
           {/* Accent lines */}
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(241,240,234,0.25)] to-transparent" />

@@ -11,23 +11,6 @@ export default function BrandStatementSection() {
       className="relative overflow-hidden px-6 py-24 md:py-36"
       style={{ background: "#0F1320" }}
     >
-      {/* Subtle grid overlay */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.028]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
-        }}
-      />
-
-      {/* Ambient center glow */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute left-[12%] top-1/2 h-[50%] w-[36%] -translate-y-1/2 rounded-full bg-[#192B88]/10 blur-[90px]"
-      />
-
       <div className="relative mx-auto max-w-5xl">
         {/* Gold accent rule — earned by the quality of what follows */}
         <motion.div

@@ -2,7 +2,6 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { problemSection } from "@/data/homepageData";
-import EditorialGrid from "./EditorialGrid";
 
 export default function ProblemSection() {
   const reduce = useReducedMotion();
@@ -11,8 +10,6 @@ export default function ProblemSection() {
       className="relative overflow-hidden px-6 py-20 md:py-28"
       style={{ background: "#F1F0EA" }}
     >
-      <EditorialGrid />
-
       <div className="relative mx-auto max-w-7xl">
         <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-20">
 

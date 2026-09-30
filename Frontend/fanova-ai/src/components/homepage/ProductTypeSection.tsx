@@ -9,7 +9,6 @@ import Button from "@/components/ui/Button";
 import { collections } from "@/data/homepageData";
 import { getCategories } from "@/lib/api/categories";
 import type { ProductCategory } from "@/types/catalog";
-import EditorialGrid from "./EditorialGrid";
 
 export default function ProductTypeSection() {
   const reduce = useReducedMotion();
@@ -34,8 +33,6 @@ export default function ProductTypeSection() {
       className="relative overflow-hidden px-6 py-20 md:py-28"
       style={{ background: "#F1F0EA" }}
     >
-      <EditorialGrid />
-
       <div className="relative mx-auto max-w-7xl">
 
         {/* Section header */}

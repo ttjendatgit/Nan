@@ -16,7 +16,6 @@ import Footer from "@/components/common/Footer";
 import QuoteRequestForm from "@/components/quote/QuoteRequestForm";
 import ContentBlocksRenderer from "@/components/product/ContentBlocksRenderer";
 import ProductOptionSelector from "@/components/product/ProductOptionSelector";
-import EditorialGrid from "@/components/homepage/EditorialGrid";
 import { getProduct, getProductsByCategory } from "@/lib/api/products";
 import type { Product } from "@/types/catalog";
 
@@ -274,14 +273,12 @@ export default function ProductDetailPage({
               </div>
             </div>
 
-            {/* ── PART B: Configurator (light, editorial grid) ──
+            {/* ── PART B: Configurator (light) ──
                 No overflow-hidden here: it would become the containing block
                 for the sticky summary card below and break position:sticky
                 entirely (the summary would scroll off-screen instead of
-                pinning under the Navbar). EditorialGrid is already bounded to
-                this section's own size, so nothing needs clipping. ── */}
+                pinning under the Navbar). ── */}
             <div className="relative px-6 py-16 md:py-20" style={{ background: "#F1F0EA" }}>
-              <EditorialGrid />
               <div className="relative max-w-7xl mx-auto">
                 <ProductOptionSelector product={product} onRequestQuote={handleOptionSelectorQuote} />
               </div>

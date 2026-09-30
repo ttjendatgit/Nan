@@ -4,7 +4,6 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Plus, Minus } from "lucide-react";
 import { faqItems } from "@/data/homepageData";
-import EditorialGrid from "./EditorialGrid";
 
 export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -14,8 +13,6 @@ export default function FAQSection() {
       className="relative overflow-hidden px-6 py-20 md:py-28"
       style={{ background: "#F1F0EA" }}
     >
-      <EditorialGrid />
-
       <div className="relative mx-auto max-w-3xl">
 
         {/* Section header */}

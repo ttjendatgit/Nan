@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { aiDesignerConfig } from "@/data/homepageData";
-import EditorialGrid from "./EditorialGrid";
 
 export default function AIDesignerSection() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -46,8 +45,6 @@ export default function AIDesignerSection() {
       className="relative overflow-hidden px-6 py-20 md:py-28"
       style={{ background: "#F1F0EA" }}
     >
-      <EditorialGrid />
-
       <div className="relative mx-auto max-w-7xl">
 
         {/* Section header */}
@@ -245,7 +242,6 @@ export default function AIDesignerSection() {
               >
                 {/* Paper texture */}
                 <div className="absolute inset-4 rounded-full bg-[radial-gradient(circle_at_35%_30%,rgba(255,255,255,0.96),rgba(255,255,255,0.48)_35%,rgba(169,171,165,0.30)_100%)]" />
-                <div className="absolute inset-4 rounded-full opacity-25 [background-image:radial-gradient(rgba(15,19,32,0.10)_0.7px,transparent_0.7px)] [background-size:10px_10px]" />
 
                 {/* Fan ribs */}
                 <div className="absolute h-[82%] w-px bg-[rgba(15,19,32,0.20)]" />

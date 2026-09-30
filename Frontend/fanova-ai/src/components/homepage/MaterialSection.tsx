@@ -6,7 +6,6 @@
 
 import { motion } from "motion/react";
 import { materials } from "@/data/homepageData";
-import EditorialGrid from "./EditorialGrid";
 
 const PRINT_QUALITY_STEPS = [
   { n: "01", label: "File check", sub: "Kiểm tra trước in" },
@@ -22,8 +21,6 @@ export default function MaterialSection() {
       className="relative overflow-hidden px-6 py-20 md:py-28"
       style={{ background: "#F1F0EA" }}
     >
-      <EditorialGrid />
-
       <div className="relative mx-auto max-w-7xl">
 
         {/* Section header */}
@@ -70,7 +67,6 @@ export default function MaterialSection() {
                     className="absolute inset-0 h-full w-full object-cover"
                   />
                 */}
-                <div className="absolute inset-0 opacity-[0.28] [background-image:radial-gradient(rgba(15,19,32,0.09)_0.7px,transparent_0.7px)] [background-size:9px_9px]" />
                 <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-[rgba(15,19,32,0.06)]" />
               </div>
 
