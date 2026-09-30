@@ -21,10 +21,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Italic is loaded for the SectionTitle eyebrow and MetaLine (R2a), so the browser uses the real
+// italic face instead of slanting the upright one.
 const ebGaramond = EB_Garamond({
   variable: "--font-eb-garamond",
   subsets: ["latin", "vietnamese"],
   weight: ["400", "500", "600", "700", "800"],
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
