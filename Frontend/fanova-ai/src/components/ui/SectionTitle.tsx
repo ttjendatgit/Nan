@@ -12,6 +12,10 @@ interface SectionTitleProps {
   /** Heading level; h2 for a normal section, h1 only for a page's own title. */
   as?: "h1" | "h2" | "h3";
   className?: string;
+  /** Size/leading overrides for the heading, for a section whose title scale differs. */
+  titleClassName?: string;
+  /** Size/width overrides for the description. */
+  descriptionClassName?: string;
 }
 
 const eyebrowTone: Record<Tone, string> = {
@@ -37,6 +41,8 @@ export default function SectionTitle({
   align = "left",
   as: Heading = "h2",
   className,
+  titleClassName,
+  descriptionClassName,
 }: SectionTitleProps) {
   return (
     <div className={cn("max-w-3xl", align === "center" && "mx-auto text-center", className)}>
@@ -45,12 +51,20 @@ export default function SectionTitle({
         className={cn(
           "font-serif text-4xl font-semibold leading-[1.12] md:text-5xl",
           eyebrow ? "mt-3" : undefined,
+          titleClassName,
         )}
       >
         {title}
       </Heading>
       {description && (
-        <p className={cn("mt-5 max-w-2xl font-sans text-base leading-relaxed md:text-lg", align === "center" && "mx-auto", descriptionTone[tone])}>
+        <p
+          className={cn(
+            "mt-5 max-w-2xl font-sans text-base leading-relaxed md:text-lg",
+            align === "center" && "mx-auto",
+            descriptionTone[tone],
+            descriptionClassName,
+          )}
+        >
           {description}
         </p>
       )}

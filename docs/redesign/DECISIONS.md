@@ -41,6 +41,19 @@ Trên mảng ngà cũng **không** có:
 
 **Lưới nền: bỏ hết.** Gồm lưới kẻ 48/60/40px, `EditorialGrid` / `.nan-grid-12` và lưới chấm (xem R0 mục 5).
 
+**Bản đồ tone trang chủ (chốt ở R2d)**
+
+| Section | Tone |
+|---|---|
+| BrandStatement, Problem, Solution, AIDesigner, UseCase, Process, FAQ, FinalCTA | `indigo` |
+| ProductType, Material | `paper` (đúng 2 mảng ngà) |
+
+**Ngăn cách hai section indigo liền nhau** (Problem → Solution → AIDesigner, UseCase → Process → FAQ → FinalCTA): một `Rule` tone indigo ở đầu section thứ hai, như ngắt chương của sách. Không dùng nền xen kẽ, không thêm màu.
+
+**Ngoại lệ đã duyệt (R2d)**
+- **Panel CTA cuối trang (`FinalCTASection`) giữ nền `navy` trên nền indigo.** Đây là điểm navy duy nhất trên nền tối, dùng làm điểm nhấn kết trang. Panel không có bóng đổ, glow hay gradient. Chữ trên panel dùng token nền tối: `on-indigo` 10,52:1, `on-indigo-muted` 5,73:1, `bamboo` 4,81:1 (đều đạt). Không dùng navy trên nền tối ở bất kỳ chỗ nào khác.
+- **Khung xem trước mockup trong `AIDesignerSection` giữ nền sáng `paper-deep`,** như một tờ giấy vẽ nằm trong section indigo, để màu quạt pastel hiện đúng như khi in. Đây là khung bên trong section, không tính là một mảng ngà. Hai nhãn nổi trên mockup ("Style selected", "Preview mode / Live Mockup") đã bỏ.
+
 **Khu vực admin** giữ theme hiện tại (token `--admin-*`), không thuộc redesign.
 
 ## 2. Chữ
@@ -146,6 +159,7 @@ Trên mảng ngà cũng **không** có:
 
 - **Đường mảnh chỉ để trang trí.** Hai token đường mảnh thấp hơn nhiều mức 3:1 mà WCAG 1.4.11 yêu cầu cho viền thành phần giao diện. **Không** dùng chúng làm viền ô nhập, checkbox hay viền nút duy nhất; các chỗ đó cần viền đạt ≥ 3:1, ví dụ `on-indigo-muted` trên nền tối hoặc `ink-muted` trên mảng ngà.
 - **Không pha loãng màu chữ.** Không hạ độ đục của các token chữ (kiểu `text-on-indigo/40`). R0 đo được nhiều chỗ dưới 3:1 chính vì cách làm này; muốn chữ phụ thì dùng token `-muted`.
+- **Viền điều khiển trên nền tối (đo ở R2d):** ô nhập, nút chọn phong cách, ô màu, vùng tải ảnh trong AIDesigner dùng `border-on-indigo-muted/60`. Đo được 3,64:1 trên `indigo-raised` và 3,86:1 trên `indigo`, đạt mức 3:1 của WCAG 1.4.11. Mức 50% chỉ đạt 2,94:1, nên **không** hạ dưới 60%. Đây là viền, không phải chữ, nên không trái quy tắc "không pha loãng màu chữ".
 
 ## 6. Mâu thuẫn với skill và cách đã xử lý
 
