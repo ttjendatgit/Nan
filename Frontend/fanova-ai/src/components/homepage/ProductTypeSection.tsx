@@ -61,12 +61,10 @@ export default function ProductTypeSection() {
               Mỗi giải pháp được thiết kế riêng cho một ngữ cảnh cụ thể: từ sự kiện đến thương hiệu, từ số lượng nhỏ đến đại trà.
             </p>
             <div className="mt-5">
-              <Link href="/products">
-                <Button tone="paper" variant="secondary">
-                  Xem tất cả
-                  <ArrowRight className="ml-2" size={14} />
-                </Button>
-              </Link>
+              <Button href="/products" tone="paper" variant="secondary">
+                Xem tất cả
+                <ArrowRight className="ml-2" size={14} />
+              </Button>
             </div>
           </div>
         </div>

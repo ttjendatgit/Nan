@@ -118,9 +118,13 @@ export default function MaterialSection() {
                 i % 2 === 0 ? "sm:border-r sm:border-line-on-paper sm:pr-8" : "sm:pl-8"
               }`}
             >
-              <span className="font-mono text-sm font-semibold text-navy/70">{step.n}</span>
+              {/* Editorial step marker: EB Garamond lining figures, no mono (IndexMarker stays
+                  reserved for Process). */}
+              <span className="font-serif text-lg font-medium leading-none text-navy/70 lining-nums tabular-nums">
+                {step.n}
+              </span>
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.06em]">{step.label}</p>
+                <p className="font-serif text-lg font-semibold leading-snug">{step.label}</p>
                 <p className="mt-1 text-xs text-ink-muted">{step.sub}</p>
               </div>
             </div>

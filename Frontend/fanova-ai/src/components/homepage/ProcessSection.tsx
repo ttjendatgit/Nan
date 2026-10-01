@@ -37,12 +37,10 @@ export default function ProcessSection() {
           description="Quy trình được thiết kế để bạn có thể yêu cầu báo giá, tư vấn thiết kế và nhận hàng mà không cần hiểu kỹ thuật in ấn."
         />
         <div className="mt-7">
-          <a href="#quote">
-            <Button tone="indigo">
-              Gửi yêu cầu báo giá
-              <ArrowRight className="ml-2" size={14} />
-            </Button>
-          </a>
+          <Button href="#quote" tone="indigo">
+            Gửi yêu cầu báo giá
+            <ArrowRight className="ml-2" size={14} />
+          </Button>
         </div>
       </motion.div>
 

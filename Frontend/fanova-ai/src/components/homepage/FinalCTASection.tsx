@@ -6,7 +6,6 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight } from "lucide-react";
-import Link from "next/link";
 import Button from "@/components/ui/Button";
 import MetaLine from "@/components/ui/MetaLine";
 import Rule from "@/components/ui/Rule";
@@ -100,18 +99,14 @@ export default function FinalCTASection() {
             transition={{ duration: 0.6, delay: 0.78, ease: [0.16, 1, 0.3, 1] }}
             className="flex flex-col items-center justify-center gap-4 sm:flex-row"
           >
-            <Link href="/products">
-              <Button tone="indigo">
-                {finalCta.primaryButton}
-                <ArrowRight className="ml-2" size={15} />
-              </Button>
-            </Link>
+            <Button href="/products" tone="indigo">
+              {finalCta.primaryButton}
+              <ArrowRight className="ml-2" size={15} />
+            </Button>
 
-            <Link href="/products">
-              <Button tone="indigo" variant="secondary">
-                {finalCta.secondaryButton}
-              </Button>
-            </Link>
+            <Button href="/products" tone="indigo" variant="secondary">
+              {finalCta.secondaryButton}
+            </Button>
           </motion.div>
         </div>
       </motion.div>

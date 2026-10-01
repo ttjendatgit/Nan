@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { cn } from "@/lib/utils";
-import type { ButtonHTMLAttributes } from "react";
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from "react";
 import type { Tone } from "./tone";
 
 type ButtonVariant = "primary" | "secondary" | "ghost";
@@ -9,11 +10,18 @@ type ButtonVariant = "primary" | "secondary" | "ghost";
  * unchanged until their section is migrated. With `tone` it uses the R1 tokens and the button
  * rules in docs/redesign/DECISIONS.md; toned buttons come only as primary or secondary.
  */
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
-  (
-    | { tone?: undefined; variant?: ButtonVariant }
-    | { tone: Tone; variant?: "primary" | "secondary" }
-  );
+type StyleProps =
+  | { tone?: undefined; variant?: ButtonVariant }
+  | { tone: Tone; variant?: "primary" | "secondary" };
+
+/**
+ * With `href` it renders as a single Next.js <Link> carrying the same classes, so a navigation CTA
+ * is one focusable link instead of a <button> nested inside an <a> (invalid HTML, two tab stops).
+ */
+type ButtonAsLinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & { href: string };
+type ButtonAsButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { href?: undefined };
+
+type ButtonProps = StyleProps & (ButtonAsButtonProps | ButtonAsLinkProps);
 
 const legacyVariants: Record<ButtonVariant, string> = {
   primary:
@@ -60,15 +68,23 @@ export default function Button({
       )
     : cn(legacyVariants[variant], legacyFocus);
 
+  const classes = cn(
+    "inline-flex items-center justify-center rounded-full px-6 py-3 text-sm transition-all duration-300",
+    toneClasses,
+    className
+  );
+
+  if (props.href !== undefined) {
+    const { href, ...anchorProps } = props as ButtonAsLinkProps;
+    return (
+      <Link href={href} className={classes} {...anchorProps}>
+        {children}
+      </Link>
+    );
+  }
+
   return (
-    <button
-      className={cn(
-        "inline-flex items-center justify-center rounded-full px-6 py-3 text-sm transition-all duration-300",
-        toneClasses,
-        className
-      )}
-      {...props}
-    >
+    <button className={classes} {...(props as ButtonAsButtonProps)}>
       {children}
     </button>
   );

@@ -4,11 +4,10 @@
 // Core upload / mockup logic is handled in-component and is connected to the
 // upload API separately — only the selectable option lists are CMS-controlled.
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { motion } from "motion/react";
 import {
   Upload,
-  Sparkles,
   ImagePlus,
   RotateCcw,
   Palette,
@@ -21,7 +20,17 @@ import Section from "@/components/ui/Section";
 import SectionTitle from "@/components/ui/SectionTitle";
 import { aiDesignerConfig } from "@/data/homepageData";
 
+// Form labels in the editorial label style (same as SectionTitle's eyebrow): EB Garamond italic,
+// bamboo on indigo, no uppercase or wide tracking.
+const LABEL_CLASS = "font-serif text-base italic text-bamboo";
+
 export default function AIDesignerSection() {
+  const ids = useId();
+  const promptId = `${ids}-prompt`;
+  const styleLabelId = `${ids}-style-label`;
+  const colorLabelId = `${ids}-color-label`;
+  const uploadId = `${ids}-upload`;
+  const scaleId = `${ids}-scale`;
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [selectedStyle, setSelectedStyle] = useState(aiDesignerConfig.styles[1]); // default: "Sang trọng"
   const [prompt, setPrompt] = useState("");
@@ -96,10 +105,11 @@ export default function AIDesignerSection() {
 
             {/* Prompt */}
             <div className="mt-7">
-              <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-bamboo">
+              <label htmlFor={promptId} className={LABEL_CLASS}>
                 Ý tưởng thiết kế
               </label>
               <textarea
+                id={promptId}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Ví dụ: Tôi muốn tạo quạt cho sự kiện khai trương spa, tone xanh mint, cảm giác sang trọng và nhẹ nhàng."
@@ -109,13 +119,15 @@ export default function AIDesignerSection() {
 
             {/* Style selector — CMS: aiDesignerConfig.styles */}
             <div className="mt-6">
-              <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-bamboo">
+              <p id={styleLabelId} className={LABEL_CLASS}>
                 Phong cách
-              </label>
-              <div className="mt-3 flex flex-wrap gap-2">
+              </p>
+              <div role="group" aria-labelledby={styleLabelId} className="mt-3 flex flex-wrap gap-2">
                 {aiDesignerConfig.styles.map((style) => (
                   <button
                     key={style}
+                    type="button"
+                    aria-pressed={selectedStyle === style}
                     onClick={() => setSelectedStyle(style)}
                     className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-all duration-200 ${
                       selectedStyle === style
@@ -131,14 +143,16 @@ export default function AIDesignerSection() {
 
             {/* Color selector — CMS: aiDesignerConfig.fanColors */}
             <div className="mt-6">
-              <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-bamboo">
-                <Palette size={12} />
+              <p id={colorLabelId} className={`flex items-center gap-1.5 ${LABEL_CLASS}`}>
+                <Palette size={12} aria-hidden="true" />
                 Màu nền quạt
-              </label>
-              <div className="mt-3 grid grid-cols-5 gap-2">
+              </p>
+              <div role="group" aria-labelledby={colorLabelId} className="mt-3 grid grid-cols-5 gap-2">
                 {aiDesignerConfig.fanColors.map((color) => (
                   <button
                     key={color.name}
+                    type="button"
+                    aria-pressed={selectedColor.name === color.name}
                     onClick={() => setSelectedColor(color)}
                     className={`rounded-lg border p-1.5 transition-all duration-200 ${
                       selectedColor.name === color.name
@@ -157,17 +171,20 @@ export default function AIDesignerSection() {
 
             {/* Upload */}
             <div className="mt-6">
-              <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-bamboo">
+              <label htmlFor={uploadId} className={`block ${LABEL_CLASS}`}>
                 Upload ảnh / logo
               </label>
-              <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-on-indigo-muted/60 bg-indigo px-6 py-7 text-center transition hover:border-bamboo hover:bg-bamboo/[0.06]">
+              <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-on-indigo-muted/60 bg-indigo px-6 py-7 text-center transition hover:border-bamboo hover:bg-bamboo/[0.06] has-[input:focus-visible]:border-bamboo has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-bamboo">
+                {/* sr-only, not display:none: the input stays in the tab order and keeps its native
+                    file-picker semantics; Enter/Space opens the picker, clicking the zone still works. */}
                 <input
+                  id={uploadId}
                   type="file"
                   accept="image/png,image/jpeg,image/jpg,image/webp"
                   onChange={handleImageUpload}
-                  className="hidden"
+                  className="sr-only"
                 />
-                <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-line-on-indigo bg-bamboo/15 text-bamboo">
+                <div aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-lg border border-line-on-indigo bg-bamboo/15 text-bamboo">
                   <Upload size={18} />
                 </div>
                 <p className="mt-3 text-sm font-semibold">Chọn ảnh từ máy</p>
@@ -178,13 +195,14 @@ export default function AIDesignerSection() {
             {/* Image controls (visible after upload) */}
             {uploadedImage && (
               <div className="mt-5 rounded-lg border border-line-on-indigo bg-indigo p-4">
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-bamboo">
-                  <Move size={12} />
+                <div className={`flex items-center gap-2 ${LABEL_CLASS}`}>
+                  <Move size={12} aria-hidden="true" />
                   Điều chỉnh ảnh
                 </div>
                 <div className="mt-4">
-                  <label className="text-xs font-medium text-on-indigo-muted">Phóng to / thu nhỏ</label>
+                  <label htmlFor={scaleId} className="text-xs font-medium text-on-indigo-muted">Phóng to / thu nhỏ</label>
                   <input
+                    id={scaleId}
                     type="range"
                     min="0.5"
                     max="2"
@@ -195,6 +213,7 @@ export default function AIDesignerSection() {
                   />
                 </div>
                 <button
+                  type="button"
                   onClick={resetMockup}
                   className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-on-indigo-muted/60 px-4 py-1.5 text-xs font-semibold text-on-indigo-muted transition hover:border-bamboo hover:text-on-indigo"
                 >
@@ -209,7 +228,6 @@ export default function AIDesignerSection() {
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Button tone="indigo" className="flex-1">
-                <Sparkles className="mr-2" size={13} />
                 Tạo mẫu thử
               </Button>
               <Button tone="indigo" variant="secondary" className="flex-1">
