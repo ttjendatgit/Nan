@@ -5,6 +5,7 @@
 // actual material texture photo inside the card visual area over the neutral fallback.
 
 import { motion } from "motion/react";
+import { cn } from "@/lib/utils";
 import Card from "@/components/ui/Card";
 import MetaLine from "@/components/ui/MetaLine";
 import Rule from "@/components/ui/Rule";
@@ -56,38 +57,43 @@ export default function MaterialSection() {
       {/* Material tiles — editorial catalogue: large material surface, clean name, short detail.
           Not links, so no hover state. CMS: sourced from materials[] */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {materials.map((item, index) => (
-          <motion.div
-            key={item.name}
-            initial={{ opacity: 0, y: 28 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.65, delay: index * 0.06 }}
-          >
-            <Card tone="paper" as="article" className="h-full overflow-hidden">
-              {/* Visual area — large material surface */}
-              <div className="relative h-64 overflow-hidden bg-paper-deep">
-                {/*
-                  CMS: when item.image.src is set, render the macro texture photo:
-                  <img
-                    src={item.image.src}
-                    alt={item.image.alt}
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                */}
-              </div>
-
-              {/* Text content — CMS: item.name / item.description / item.tag */}
-              <div className="border-t border-line-on-paper p-6">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="font-serif text-xl font-semibold">{item.name}</h3>
-                  <MetaLine tone="paper" items={[item.tag]} className="shrink-0 text-sm" />
+        {materials.map((item, index) => {
+          // Responsive density (DECISIONS.md): without a real photo the paper-deep surface is kept
+          // on md+ only; below md the card collapses to its text. With a photo it shows everywhere.
+          const hasImage = Boolean(item.image.src);
+          return (
+            <motion.div
+              key={item.name}
+              initial={{ opacity: 0, y: 28 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.65, delay: index * 0.06 }}
+            >
+              <Card tone="paper" as="article" className="h-full overflow-hidden">
+                {/* Visual area — large material surface */}
+                <div className={cn("relative h-64 overflow-hidden bg-paper-deep", !hasImage && "hidden md:block")}>
+                  {/*
+                    CMS: when item.image.src is set, render the macro texture photo:
+                    <img
+                      src={item.image.src}
+                      alt={item.image.alt}
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  */}
                 </div>
-                <p className="mt-3 text-sm leading-6 text-ink-muted">{item.description}</p>
-              </div>
-            </Card>
-          </motion.div>
-        ))}
+
+                {/* Text content — CMS: item.name / item.description / item.tag */}
+                <div className={cn("border-line-on-paper p-6", hasImage ? "border-t" : "md:border-t")}>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h3 className="font-serif text-xl font-semibold">{item.name}</h3>
+                    <MetaLine tone="paper" items={[item.tag]} className="shrink-0 text-sm" />
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-ink-muted">{item.description}</p>
+                </div>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Print quality — structured grid, not nested cards.

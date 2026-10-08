@@ -49,7 +49,6 @@ export const navConfig = {
   ctaText: "Bắt đầu thiết kế",
   links: [
     { label: "Collections", href: "/products" },
-    { label: "AI Designer", href: "#ai-designer" },
     { label: "Materials",   href: "#materials" },
     { label: "Process",     href: "#process" },
     { label: "Quote",       href: "#quote" },
@@ -123,7 +122,7 @@ export const collections: Collection[] = [
     description:
       "Quạt giấy tinh tế cho tiệc cưới, lễ ngoài trời và welcome gift. Thiết kế cá nhân hóa từng chi tiết.",
     image: {
-      src: "/images/collections/wedding-fans.jpg",
+      src: "",  // CMS: no collection photo yet; the card shows FanMockupFallback
       alt: "Wedding fans custom paper fan design",
       fallback: "",
     },
@@ -138,7 +137,7 @@ export const collections: Collection[] = [
     description:
       "Biến quạt giấy thành vật phẩm trải nghiệm cao cấp cho resort, khách sạn và beach club.",
     image: {
-      src: "/images/collections/resort-hospitality.jpg",
+      src: "",  // CMS: no collection photo yet; the card shows FanMockupFallback
       alt: "Resort and hospitality custom fan design",
       fallback: "",
     },
@@ -153,7 +152,7 @@ export const collections: Collection[] = [
     description:
       "Vật phẩm nhỏ, cảm nhận lớn. Phù hợp nhà hàng, quán café, rooftop bar và không gian mùa hè.",
     image: {
-      src: "/images/collections/restaurant-cafe.jpg",
+      src: "",  // CMS: no collection photo yet; the card shows FanMockupFallback
       alt: "Restaurant and cafe custom fan design",
       fallback: "",
     },
@@ -168,13 +167,13 @@ export const collections: Collection[] = [
     description:
       "Kết nối thương hiệu với khách hàng qua booth activation, sampling và chiến dịch quảng bá.",
     image: {
-      src: "/images/collections/brand-campaign.jpg",
+      src: "",  // CMS: no collection photo yet; the card shows FanMockupFallback
       alt: "Brand campaign custom fan design",
       fallback: "",
     },
     gradient: "from-violet-50 to-[#DCEAF7]",
     accentColor: "bg-violet-200",
-    cta: "Bắt đầu thiết kế",
+    cta: "Xem sản phẩm",
   },
   {
     id: "event-activation",
@@ -183,13 +182,13 @@ export const collections: Collection[] = [
     description:
       "Nhẹ, đẹp, dễ lan tỏa. Sản xuất số lượng lớn cho hội chợ, khai trương và sự kiện ngoài trời.",
     image: {
-      src: "/images/collections/event-activation.jpg",
+      src: "",  // CMS: no collection photo yet; the card shows FanMockupFallback
       alt: "Event and activation custom fan design",
       fallback: "",
     },
     gradient: "from-blue-50 to-[#DCEAF7]",
     accentColor: "bg-blue-200",
-    cta: "Bắt đầu thiết kế",
+    cta: "Xem sản phẩm",
   },
   {
     id: "premium-gift",
@@ -198,31 +197,15 @@ export const collections: Collection[] = [
     description:
       "Quà tặng mang dấu ấn thương hiệu: dành cho đối tác, khách VIP và bộ sưu tập giới hạn.",
     image: {
-      src: "/images/collections/premium-gift.jpg",
+      src: "",  // CMS: no collection photo yet; the card shows FanMockupFallback
       alt: "Premium gift custom fan design",
       fallback: "",
     },
     gradient: "from-yellow-50 to-amber-50",
     accentColor: "bg-[#ECCA3E]/30",
-    cta: "Bắt đầu thiết kế",
+    cta: "Xem sản phẩm",
   },
 ];
-
-// ─── AI Designer ──────────────────────────────────────────────────────────────
-// CMS path: admin/ai-designer
-// Note: core upload / mockup logic lives in AIDesignerSection and is handled
-// by the separate upload API — only the option lists are CMS-controlled here.
-
-export const aiDesignerConfig = {
-  styles: ["Tối giản", "Sang trọng", "Wedding", "Resort", "Sự kiện", "Trẻ trung"],
-  fanColors: [
-    { name: "Ivory",    className: "from-orange-100 via-white to-blue-100" },
-    { name: "Mint",     className: "from-emerald-100 via-white to-cyan-100" },
-    { name: "Rose",     className: "from-rose-100 via-white to-orange-100" },
-    { name: "Lavender", className: "from-purple-100 via-white to-blue-100" },
-    { name: "Sky",      className: "from-sky-100 via-white to-indigo-100" },
-  ],
-};
 
 // ─── Materials ────────────────────────────────────────────────────────────────
 // CMS path: admin/materials
@@ -249,7 +232,7 @@ export const materials: Material[] = [
     tag: "Popular",
     gradient: "from-blue-50 to-[#F5F8FF]",
     image: {
-      src: "/images/materials/couche.jpg",
+      src: "",  // CMS: no material photo yet; the card shows the paper-deep surface
       alt: "Giấy Couche paper material texture",
       fallback: "",
     },
@@ -261,7 +244,7 @@ export const materials: Material[] = [
     tag: "Premium",
     gradient: "from-amber-50 to-[#F5F8FF]",
     image: {
-      src: "/images/materials/art-paper.jpg",
+      src: "",  // CMS: no material photo yet; the card shows the paper-deep surface
       alt: "Giấy mỹ thuật art paper texture",
       fallback: "",
     },
@@ -273,7 +256,7 @@ export const materials: Material[] = [
     tag: "Elegant",
     gradient: "from-slate-100 to-[#F5F8FF]",
     image: {
-      src: "/images/materials/matte-lamination.jpg",
+      src: "",  // CMS: no material photo yet; the card shows the paper-deep surface
       alt: "Cán mờ matte lamination texture",
       fallback: "",
     },
@@ -285,7 +268,7 @@ export const materials: Material[] = [
     tag: "Vibrant",
     gradient: "from-violet-50 to-[#F5F8FF]",
     image: {
-      src: "/images/materials/gloss-lamination.jpg",
+      src: "",  // CMS: no material photo yet; the card shows the paper-deep surface
       alt: "Cán bóng gloss lamination texture",
       fallback: "",
     },
@@ -297,7 +280,7 @@ export const materials: Material[] = [
     tag: "Luxury",
     gradient: "from-yellow-50 to-[#F5F8FF]",
     image: {
-      src: "/images/materials/foil-stamping.jpg",
+      src: "",  // CMS: no material photo yet; the card shows the paper-deep surface
       alt: "Ép kim foil stamping texture",
       fallback: "",
     },
@@ -309,7 +292,7 @@ export const materials: Material[] = [
     tag: "Custom",
     gradient: "from-emerald-50 to-[#F5F8FF]",
     image: {
-      src: "/images/materials/handles.jpg",
+      src: "",  // CMS: no material photo yet; the card shows the paper-deep surface
       alt: "Fan handles and sticks material options",
       fallback: "",
     },
@@ -380,7 +363,7 @@ export const finalCta = {
   badge: "Premium custom fan design",
   title: "Biến mỗi chiếc quạt thành một điểm chạm thương hiệu.",
   description:
-    "Bắt đầu từ một ý tưởng, một logo hoặc một câu chuyện thương hiệu. Hệ thống sẽ giúp bạn xem trước mẫu quạt, tùy chỉnh thiết kế và gửi yêu cầu báo giá nhanh chóng.",
+    "Bắt đầu từ một ý tưởng, một logo hoặc một câu chuyện thương hiệu.",
   primaryButton:   "Gửi yêu cầu báo giá",
   secondaryButton: "Khám phá sản phẩm",
   /**
@@ -406,15 +389,15 @@ export const finalCta = {
 export const faqItems = [
   {
     q: "Tôi có thể upload logo riêng không?",
-    a: "Hoàn toàn có. Bạn có thể tải lên logo, artwork hoặc hình ảnh bất kỳ ở định dạng PNG, JPG, JPEG hoặc WEBP. Hệ thống sẽ hiển thị ngay trên mockup quạt để bạn xem trước.",
+    a: "Có. Bạn gửi logo, artwork hoặc hình ảnh (PNG, JPG, JPEG, WEBP) cùng yêu cầu báo giá; đội ngũ Nan dựng mockup để bạn duyệt.",
   },
   {
     q: "Có thể xem mockup trước khi in không?",
-    a: "Có. AI Designer cho phép bạn xem trực tiếp thiết kế trên mockup quạt với các tùy chọn màu nền, phong cách và vị trí logo, tất cả trước khi gửi yêu cầu sản xuất.",
+    a: "Có. Trước khi sản xuất, Nan gửi mockup quạt để bạn duyệt màu nền, bố cục và vị trí logo.",
   },
   {
     q: "Có hỗ trợ thiết kế không?",
-    a: "Có. Ngoài tính năng tự thiết kế, Nan cung cấp dịch vụ tư vấn và hỗ trợ thiết kế. Đơn hàng đầu tiên được tư vấn thiết kế miễn phí.",
+    a: "Có. Nan cung cấp dịch vụ tư vấn và hỗ trợ thiết kế. Đơn hàng đầu tiên được tư vấn thiết kế miễn phí.",
   },
   {
     q: "Thời gian sản xuất bao lâu?",

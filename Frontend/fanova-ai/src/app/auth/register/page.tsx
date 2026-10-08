@@ -224,7 +224,7 @@ export default function RegisterPage() {
                 Tạo tài khoản
               </h1>
               <p className="text-[12.5px] leading-[1.65] text-[#6A8FAF]">
-                Lưu thiết kế, xem mockup và gửi yêu cầu báo giá nhanh hơn.
+                Theo dõi và gửi yêu cầu báo giá nhanh hơn.
               </p>
             </div>
 

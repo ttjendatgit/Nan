@@ -4,7 +4,6 @@ import BrandStatementSection from "@/components/homepage/BrandStatementSection";
 import ProductTypeSection from "@/components/homepage/ProductTypeSection";
 import ProblemSection from "@/components/homepage/ProblemSection";
 import SolutionSection from "@/components/homepage/SolutionSection";
-import AIDesignerSection from "@/components/homepage/AIDesignerSection";
 import MaterialSection from "@/components/homepage/MaterialSection";
 import UseCaseSection from "@/components/homepage/UseCaseSection";
 import ProcessSection from "@/components/homepage/ProcessSection";
@@ -45,22 +44,19 @@ export default function Home() {
         {/* 5. Solution — how Nan solves it */}
         <SolutionSection />
 
-        {/* 6. AI Designer — try mockup now (preserved) */}
-        <AIDesignerSection />
-
-        {/* 7. Materials & Craft — paper, fabric, finishes */}
+        {/* 6. Materials & Craft — paper, fabric, finishes */}
         <MaterialSection />
 
-        {/* 8. Use Cases — events, resorts, restaurants, corporate, brand */}
+        {/* 7. Use Cases — events, resorts, restaurants, corporate, brand */}
         <UseCaseSection />
 
-        {/* 9. Process — quote-first workflow */}
+        {/* 8. Process — quote-first workflow */}
         <ProcessSection />
 
-        {/* 10. FAQ */}
+        {/* 9. FAQ */}
         <FAQSection />
 
-        {/* 11. Final Quote CTA */}
+        {/* 10. Final Quote CTA */}
         <FinalCTASection />
 
       </div>

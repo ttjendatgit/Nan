@@ -18,6 +18,8 @@ interface QuoteRequestFormProps {
   selectedOptionIds?: string[];
   onSuccess?: () => void;
   onCancel?: () => void;
+  /** id for the visible title, so a wrapping dialog can point aria-labelledby at it. */
+  titleId?: string;
 }
 
 // ─── Internal form state ──────────────────────────────────────────────────────
@@ -60,6 +62,7 @@ export default function QuoteRequestForm({
   selectedOptionIds,
   onSuccess,
   onCancel,
+  titleId,
 }: QuoteRequestFormProps) {
   const [fields, setFields] = useState<FormFields>({
     fullName: "",
@@ -126,7 +129,7 @@ export default function QuoteRequestForm({
           <CheckCircle className="h-7 w-7 text-[#B6D6F2]" />
         </div>
         <div>
-          <p className="text-base font-semibold text-white mb-2">
+          <p id={titleId} className="text-base font-semibold text-white mb-2">
             Yêu cầu đã được gửi
           </p>
           <p className="text-sm text-[#B6D6F2]/55 leading-relaxed max-w-[28ch] mx-auto">
@@ -149,7 +152,7 @@ export default function QuoteRequestForm({
       {/* Header */}
       <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-[#1B1C4A]">
         <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold text-white leading-snug truncate">
+          <h2 id={titleId} className="text-[15px] font-semibold text-white leading-snug truncate">
             {productName
               ? `Nhận báo giá cho ${productName}`
               : "Gửi yêu cầu báo giá"}
