@@ -1,12 +1,19 @@
-import { ArrowUpRight } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { ArrowRight } from "lucide-react";
+import QuoteRequestModal from "@/components/quote/QuoteRequestModal";
 
 // Editorial footer on the indigo-deep surface (DECISIONS.md): EB Garamond for the wordmark and
 // column headings, Be Vietnam Pro for body, EB Garamond italic for the small meta lines; no mono.
 // Text uses on-indigo / on-indigo-muted (16.39:1 / 8.92:1 on indigo-deep).
-// Only the quote CTA has a real destination; the other entries have no page yet, so they are
-// plain text (no pointer cursor or hover) until real routes exist.
+// Only the quote CTA has a real action (it opens the generic quote modal); the other entries have no
+// page yet, so they are plain text (no pointer cursor or hover) until real routes exist.
 export default function Footer() {
+  const [quoteOpen, setQuoteOpen] = useState(false);
+
   return (
+    <>
     <footer className="border-t border-line-on-indigo bg-indigo-deep">
       <div className="mx-auto max-w-7xl px-6 py-16 md:py-24">
         <div className="grid grid-cols-1 gap-12 md:grid-cols-12">
@@ -58,13 +65,19 @@ export default function Footer() {
 
             {/* CTA -- editorial text + arrow, no card. The after: layer only enlarges the tap area to
                 44px tall without moving the underline. */}
-            <a
-              href="#quote"
-              className="relative mt-8 inline-flex items-center gap-1.5 border-b border-bamboo/40 pb-0.5 text-sm font-medium text-on-indigo transition-all after:absolute after:inset-x-0 after:-inset-y-3 after:content-[''] hover:gap-2.5 hover:border-bamboo focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-on-indigo"
+            <button
+              type="button"
+              onClick={() => setQuoteOpen(true)}
+              className="group relative mt-8 inline-flex items-center gap-1.5 border-b border-bamboo/40 pb-0.5 text-left text-sm font-medium text-on-indigo transition-[border-color] duration-(--dur-state) ease-(--ease-nan-ui) after:absolute after:inset-x-0 after:-inset-y-3 after:content-[''] hover:border-bamboo focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-on-indigo"
             >
               Tư vấn thiết kế miễn phí cho đơn hàng đầu tiên
-              <ArrowUpRight size={14} strokeWidth={1.5} aria-hidden="true" className="text-bamboo" />
-            </a>
+              <ArrowRight
+                size={14}
+                strokeWidth={1.5}
+                aria-hidden="true"
+                className="shrink-0 text-bamboo transition-[translate] duration-(--dur-state) ease-(--ease-nan-ui) group-hover:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
+              />
+            </button>
           </div>
         </div>
 
@@ -80,5 +93,8 @@ export default function Footer() {
         </div>
       </div>
     </footer>
+
+    <QuoteRequestModal open={quoteOpen} onClose={() => setQuoteOpen(false)} />
+    </>
   );
 }

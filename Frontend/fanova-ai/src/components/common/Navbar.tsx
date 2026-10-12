@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { ArrowUpRight, ChevronDown, Menu, Search, Tag, User, X } from "lucide-react";
+import { ArrowRight, ChevronDown, Menu, Search, Tag, User, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ProductNavigatorMobile, ProductNavigatorPanel } from "@/components/common/ProductNavigator";
+import QuoteRequestModal from "@/components/quote/QuoteRequestModal";
 import { announcementBar } from "@/data/homepageData";
 import { useAuth } from "@/contexts/AuthContext";
 import { getProducts } from "@/lib/api/products";
 import { getCategories } from "@/lib/api/categories";
+import { EASE_NAN, INSTANT, PLEAT_FINE } from "@/lib/motionTokens";
 import type { Product, ProductCategory } from "@/types/catalog";
 
 /** Lowercases and strips diacritics so Vietnamese search matches with or without accents. */
@@ -57,16 +60,66 @@ function useDismissablePanel(open: boolean, ref: RefObject<HTMLElement | null>, 
   }, [open, ref]);
 }
 
-/** Closes on Escape only -- used for the full-panel mobile menu, which has no "outside" to click. */
-function useEscapeToClose(open: boolean, onClose: () => void) {
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * The full-panel mobile menu covers the page, so while it is open it behaves like a dialog over it:
+ * body scroll is locked, focus moves to the first menu link, Tab / Shift+Tab stay inside the header
+ * (bar + panel), and Escape closes it and returns focus to the menu button. Widening the viewport
+ * past the md breakpoint (where the panel is hidden) closes it too, so the scroll lock never lingers.
+ */
+function useMobileMenu(
+  open: boolean,
+  close: () => void,
+  headerRef: RefObject<HTMLElement | null>,
+  panelRef: RefObject<HTMLElement | null>,
+  buttonRef: RefObject<HTMLButtonElement | null>,
+) {
+  const closeRef = useRef(close);
+  useEffect(() => {
+    closeRef.current = close;
+  }, [close]);
+
   useEffect(() => {
     if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    panelRef.current?.querySelector<HTMLElement>("a[href]")?.focus({ preventScroll: true });
+
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        closeRef.current();
+        buttonRef.current?.focus({ preventScroll: true });
+        return;
+      }
+      const header = headerRef.current;
+      if (e.key !== "Tab" || !header) return;
+      const items = [...header.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.getClientRects().length > 0);
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      const inside = active instanceof Node && header.contains(active);
+      if (e.shiftKey && (!inside || active === first)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (!inside || active === last)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    const desktop = window.matchMedia("(min-width: 768px)");
+    function handleBreakpoint() {
+      if (desktop.matches) closeRef.current();
     }
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
+    desktop.addEventListener("change", handleBreakpoint);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      desktop.removeEventListener("change", handleBreakpoint);
+    };
+  }, [open, headerRef, panelRef, buttonRef]);
 }
 
 const SUGGESTED_SEARCHES = ["Quạt sự kiện", "Quạt thủ công", "Quạt quà tặng", "Quạt thương hiệu"];
@@ -216,8 +269,8 @@ function SearchResultsPanel({
 
 // ─── Nav content ────────────────────────────────────────────────────────────
 // Public-facing nav. "Ứng dụng" and "Về Nan" open their own Content Studio pages (Page documents
-// served by app/[slug]); "Liên hệ" still points at the homepage's id="quote" section
-// (FinalCTASection).
+// served by app/[slug]); "Liên hệ" navigates to the homepage's id="quote" contact section
+// (FinalCTASection). The quote CTA is not a link: it opens the generic QuoteRequestModal.
 
 const NAV_ITEMS = [
   { label: "Trang chủ", href: "/" },
@@ -227,35 +280,68 @@ const NAV_ITEMS = [
   { label: "Liên hệ", href: "/#quote" },
 ] as const;
 
-const QUOTE_HREF = "/#quote";
-
-/** Route-based active state. Hash-anchor items only ever highlight on hover
- * (see spec: "hash links can highlight on hover only if active detection is
- * not simple") since there's no reliable way to know which section is in
- * view without a scroll-spy observer, which is out of scope here. */
+/** Route-based active state; nested routes (/products/[id]) keep their group active. Hash-anchor
+ * items are never active: knowing which section is in view would need a scroll-spy observer. */
 function isRouteActive(href: string, pathname: string): boolean {
   if (href.includes("#")) return false;
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-const mobilePanelVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.045, delayChildren: 0.06 } },
-};
+// Mobile menu choreography: the panel settles (160ms), the links follow one fine pleat apart, then
+// the divider, search and account, and the quote CTA last. Reduced motion: everything at once.
+const MENU_PANEL = 0.16;
+const MENU_CTA_STEP = NAV_ITEMS.length + 3;
 
-const mobileItemVariants = {
-  hidden: { opacity: 0, y: 14 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.36, ease: [0.16, 1, 0.3, 1] as const } },
-};
+function menuPanelVariants(reduce: boolean) {
+  return {
+    hidden: { opacity: 0, y: -8 },
+    visible: { opacity: 1, y: 0, transition: reduce ? INSTANT : { duration: MENU_PANEL, ease: EASE_NAN } },
+  };
+}
+
+function menuItemVariants(reduce: boolean) {
+  return {
+    hidden: { opacity: 0, y: 8 },
+    visible: (step: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: reduce ? INSTANT : { duration: 0.32, delay: MENU_PANEL * 0.5 + step * PLEAT_FINE, ease: EASE_NAN },
+    }),
+  };
+}
+
+function menuRuleVariants(reduce: boolean) {
+  return {
+    hidden: { scaleX: 0 },
+    visible: (step: number) => ({
+      scaleX: 1,
+      transition: reduce ? INSTANT : { duration: 0.42, delay: MENU_PANEL * 0.5 + step * PLEAT_FINE, ease: EASE_NAN },
+    }),
+  };
+}
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [hovered, setHovered] = useState<string | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  // Generic quote inquiry (no productId), same modal as Process / FinalCTA.
+  const [quoteOpen, setQuoteOpen] = useState(false);
+  // R9E Product Navigator: "Sản phẩm" opens a catalogue index (desktop panel / mobile view)
+  // instead of navigating straight to /products.
+  const [productsOpen, setProductsOpen] = useState(false);
+  const [productsByKeyboard, setProductsByKeyboard] = useState(false);
+  const [productsLine, setProductsLine] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<"main" | "products">("main");
+  const productsTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileProductsTriggerRef = useRef<HTMLButtonElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
-  const reduceMotion = useReducedMotion();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobilePanelRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = Boolean(useReducedMotion());
+  const panelVariants = menuPanelVariants(reduceMotion);
+  const itemVariants = menuItemVariants(reduceMotion);
+  const ruleVariants = menuRuleVariants(reduceMotion);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -286,20 +372,94 @@ export default function Navbar() {
   function openAccount() {
     setAccountOpen((v) => !v);
     setSearchOpen(false);
+    setProductsOpen(false);
   }
 
   function openSearch() {
     setSearchOpen((v) => !v);
     setAccountOpen(false);
+    setProductsOpen(false);
+  }
+
+  function toggleProducts(e: React.MouseEvent) {
+    // detail 0 = activated from the keyboard (Enter / Space): move focus into the index.
+    setProductsByKeyboard(e.detail === 0);
+    // Read here (an event, not render): inside a line, the index opens on that line.
+    setProductsLine(new URLSearchParams(window.location.search).get("categoryId"));
+    setProductsOpen((v) => !v);
+    setSearchOpen(false);
+    setAccountOpen(false);
+  }
+
+  function closeProducts(returnFocus: boolean) {
+    setProductsOpen(false);
+    if (returnFocus) productsTriggerRef.current?.focus({ preventScroll: true });
+  }
+
+  function openMobileMenu() {
+    setMobileView("main");
+    setMobileOpen(true);
+  }
+
+  function closeMobileMenu() {
+    setMobileOpen(false);
+    setMobileView("main");
+  }
+
+  function backToMobileMenu() {
+    setMobileView("main");
+    // After the main list re-renders, return focus to its "Sản phẩm" entry.
+    requestAnimationFrame(() => mobileProductsTriggerRef.current?.focus({ preventScroll: true }));
+  }
+
+  function openQuoteFromMenu() {
+    // The menu (and this button) unmounts; park focus on the menu button so the modal returns it
+    // there on close.
+    menuButtonRef.current?.focus({ preventScroll: true });
+    setMobileOpen(false);
+    setQuoteOpen(true);
   }
 
   useDismissablePanel(accountOpen, accountRef, () => setAccountOpen(false));
   useDismissablePanel(searchOpen, searchWrapRef, () => setSearchOpen(false));
-  useEscapeToClose(mobileOpen, () => setMobileOpen(false));
+  useMobileMenu(mobileOpen, closeMobileMenu, headerRef, mobilePanelRef, menuButtonRef);
 
-  // Hero-integrated (transparent) near the top, stable dark surface once the
-  // user scrolls -- a single threshold crossing, not continuous scroll-position
-  // tracking, so this stays cheap and only re-renders when the boolean flips.
+  // Product Navigator (desktop): closes on a pointer down outside the header, on Escape (focus back
+  // to the trigger), when focus leaves the header, and when the viewport drops below md.
+  useEffect(() => {
+    if (!productsOpen) return;
+    const header = headerRef.current;
+    function onPointerDown(e: PointerEvent) {
+      if (header && !header.contains(e.target as Node)) setProductsOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setProductsOpen(false);
+        productsTriggerRef.current?.focus({ preventScroll: true });
+      }
+    }
+    function onFocusIn(e: FocusEvent) {
+      if (header && !header.contains(e.target as Node)) setProductsOpen(false);
+    }
+    const mobile = window.matchMedia("(max-width: 767px)");
+    function onBreakpoint() {
+      if (mobile.matches) setProductsOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("focusin", onFocusIn);
+    mobile.addEventListener("change", onBreakpoint);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("focusin", onFocusIn);
+      mobile.removeEventListener("change", onBreakpoint);
+    };
+  }, [productsOpen]);
+
+  // Hero-integrated (transparent) near the top, a settled ink surface with a bamboo hairline once
+  // the user scrolls (or opens the mobile menu) -- a single threshold crossing, not continuous
+  // scroll-position tracking, so this only re-renders when the boolean flips.
   useEffect(() => {
     function handleScroll() {
       setScrolled(window.scrollY > 24);
@@ -387,13 +547,16 @@ export default function Navbar() {
       .slice(0, 5)
     : [];
 
+  const solid = scrolled || mobileOpen || productsOpen;
+
   return (
+    <>
     <header ref={headerRef} className="fixed left-0 top-0 z-[999] w-full">
       {/* ── Announcement bar ── */}
       {announcementBar.visible && (
         <div
-          className="flex items-center justify-center px-4 py-[7px] transition-[background-color] duration-300"
-          style={{ background: scrolled ? "var(--nan-dark)" : "rgba(15,19,32,0.35)" }}
+          className="flex items-center justify-center px-4 py-[7px] transition-[background-color] duration-(--dur-state) ease-(--ease-nan-ui) motion-reduce:transition-none"
+          style={{ background: solid ? "var(--nan-dark)" : "rgba(15,19,32,0.35)" }}
         >
           <div className="flex items-center gap-2">
             <span aria-hidden="true" className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#B6A17B]/60" />
@@ -409,63 +572,104 @@ export default function Navbar() {
         </div>
       )}
 
-      {/* ── Main nav bar: transparent over the Hero, stable ink surface once scrolled ── */}
+      {/* ── Main nav bar: transparent over the Hero; once scrolled it settles onto a solid ink
+          surface with one bamboo hairline (no blur, no shadow, same height) ── */}
       <div
-        className="border-b transition-[background-color,border-color,backdrop-filter] duration-300"
+        className="border-b transition-[background-color,border-color] duration-(--dur-state) ease-(--ease-nan-ui) motion-reduce:transition-none"
         style={{
-          background: scrolled ? "rgba(15,19,32,0.94)" : "transparent",
-          borderColor: scrolled ? "rgba(241,240,234,0.10)" : "transparent",
-          backdropFilter: scrolled ? "blur(14px)" : "none",
-          WebkitBackdropFilter: scrolled ? "blur(14px)" : "none",
+          background: solid ? "var(--nan-dark)" : "transparent",
+          borderColor: solid ? "var(--color-line-on-indigo)" : "transparent",
         }}
       >
-        <div className="mx-auto grid h-[84px] max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-6 lg:px-10">
-          {/* Left: wordmark -- generous breathing room, no badge/card */}
-          <Link href="/" className="flex shrink-0 items-center gap-3 justify-self-start">
+        {/* md (768-1023): a single justified row, so the three groups share the width instead of
+            the centred grid squeezing the right group. lg+: logo | centred nav | actions. */}
+        <div className="mx-auto flex h-[84px] max-w-7xl items-center justify-between gap-6 px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:px-10">
+          {/* Left: wordmark -- generous breathing room, no badge/card. The tagline steps aside at md,
+              where the nav needs its width. */}
+          <Link
+            href="/"
+            className="flex h-11 shrink-0 items-center gap-3 justify-self-start focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-on-indigo"
+          >
             <span className="font-serif text-[24px] font-medium leading-none tracking-tight text-[#F1F0EA]">
               Nan
             </span>
-            <span aria-hidden="true" className="hidden h-5 w-px bg-white/15 sm:block" />
-            <span className="hidden font-mono text-[9px] font-medium uppercase leading-[1.4] tracking-[0.26em] text-[#A9ABA5] sm:block">
+            <span aria-hidden="true" className="hidden h-5 w-px bg-white/15 sm:block md:hidden lg:block" />
+            <span className="hidden whitespace-nowrap font-mono text-[9px] font-medium uppercase leading-[1.4] tracking-[0.26em] text-[#A9ABA5] sm:block md:hidden lg:block">
               Custom
               <br />
               Fan Design
             </span>
           </Link>
 
-          {/* Center: editorial nav -- plain links, thin underline indicator, no pill container */}
-          <nav
-            onMouseLeave={() => setHovered(null)}
-            className="hidden items-center gap-9 justify-self-center md:flex"
-          >
+          {/* Center: editorial nav -- plain links, no pill. Active: full ink + a bamboo hairline drawn
+              open from the left. Hover: the colour lifts and a quiet hairline reveals under the
+              label; nothing moves or changes size. */}
+          <nav aria-label="Điều hướng chính" className="hidden items-center gap-6 justify-self-center md:flex lg:gap-8 xl:gap-9">
             {NAV_ITEMS.map((item) => {
               const active = isRouteActive(item.href, pathname);
-              const highlighted = hovered ? hovered === item.href : active;
+              if (item.href === "/products") {
+                // Disclosure, not a link: opens the Product Navigator. Still marked active (bamboo
+                // rule) anywhere in /products; a small chevron turns when the index is open.
+                return (
+                  <button
+                    key={item.href}
+                    ref={productsTriggerRef}
+                    type="button"
+                    onClick={toggleProducts}
+                    aria-expanded={productsOpen}
+                    aria-controls="navbar-product-navigator"
+                    className={`group flex h-11 items-center gap-1.5 whitespace-nowrap text-[13px] font-medium transition-colors duration-(--dur-state) ease-(--ease-nan-ui) focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-on-indigo motion-reduce:transition-none ${
+                      active || productsOpen ? "text-[#F1F0EA]" : "text-[rgba(241,240,234,0.58)] hover:text-[#F1F0EA]"
+                    }`}
+                  >
+                    <span className="relative py-1">
+                      {item.label}
+                      {active ? (
+                        <span aria-hidden="true" className="nav-rule-open absolute inset-x-0 -bottom-px h-px bg-bamboo" />
+                      ) : (
+                        <span
+                          aria-hidden="true"
+                          className={`absolute inset-x-0 -bottom-px h-px origin-left bg-[#F1F0EA]/35 transition-[scale] duration-(--dur-state) ease-(--ease-nan-ui) group-hover:scale-x-100 motion-reduce:transition-none ${productsOpen ? "scale-x-100" : "scale-x-0"}`}
+                        />
+                      )}
+                    </span>
+                    <ChevronDown
+                      size={12}
+                      strokeWidth={1.5}
+                      aria-hidden="true"
+                      className={`text-bamboo transition-[rotate] duration-(--dur-state) ease-(--ease-nan-ui) motion-reduce:transition-none ${productsOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                );
+              }
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  onMouseEnter={() => setHovered(item.href)}
-                  className="relative py-2 text-[13px] font-medium transition-colors duration-300"
-                  style={{ color: highlighted ? "#F1F0EA" : "rgba(241,240,234,0.55)" }}
+                  aria-current={active ? "page" : undefined}
+                  className={`group flex h-11 items-center whitespace-nowrap text-[13px] font-medium transition-colors duration-(--dur-state) ease-(--ease-nan-ui) focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-on-indigo motion-reduce:transition-none ${
+                    active ? "text-[#F1F0EA]" : "text-[rgba(241,240,234,0.58)] hover:text-[#F1F0EA]"
+                  }`}
                 >
-                  {item.label}
-                  {highlighted && (
-                    <motion.span
-                      layoutId="navbar-active-underline"
-                      className="absolute -bottom-0.5 left-0 right-0 h-px"
-                      style={{ background: "#F1F0EA" }}
-                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                    />
-                  )}
+                  <span className="relative py-1">
+                    {item.label}
+                    {active ? (
+                      <span aria-hidden="true" className="nav-rule-open absolute inset-x-0 -bottom-px h-px bg-bamboo" />
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-x-0 -bottom-px h-px origin-left scale-x-0 bg-[#F1F0EA]/35 transition-[scale] duration-(--dur-state) ease-(--ease-nan-ui) group-hover:scale-x-100 motion-reduce:transition-none"
+                      />
+                    )}
+                  </span>
                 </Link>
               );
             })}
           </nav>
 
           {/* Right: icon actions + editorial CTA */}
-          <div className="col-start-3 flex items-center justify-self-end gap-5">
-            <div className="hidden items-center gap-4 md:flex">
+          <div className="col-start-3 flex shrink-0 items-center justify-self-end gap-3 lg:gap-5">
+            <div className="hidden items-center gap-1 md:flex">
               {/* Search */}
               <div ref={searchWrapRef} className="relative">
                 <button
@@ -473,13 +677,15 @@ export default function Navbar() {
                   aria-label="Tìm sản phẩm"
                   title="Tìm sản phẩm"
                   aria-expanded={searchOpen}
-                  className="flex h-9 w-9 items-center justify-center text-[rgba(241,240,234,0.65)] transition-colors duration-300 hover:text-[#F1F0EA]"
+                  aria-controls="navbar-search-panel"
+                  className="flex h-11 w-11 items-center justify-center text-[rgba(241,240,234,0.65)] transition-colors duration-(--dur-state) hover:text-[#F1F0EA] focus-visible:outline-1 focus-visible:-outline-offset-4 focus-visible:outline-on-indigo"
                 >
                   <Search size={17} strokeWidth={1.5} />
                 </button>
 
                 {searchOpen && (
                   <motion.div
+                    id="navbar-search-panel"
                     role="search"
                     aria-label="Tìm kiếm sản phẩm"
                     initial={{ opacity: 0, y: -6 }}
@@ -529,7 +735,7 @@ export default function Navbar() {
                       aria-haspopup="menu"
                       aria-controls="navbar-account-menu"
                       aria-label="Tài khoản"
-                      className="flex h-9 items-center gap-2 text-[rgba(241,240,234,0.65)] transition-colors duration-300 hover:text-[#F1F0EA]"
+                      className="flex h-11 items-center gap-2 px-1.5 text-[rgba(241,240,234,0.65)] transition-colors duration-(--dur-state) hover:text-[#F1F0EA] focus-visible:outline-1 focus-visible:-outline-offset-4 focus-visible:outline-on-indigo"
                     >
                       <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-[11px] font-medium text-[#F1F0EA]">
                         {(displayName || "?").charAt(0).toUpperCase()}
@@ -547,7 +753,7 @@ export default function Navbar() {
                       aria-haspopup="menu"
                       aria-controls="navbar-account-menu"
                       aria-label="Tài khoản"
-                      className="flex h-9 w-9 items-center justify-center text-[rgba(241,240,234,0.65)] transition-colors duration-300 hover:text-[#F1F0EA]"
+                      className="flex h-11 w-11 items-center justify-center text-[rgba(241,240,234,0.65)] transition-colors duration-(--dur-state) hover:text-[#F1F0EA] focus-visible:outline-1 focus-visible:-outline-offset-4 focus-visible:outline-on-indigo"
                     >
                       <User size={17} strokeWidth={1.5} />
                     </button>
@@ -620,21 +826,39 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Editorial CTA: text + arrow, thin underline -- not a filled pill */}
-            <Link
-              href={QUOTE_HREF}
-              className="hidden items-center gap-1.5 border-b border-[#B6A17B]/40 pb-0.5 text-[13px] font-medium text-[#F1F0EA] transition-all duration-300 hover:gap-2.5 hover:border-[#B6A17B] sm:inline-flex"
+            {/* Editorial CTA: opens the generic quote modal (a button, not a link). A resting bamboo
+                hairline under the label; on hover a full-strength hairline draws over it and the
+                arrow steps 4px forward. The label itself never moves. 44px tall hit area. */}
+            <button
+              type="button"
+              onClick={() => setQuoteOpen(true)}
+              className="group hidden h-11 shrink-0 items-center gap-2 whitespace-nowrap text-[13px] font-medium text-[#F1F0EA] focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-on-indigo sm:inline-flex"
             >
-              Yêu cầu báo giá
-              <ArrowUpRight size={14} strokeWidth={1.5} className="text-[#B6A17B]" />
-            </Link>
+              <span className="relative py-1">
+                Yêu cầu báo giá
+                <span aria-hidden="true" className="absolute inset-x-0 -bottom-px h-px bg-bamboo/40" />
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 -bottom-px h-px origin-left scale-x-0 bg-bamboo transition-[scale] duration-(--dur-state) ease-(--ease-nan-ui) group-hover:scale-x-100 group-focus-visible:scale-x-100 motion-reduce:transition-none"
+                />
+              </span>
+              <ArrowRight
+                size={14}
+                strokeWidth={1.5}
+                aria-hidden="true"
+                className="text-bamboo transition-[translate] duration-(--dur-state) ease-(--ease-nan-ui) group-hover:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
+              />
+            </button>
 
             {/* Mobile menu trigger */}
             <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label="Toggle menu"
+              ref={menuButtonRef}
+              type="button"
+              onClick={() => (mobileOpen ? closeMobileMenu() : openMobileMenu())}
+              aria-label={mobileOpen ? "Đóng menu" : "Mở menu"}
               aria-expanded={mobileOpen}
-              className="flex h-10 w-10 items-center justify-center text-[#F1F0EA] transition hover:opacity-70 md:hidden"
+              aria-controls="navbar-mobile-menu"
+              className="-mr-2 flex h-11 w-11 items-center justify-center text-[#F1F0EA] transition-opacity duration-(--dur-ui) hover:opacity-70 focus-visible:outline-1 focus-visible:-outline-offset-4 focus-visible:outline-on-indigo motion-reduce:transition-none md:hidden"
             >
               {mobileOpen ? <X size={20} strokeWidth={1.5} /> : <Menu size={20} strokeWidth={1.5} />}
             </button>
@@ -642,39 +866,107 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* ── Mobile menu: full-panel below the bar, oversized labels, staggered reveal ── */}
+      {/* ── Product Navigator (md+): index panel under the bar, a quiet scrim over the page behind it
+          (click it to close; no blur) ── */}
+      <AnimatePresence>
+        {productsOpen && (
+          <motion.div
+            key="products-scrim"
+            aria-hidden="true"
+            onClick={() => closeProducts(false)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={reduceMotion ? INSTANT : { duration: 0.18 }}
+            className="absolute inset-x-0 top-full hidden h-[100dvh] bg-indigo-deep/70 md:block"
+          />
+        )}
+        {productsOpen && (
+          <ProductNavigatorPanel
+            key="products-panel"
+            id="navbar-product-navigator"
+            onNavigate={() => closeProducts(false)}
+            focusOnOpen={productsByKeyboard}
+            initialLineId={productsLine}
+            currentProductId={pathname.startsWith("/products/") ? pathname.split("/")[2] : null}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Mobile menu: full panel under the real header height (--nav-height, published above),
+          oversized serif labels, a short pleated reveal; the quote CTA arrives last ── */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            variants={reduceMotion ? undefined : mobilePanelVariants}
-            initial={reduceMotion ? { opacity: 0 } : "hidden"}
-            animate={reduceMotion ? { opacity: 1 } : "visible"}
-            exit={{ opacity: 0, transition: { duration: 0.18 } }}
-            className="fixed inset-x-0 bottom-0 top-[84px] overflow-y-auto md:hidden"
-            style={{ background: "var(--nan-dark)" }}
+            ref={mobilePanelRef}
+            id="navbar-mobile-menu"
+            data-mobile-menu
+            variants={panelVariants}
+            initial={reduceMotion ? false : "hidden"}
+            animate="visible"
+            exit={{ opacity: 0, transition: reduceMotion ? INSTANT : { duration: 0.14 } }}
+            className="fixed inset-x-0 bottom-0 overflow-y-auto overscroll-contain md:hidden"
+            style={{ top: "var(--nav-height, 113px)", background: "var(--nan-dark)" }}
           >
-            <nav className="flex flex-col gap-1 px-6 py-8">
-              {NAV_ITEMS.map((item) => {
+            {mobileView === "products" ? (
+              <ProductNavigatorMobile onBack={backToMobileMenu} onNavigate={closeMobileMenu} />
+            ) : (
+            <nav aria-label="Menu chính" className="flex flex-col px-6 pb-10 pt-6">
+              {NAV_ITEMS.map((item, i) => {
                 const active = isRouteActive(item.href, pathname);
+                if (item.href === "/products") {
+                  return (
+                    <motion.div key={item.href} variants={itemVariants} custom={i}>
+                      <button
+                        ref={mobileProductsTriggerRef}
+                        type="button"
+                        onClick={() => setMobileView("products")}
+                        aria-current={active ? "page" : undefined}
+                        className={`flex w-full items-center gap-4 py-3 text-left font-serif text-[28px] font-medium leading-tight transition-colors duration-(--dur-ui) focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-on-indigo ${
+                          active ? "text-[#F1F0EA]" : "text-[#A9ABA5] active:text-[#F1F0EA]"
+                        }`}
+                      >
+                        {item.label}
+                        {active && <span aria-hidden="true" className="h-px w-8 bg-bamboo" />}
+                        <ArrowRight size={18} strokeWidth={1.5} aria-hidden="true" className="ml-auto text-bamboo" />
+                      </button>
+                    </motion.div>
+                  );
+                }
                 return (
-                  <motion.div key={item.href} variants={reduceMotion ? undefined : mobileItemVariants}>
+                  <motion.div key={item.href} variants={itemVariants} custom={i}>
                     <Link
                       href={item.href}
-                      onClick={() => setMobileOpen(false)}
-                      className={`block py-3 font-serif text-[28px] font-medium leading-tight transition-colors ${active ? "text-[#F1F0EA]" : "text-[#A9ABA5]"
-                        }`}
+                      onClick={closeMobileMenu}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center gap-4 py-3 font-serif text-[28px] font-medium leading-tight transition-colors duration-(--dur-ui) focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-on-indigo ${
+                        active ? "text-[#F1F0EA]" : "text-[#A9ABA5] active:text-[#F1F0EA]"
+                      }`}
                     >
                       {item.label}
+                      {/* Active: a bamboo hairline after the label (state is not colour alone) */}
+                      {active && <span aria-hidden="true" className="h-px w-8 bg-bamboo" />}
                     </Link>
                   </motion.div>
                 );
               })}
 
+              {/* Divider drawn open after the links */}
+              <motion.span
+                aria-hidden="true"
+                variants={ruleVariants}
+                custom={NAV_ITEMS.length}
+                className="mt-6 block h-px origin-left bg-line-on-indigo"
+              />
+
               {/* Mobile search -- inline, shares state with the desktop panel */}
-              <motion.div variants={reduceMotion ? undefined : mobileItemVariants} className="mt-6 border-t border-white/10 pt-6">
-                <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.16em] text-[#A9ABA5]">
+              <motion.div variants={itemVariants} custom={NAV_ITEMS.length + 1} className="pt-6">
+                <label
+                  htmlFor="navbar-mobile-search"
+                  className="mb-3 block text-[10px] font-medium uppercase tracking-[0.16em] text-[#A9ABA5]"
+                >
                   Tìm sản phẩm
-                </p>
+                </label>
                 <div className="relative">
                   <Search
                     size={15}
@@ -682,11 +974,12 @@ export default function Navbar() {
                     className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#A9ABA5]"
                   />
                   <input
+                    id="navbar-mobile-search"
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Tìm quạt, danh mục, ứng dụng..."
-                    className="w-full border border-white/[0.12] bg-transparent py-2.5 pl-9 pr-3 text-sm text-[#F1F0EA] placeholder:text-[#A9ABA5]/70 outline-none transition focus:border-[#B6A17B]/50"
+                    className="h-11 w-full border border-white/[0.12] bg-transparent pl-9 pr-3 text-sm text-[#F1F0EA] placeholder:text-[#A9ABA5]/70 outline-none transition focus:border-[#B6A17B]/50"
                   />
                 </div>
                 {trimmedQuery !== "" && (
@@ -707,41 +1000,47 @@ export default function Navbar() {
                 )}
               </motion.div>
 
-              <motion.div variants={reduceMotion ? undefined : mobileItemVariants}>
-                <Link
-                  href={QUOTE_HREF}
-                  onClick={() => setMobileOpen(false)}
-                  className="mt-6 inline-flex w-full items-center justify-center gap-2 border border-[#B6A17B] py-3.5 text-sm font-medium text-[#F1F0EA] transition active:scale-[0.98]"
+              {/* Quote CTA -- last in the choreography; opens the generic quote modal */}
+              <motion.div variants={itemVariants} custom={MENU_CTA_STEP}>
+                <button
+                  type="button"
+                  onClick={openQuoteFromMenu}
+                  className="group mt-6 inline-flex h-12 w-full items-center justify-center gap-2 border border-bamboo text-sm font-medium text-[#F1F0EA] transition-colors duration-(--dur-ui) active:bg-on-indigo/5 focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-on-indigo"
                 >
                   Yêu cầu báo giá
-                  <ArrowUpRight size={15} strokeWidth={1.5} className="text-[#B6A17B]" />
-                </Link>
+                  <ArrowRight size={15} strokeWidth={1.5} aria-hidden="true" className="text-bamboo" />
+                </button>
               </motion.div>
 
               {/* Mobile account section -- grouped, not a crowded single row */}
               {!isLoading && (
-                <motion.div variants={reduceMotion ? undefined : mobileItemVariants} className="mt-6 border-t border-white/10 pt-6">
-                  <p className="pb-3 text-[10px] font-medium uppercase tracking-[0.16em] text-[#A9ABA5]">
+                <motion.div
+                  variants={itemVariants}
+                  custom={NAV_ITEMS.length + 2}
+                  className="mt-6 border-t border-line-on-indigo pt-6"
+                >
+                  <p className="pb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-[#A9ABA5]">
                     Tài khoản
                   </p>
                   {isAuthenticated ? (
-                    <div className="flex flex-col gap-1 text-sm">
-                      <div className="pb-2">
+                    <div className="flex flex-col text-sm">
+                      <div className="py-2">
                         <p className="truncate text-sm font-medium text-[#F1F0EA]">{displayName || user?.email}</p>
                         {roleLabel && <p className="mt-0.5 text-[11px] text-[#A9ABA5]">{roleLabel}</p>}
                       </div>
                       {admin && (
                         <Link
                           href="/admin"
-                          onClick={() => setMobileOpen(false)}
-                          className="py-2 text-[#A9ABA5] transition hover:text-[#F1F0EA]"
+                          onClick={closeMobileMenu}
+                          className="flex h-11 items-center text-[#A9ABA5] transition hover:text-[#F1F0EA]"
                         >
                           Dashboard
                         </Link>
                       )}
                       <button
+                        type="button"
                         onClick={handleLogout}
-                        className="py-2 text-left text-[#A9ABA5] transition hover:text-[#F1F0EA]"
+                        className="flex h-11 items-center text-left text-[#A9ABA5] transition hover:text-[#F1F0EA]"
                       >
                         Đăng xuất
                       </button>
@@ -750,15 +1049,15 @@ export default function Navbar() {
                     <div className="flex items-center gap-6 text-sm">
                       <Link
                         href="/auth/login"
-                        onClick={() => setMobileOpen(false)}
-                        className="text-[#A9ABA5] transition hover:text-[#F1F0EA]"
+                        onClick={closeMobileMenu}
+                        className="flex h-11 items-center text-[#A9ABA5] transition hover:text-[#F1F0EA]"
                       >
                         Đăng nhập
                       </Link>
                       <Link
                         href="/auth/register"
-                        onClick={() => setMobileOpen(false)}
-                        className="text-[#A9ABA5] transition hover:text-[#F1F0EA]"
+                        onClick={closeMobileMenu}
+                        className="flex h-11 items-center text-[#A9ABA5] transition hover:text-[#F1F0EA]"
                       >
                         Đăng ký
                       </Link>
@@ -767,6 +1066,7 @@ export default function Navbar() {
                 </motion.div>
               )}
             </nav>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -791,5 +1091,9 @@ export default function Navbar() {
         }
       `}</style>
     </header>
+
+    {/* Outside the fixed header: the modal is its own top-level layer (z-1000) above it. */}
+    <QuoteRequestModal open={quoteOpen} onClose={() => setQuoteOpen(false)} />
+    </>
   );
 }

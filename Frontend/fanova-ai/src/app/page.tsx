@@ -1,67 +1,63 @@
+import { MotionConfig } from "motion/react";
 import Navbar from "@/components/common/Navbar";
 import HeroSection from "@/components/homepage/HeroSection";
 import BrandStatementSection from "@/components/homepage/BrandStatementSection";
 import ProductTypeSection from "@/components/homepage/ProductTypeSection";
-import ProblemSection from "@/components/homepage/ProblemSection";
-import SolutionSection from "@/components/homepage/SolutionSection";
+import ProblemSolutionSection from "@/components/homepage/ProblemSolutionSection";
 import MaterialSection from "@/components/homepage/MaterialSection";
 import UseCaseSection from "@/components/homepage/UseCaseSection";
 import ProcessSection from "@/components/homepage/ProcessSection";
 import FAQSection from "@/components/homepage/FAQSection";
 import FinalCTASection from "@/components/homepage/FinalCTASection";
 import Footer from "@/components/common/Footer";
-import HomepageNarrativeMotif from "@/components/homepage/HomepageNarrativeMotif";
 
 export default function Home() {
+  // Homepage motion respects prefers-reduced-motion: Motion skips transform animations for those
+  // users (reveals and the FAQ accordion also pass an instant transition; see ui/Reveal.tsx).
   return (
-    <main>
-      {/* H4: FanIntroWrapper removed from the homepage per the H4 task's own decision point --
-          the ported HeroSilkStage's own ~3s opening animation now plays that role instead.
-          components/intro/ is kept (FanIntroWrapper, FanIntro), just unused here, in case a
-          future decision brings the full-screen intro back. */}
-      <Navbar />
+    <MotionConfig reducedMotion="user">
+      <main>
+        {/* H4: FanIntroWrapper removed from the homepage per the H4 task's own decision point --
+            the ported HeroSilkStage's own ~3s opening animation now plays that role instead.
+            components/intro/ is kept (FanIntroWrapper, FanIntro), just unused here, in case a
+            future decision brings the full-screen intro back. */}
+        <Navbar />
 
-      {/* 1. Hero — what Nan is, primary CTA */}
-      <HeroSection />
+        {/* 1. Hero — what Nan is, primary CTA */}
+        <HeroSection />
 
-      {/* Page-level narrative motif: fan thread draws as user scrolls the brand journey.
-          Mounted outside the narrative wrapper so it can be fixed-position independently. */}
-      <HomepageNarrativeMotif />
+        {/* Narrative wrapper: BrandStatement → FinalCTA. The R6 bamboo rib (BrandStatement) and
+            the Process rail carry the thread between chapters; the old fixed motif is gone. */}
+        <div id="homepage-narrative">
 
-      {/* Narrative wrapper: BrandStatement → FinalCTA.
-          id="homepage-narrative" is the GSAP ScrollTrigger anchor for the motif thread. */}
-      <div id="homepage-narrative">
+          {/* 2. Brand Statement — manifesto, why Nan exists */}
+          <BrandStatementSection />
 
-        {/* 2. Brand Statement — manifesto, why Nan exists */}
-        <BrandStatementSection />
+          {/* 3. Choose Fan Type — real category discovery */}
+          <ProductTypeSection />
 
-        {/* 3. Choose Fan Type — real category discovery */}
-        <ProductTypeSection />
+          {/* 4–5. Problem + Solution — one editorial spread (R6) */}
+          <ProblemSolutionSection />
 
-        {/* 4. Problem — why generic brand gifts fail */}
-        <ProblemSection />
+          {/* 6. Materials & Craft — paper, fabric, finishes */}
+          <MaterialSection />
 
-        {/* 5. Solution — how Nan solves it */}
-        <SolutionSection />
+          {/* 7. Use Cases — events, resorts, restaurants, corporate, brand */}
+          <UseCaseSection />
 
-        {/* 6. Materials & Craft — paper, fabric, finishes */}
-        <MaterialSection />
+          {/* 8. Process — quote-first workflow */}
+          <ProcessSection />
 
-        {/* 7. Use Cases — events, resorts, restaurants, corporate, brand */}
-        <UseCaseSection />
+          {/* 9. FAQ */}
+          <FAQSection />
 
-        {/* 8. Process — quote-first workflow */}
-        <ProcessSection />
+          {/* 10. Final Quote CTA */}
+          <FinalCTASection />
 
-        {/* 9. FAQ */}
-        <FAQSection />
+        </div>
 
-        {/* 10. Final Quote CTA */}
-        <FinalCTASection />
-
-      </div>
-
-      <Footer />
-    </main>
+        <Footer />
+      </main>
+    </MotionConfig>
   );
 }

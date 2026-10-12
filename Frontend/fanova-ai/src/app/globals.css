@@ -48,6 +48,34 @@
   --color-line-on-paper: #d6cbb6;
 }
 
+/* ═══════════════════════════════════════════════════════
+   NAN MOTION TOKENS — R5b
+   One easing per intent, one duration scale. Mirrored for JS (Motion and
+   GSAP take numbers, not custom properties) in src/lib/motionTokens.ts:
+   keep the two in sync.
+   - ease-nan: content revealing as it enters the viewport.
+   - ease-nan-ui: hover, press, accordion, other direct UI response.
+   - ease-nan-state: an in-place state change (e.g. the active Process step).
+═══════════════════════════════════════════════════════ */
+:root {
+  --ease-nan: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-nan-ui: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-nan-state: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --dur-reveal: 700ms;
+  --dur-ui: 180ms;
+  --dur-state: 320ms;
+  /* R6 */
+  --dur-signature: 900ms;
+  --dur-wipe: 520ms;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --dur-reveal: 560ms;
+  }
+}
+
 :root {
   /* ═══════════════════════════════════════════════════════
      NAN DESIGN SYSTEM v4 — deprecated, thay trong R2/R3.
@@ -284,8 +312,117 @@ body {
   font-family: var(--font-be-vietnam-pro), Arial, Helvetica, sans-serif;
 }
 
-html {
-  scroll-behavior: smooth;
+/* ═══════════════════════════════════════════════════════
+   R6 FAN MASK — reveals an element as a fan opening from a pivot.
+   The visible area is a sector centred on the vertical, ±--fan-open
+   around --fan-pivot (bottom centre by default). Motion animates
+   --fan-open from 0deg to FAN_OPEN_DEG (motionTokens.ts); reduced
+   motion sets it to the open angle at once. Where conic masks are not
+   supported the element simply shows in full.
+═══════════════════════════════════════════════════════ */
+@supports (mask-image: conic-gradient(#000 0deg, transparent 0deg)) {
+  .fan-mask {
+    --fan-open: 0deg;
+    --fan-pivot: 50% 100%;
+    -webkit-mask-image: conic-gradient(
+      from calc(var(--fan-open) * -1) at var(--fan-pivot),
+      #000 calc(var(--fan-open) * 2),
+      transparent 0
+    );
+    mask-image: conic-gradient(
+      from calc(var(--fan-open) * -1) at var(--fan-pivot),
+      #000 calc(var(--fan-open) * 2),
+      transparent 0
+    );
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   R6 SAMPLE STRIP — one strip of the Material sample deck (SM03).
+   Every strip turns around the same pin near its foot. Motion animates
+   three numbers: --open (0 stacked → 1 fanned to --angle), --lift (the
+   short "separate the layers" step before fanning) and --raise (the
+   chosen strip rising 16px along its own axis). --spread scales the
+   fan: ±30° below 1280px, ±37.5° from 1280px.
+═══════════════════════════════════════════════════════ */
+.sample-strip {
+  --open: 0;
+  --lift: 0;
+  --raise: 0;
+  --spread: 0.8;
+  transform-origin: 50% calc(100% - 14px);
+  transform: rotate(calc(var(--open) * var(--angle) * var(--spread)))
+    translateY(calc(var(--lift) * var(--i) * -4px + var(--raise) * -16px));
+}
+@media (min-width: 1280px) {
+  .sample-strip {
+    --spread: 1;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   R6 RIB OPEN — an image opening outwards from the bamboo rib (SM01).
+   --rib is where the rib meets the image (0% = its left edge, 50% = its
+   centre); --open goes 0 → 1. Below 768px the hero fan's pivot is the
+   screen centre, at 768–1023px it falls 62.5% across the image, and from
+   1024px the rib is the image's left edge.
+═══════════════════════════════════════════════════════ */
+.rib-open {
+  --open: 0;
+  --rib: 50%;
+  clip-path: inset(
+    0 calc((1 - var(--open)) * (100% - var(--rib))) 0 calc((1 - var(--open)) * var(--rib))
+  );
+}
+@media (min-width: 768px) {
+  .rib-open {
+    --rib: 62.5%;
+  }
+}
+@media (min-width: 1024px) {
+  .rib-open {
+    --rib: 0%;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   R7a WIPE-X — a horizontal reveal driven by one number, --reveal
+   (0 hidden → 1 shown; Motion feeds it from scroll). --from is the edge
+   it opens from as a percentage of the width (0% = left, 100% = right).
+   Neither is declared here, only defaulted, so Tailwind utilities such
+   as lg:[--from:100%] can still set them per breakpoint.
+═══════════════════════════════════════════════════════ */
+.wipe-x {
+  clip-path: inset(
+    0 calc((1 - var(--reveal, 1)) * (100% - var(--from, 0%))) 0
+      calc((1 - var(--reveal, 1)) * var(--from, 0%))
+  );
+}
+
+/* Smooth anchor scrolling only for people who haven't asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/*
+  R8 Navbar active hairline: drawn open from the left when the page mounts. Pure CSS so the server
+  HTML is already the final state; reduced motion (or no animation support) just shows the line.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  .nav-rule-open {
+    transform-origin: left;
+    animation: nav-rule-open var(--dur-state) var(--ease-nan-state) 120ms both;
+  }
+}
+@keyframes nav-rule-open {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 
 body {

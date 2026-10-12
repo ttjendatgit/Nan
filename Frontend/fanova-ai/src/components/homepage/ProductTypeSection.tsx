@@ -1,22 +1,45 @@
 "use client";
 
+// R6 "Phòng mẫu": the categories as a sample room. From 1024px a list of names on the left and a
+// sticky stage on the right; pointing at (or focusing) a name brings that fan onto the stage: the
+// previous fan steps back and is cut away, the new one slides in from the right edge, turns upright
+// around its handle and settles. Every name stays a real link to its category. Below 1024px the
+// fans sit in a native horizontal rail (82vw, snap, next one peeking). Category images come from
+// the API; without one, the A1 slot shows its placeholder (data/homepageAssets.ts).
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ArrowRight } from "lucide-react";
 import Button from "@/components/ui/Button";
-import Card from "@/components/ui/Card";
-import MetaLine from "@/components/ui/MetaLine";
+import AssetSlot from "@/components/ui/AssetSlot";
 import Rule from "@/components/ui/Rule";
 import Section from "@/components/ui/Section";
 import SectionTitle from "@/components/ui/SectionTitle";
 import { collections } from "@/data/homepageData";
+import { productCutout } from "@/data/homepageAssets";
+import { CLIP_FROM, CLIP_OPEN, EASE_NAN, EASE_NAN_STATE, EASE_NAN_UI, INSTANT, PLEAT } from "@/lib/motionTokens";
 import { getCategories } from "@/lib/api/categories";
 import type { ProductCategory } from "@/types/catalog";
 
+gsap.registerPlugin(ScrollTrigger);
+
+interface ShowroomItem {
+  key: string;
+  name: string;
+  description: string;
+  href: string;
+  imageUrl?: string;
+}
+
+/** The stage swap; the new fan turns upright around its handle (bottom centre of the slot). */
+const STAGE_SWAP = 0.42;
+
 export default function ProductTypeSection() {
   const reduce = useReducedMotion();
+  const [active, setActive] = useState(0);
   const [categories, setCategories] = useState<ProductCategory[] | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -29,18 +52,47 @@ export default function ProductTypeSection() {
       .finally(() => setLoading(false));
   }, []);
 
+  // A GSAP ScrollTrigger below this section would measure its start/end on mount, while the
+  // skeleton is still here; the real list or the fallback then changes the page height, and
+  // ScrollTrigger only re-measures by itself on resize and window load. Since R6 none sits below
+  // (the old narrative motif is gone; the R6 scroll stories use Motion's useScroll, which measures
+  // as it goes), so this one refresh is a cheap safeguard. Runs once, after data and fonts.
+  useEffect(() => {
+    if (loading) return;
+    let cancelled = false;
+    const fontsReady = "fonts" in document ? document.fonts.ready : Promise.resolve();
+    fontsReady.then(() => {
+      if (!cancelled) ScrollTrigger.refresh();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loading]);
+
   const showRealData = !loading && categories !== null && categories.length > 0;
-  const showFallback = !loading && !showRealData;
+  const items: ShowroomItem[] = loading
+    ? []
+    : showRealData
+      ? categories!.map((cat) => ({
+          key: cat.id,
+          name: cat.name,
+          description: cat.description || "Khám phá bộ sưu tập quạt giấy theo nhu cầu của bạn.",
+          href: `/products?categoryId=${cat.id}`,
+          imageUrl: cat.imageUrl,
+        }))
+      : collections.map((c) => ({ key: c.id, name: c.name, description: c.description, href: "/products" }));
+  const current = items[Math.min(active, items.length - 1)];
 
   return (
     <Section tone="paper" id="products">
 
       {/* Section header */}
       <motion.div
-        initial={reduce ? false : { opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
+        animate={reduce ? { opacity: 1, y: 0 } : undefined}
         viewport={{ once: true }}
-        transition={{ duration: 0.65 }}
+        transition={reduce ? INSTANT : { duration: 0.65 }}
         className="mb-14"
       >
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -72,150 +124,149 @@ export default function ProductTypeSection() {
         <Rule tone="paper" className="mt-10" />
       </motion.div>
 
-      {/* Loading skeleton */}
-      {loading && <SkeletonGrid />}
+      {loading && <ShowroomSkeleton />}
 
-      {/* Real API category cards */}
-      {showRealData && (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {categories!.map((cat, index) => (
-            <CategoryCard key={cat.id} category={cat} index={index} />
-          ))}
-        </div>
+      {!loading && current && (
+        <>
+          {/* ── 1024px and up: names + sticky stage ── */}
+          <div className="hidden lg:grid lg:grid-cols-12 lg:gap-12">
+            <ul className="border-t border-line-on-paper lg:col-span-5">
+              {items.map((item, i) => {
+                const isActive = item.key === current.key;
+                return (
+                  <motion.li
+                    key={item.key}
+                    className="relative border-b border-line-on-paper"
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    animate={reduce ? { opacity: 1 } : undefined}
+                    viewport={{ once: true }}
+                    transition={reduce ? INSTANT : { duration: 0.5, delay: i * PLEAT }}
+                  >
+                    {/* Active marker on the row's top rule: navy, as on paper */}
+                    <span
+                      aria-hidden="true"
+                      className={`pointer-events-none absolute -top-px left-0 h-px w-6 origin-left bg-navy transition-[scale] duration-(--dur-state) ease-(--ease-nan-state) motion-reduce:transition-none ${
+                        isActive ? "scale-x-100" : "scale-x-0"
+                      }`}
+                    />
+                    <Link
+                      href={item.href}
+                      onFocus={() => setActive(i)}
+                      onPointerEnter={(e) => {
+                        if (e.pointerType === "mouse") setActive(i);
+                      }}
+                      className="group block rounded-sm py-6 outline-none focus-visible:ring-2 focus-visible:ring-navy focus-visible:ring-offset-4 focus-visible:ring-offset-paper"
+                    >
+                      <span
+                        className={`block font-serif text-[2rem] font-semibold leading-tight transition-colors duration-(--dur-state) motion-reduce:transition-none ${
+                          isActive ? "text-ink" : "text-ink-muted"
+                        }`}
+                      >
+                        {item.name}
+                      </span>
+                      <span className="mt-2 block max-w-sm text-sm leading-6 text-ink-muted line-clamp-2">
+                        {item.description}
+                      </span>
+                      <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-navy">
+                        Khám phá
+                        <ArrowRight
+                          size={12}
+                          className="transition-transform duration-(--dur-ui) group-hover:translate-x-1 motion-reduce:transition-none"
+                        />
+                      </span>
+                    </Link>
+                  </motion.li>
+                );
+              })}
+            </ul>
+
+            {/* The stage. Decorative: each name beside it is the real link. */}
+            <div aria-hidden="true" className="lg:col-span-7">
+              <motion.div
+                className="sticky top-[calc(var(--nav-height,112px)+4vh)] ml-auto aspect-[4/5] w-full max-w-[calc(70vh*0.8)] overflow-hidden bg-paper-deep"
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                animate={reduce ? { opacity: 1, y: 0 } : undefined}
+                viewport={{ once: true, margin: "0px 0px -40% 0px" }}
+                transition={reduce ? INSTANT : { duration: 0.7, ease: EASE_NAN }}
+              >
+                <AnimatePresence initial={false}>
+                  <motion.div
+                    key={current.key}
+                    className="absolute inset-x-[6%] top-[12%] aspect-square"
+                    style={{ originX: 0.5, originY: 0.92 }}
+                    initial={{ x: "40%", scale: 0.94, rotate: -6, y: -4, zIndex: 2, clipPath: CLIP_OPEN }}
+                    animate={{ x: "0%", scale: 1, rotate: 0, y: 0, zIndex: 2, clipPath: CLIP_OPEN }}
+                    exit={{ x: "-12%", scale: 0.92, zIndex: 1, clipPath: CLIP_FROM.left }}
+                    transition={
+                      reduce
+                        ? INSTANT
+                        : {
+                            default: { duration: STAGE_SWAP, ease: EASE_NAN_STATE },
+                            // "Place": once upright, the fan settles the last 4px
+                            y: { duration: 0.16, delay: STAGE_SWAP, ease: EASE_NAN_UI },
+                          }
+                    }
+                  >
+                    <AssetSlot asset={productCutout(current.name, current.imageUrl)} tone="paper" fill sizes="40vw" />
+                  </motion.div>
+                </AnimatePresence>
+              </motion.div>
+            </div>
+          </div>
+
+          {/* ── Below 1024px: a native horizontal rail ── */}
+          <ul className="-mx-6 flex snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-2 [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden">
+            {items.map((item) => (
+              <motion.li
+                key={item.key}
+                className="w-[82vw] shrink-0 snap-start md:w-[46vw]"
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                animate={reduce ? { opacity: 1, y: 0 } : undefined}
+                viewport={{ once: true }}
+                transition={reduce ? INSTANT : { duration: 0.6, ease: EASE_NAN }}
+              >
+                <Link
+                  href={item.href}
+                  className="group block rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-navy focus-visible:ring-offset-4 focus-visible:ring-offset-paper"
+                >
+                  <div className="relative aspect-square bg-paper-deep">
+                    <div className="absolute inset-[6%]">
+                      <AssetSlot asset={productCutout(item.name, item.imageUrl)} tone="paper" fill sizes="82vw" />
+                    </div>
+                  </div>
+                  <span className="mt-4 block font-serif text-2xl font-semibold">{item.name}</span>
+                  <span className="mt-2 block text-sm leading-6 text-ink-muted line-clamp-2">{item.description}</span>
+                  <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-navy">
+                    Khám phá
+                    <ArrowRight size={12} />
+                  </span>
+                </Link>
+              </motion.li>
+            ))}
+          </ul>
+        </>
       )}
-
-      {/* Fallback static collection cards */}
-      {showFallback && (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {collections.map((item, index) => (
-            <motion.div
-              key={item.id}
-              initial={reduce ? false : { opacity: 0, y: 28 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.65, delay: index * 0.07 }}
-            >
-              <Card tone="paper" as="article" className="group flex h-full flex-col overflow-hidden">
-                <div className="relative flex h-52 items-center justify-center overflow-hidden bg-paper-deep">
-                  <FanMockupFallback />
-                </div>
-
-                <div className="flex flex-1 flex-col border-t border-line-on-paper p-6">
-                  <h3 className="font-serif text-xl font-semibold">{item.name}</h3>
-                  {/* Former image-corner chip, now a meta line under the name (DECISIONS.md) */}
-                  <MetaLine tone="paper" items={[item.badge]} className="mt-1 text-sm" />
-                  <p className="mt-3 text-sm leading-6 text-ink-muted">{item.description}</p>
-                  <Link href="/products">
-                    <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-navy transition-all duration-200 group-hover:gap-2.5">
-                      {item.cta}
-                      <ArrowRight size={12} />
-                    </span>
-                  </Link>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      )}
-
     </Section>
   );
 }
 
-// ─── Category card (real API data) ───────────────────────────────────────────
+// ─── Loading skeleton: the showroom's own shape ──────────────────────────────
 
-function CategoryCard({
-  category,
-  index,
-}: {
-  category: ProductCategory;
-  index: number;
-}) {
-  const reduce = useReducedMotion();
+function ShowroomSkeleton() {
   return (
-    <motion.div
-      initial={reduce ? false : { opacity: 0, y: 28 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.65, delay: index * 0.07 }}
-    >
-      <Link href={`/products?categoryId=${category.id}`} className="group block h-full rounded-lg">
-        {/* A real link, so it keeps a hover state: a navy edge, never a shadow or glow */}
-        <Card
-          tone="paper"
-          className="flex h-full flex-col overflow-hidden transition-colors duration-300 group-hover:border-navy/45"
-        >
-          {/* Visual area */}
-          <div className="relative h-52 overflow-hidden bg-paper-deep">
-            {category.imageUrl ? (
-              <Image
-                src={category.imageUrl}
-                alt={category.name}
-                fill
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              />
-            ) : (
-              <FanMockupFallback />
-            )}
-          </div>
-
-          {/* Card content */}
-          <div className="flex flex-1 flex-col border-t border-line-on-paper p-6">
-            <h3 className="font-serif text-xl font-semibold">{category.name}</h3>
-            {category.description ? (
-              <p className="mt-3 line-clamp-3 text-sm leading-6 text-ink-muted">
-                {category.description}
-              </p>
-            ) : (
-              <p className="mt-3 text-sm leading-6 text-ink-muted">
-                Khám phá bộ sưu tập quạt giấy theo nhu cầu của bạn.
-              </p>
-            )}
-            <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-navy transition-all duration-200 group-hover:gap-2.5">
-              Khám phá
-              <ArrowRight size={12} />
-            </span>
-          </div>
-        </Card>
-      </Link>
-    </motion.div>
-  );
-}
-
-// ─── Fan mockup fallback (shown when a category/collection has no image) ─────
-// A product illustration, not UI chrome: its own shading stays as drawn.
-
-function FanMockupFallback() {
-  return (
-    <div className="relative flex h-32 w-32 items-center justify-center rounded-full bg-paper shadow-[0_6px_28px_rgba(15,19,32,0.10)]">
-      <div className="absolute inset-3 rounded-full bg-[radial-gradient(circle_at_35%_30%,rgba(255,255,255,0.7),rgba(169,171,165,0.2)_100%)]" />
-      <div className="absolute h-[80%] w-px bg-[rgba(15,19,32,0.18)]" />
-      <div className="absolute h-[80%] w-px rotate-30 bg-[rgba(15,19,32,0.18)]" />
-      <div className="absolute h-[80%] w-px -rotate-30 bg-[rgba(15,19,32,0.18)]" />
-      <div className="absolute h-[80%] w-px rotate-60 bg-[rgba(15,19,32,0.18)]" />
-      <div className="absolute h-[80%] w-px -rotate-60 bg-[rgba(15,19,32,0.18)]" />
-      <div className="relative z-10 h-12 w-12 rounded-full bg-navy/20 shadow-md" />
-      <div className="absolute -bottom-11 left-1/2 h-16 w-4 -translate-x-1/2 rounded-full bg-[#A9ABA5] shadow-md" />
-    </div>
-  );
-}
-
-// ─── Loading skeleton ─────────────────────────────────────────────────────────
-
-function SkeletonGrid() {
-  return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <Card key={i} tone="paper" className="animate-pulse overflow-hidden">
-          <div className="h-52 bg-paper-deep" />
-          <div className="space-y-3 border-t border-line-on-paper p-6">
-            <div className="h-5 w-2/3 rounded bg-paper-deep" />
-            <div className="h-4 w-full rounded bg-paper-deep" />
+    <div className="grid animate-pulse gap-12 motion-reduce:animate-none lg:grid-cols-12">
+      <div className="space-y-6 border-t border-line-on-paper pt-6 lg:col-span-5">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="space-y-3 border-b border-line-on-paper pb-6">
+            <div className="h-7 w-2/3 rounded bg-paper-deep" />
             <div className="h-4 w-4/5 rounded bg-paper-deep" />
           </div>
-        </Card>
-      ))}
+        ))}
+      </div>
+      <div className="hidden aspect-[4/5] bg-paper-deep lg:col-span-7 lg:block" />
     </div>
   );
 }

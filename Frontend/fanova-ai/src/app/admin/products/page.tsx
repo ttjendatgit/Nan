@@ -40,7 +40,7 @@ const EMPTY_FORM = {
   description: "",
   basePrice: "",
   minQuantity: "1",
-  estimatedProductionDays: "7",
+  estimatedProductionDays: "",
   isCustomizable: true,
   isActive: true,
   imageUrl: "",
@@ -150,7 +150,7 @@ export default function AdminProductsPage() {
       description: p.description ?? "",
       basePrice: String(p.basePrice),
       minQuantity: String(p.minQuantity),
-      estimatedProductionDays: String(p.estimatedProductionDays),
+      estimatedProductionDays: p.estimatedProductionDays > 0 ? String(p.estimatedProductionDays) : "",
       isCustomizable: p.isCustomizable,
       isActive: p.isActive,
       imageUrl: p.imageUrl ?? "",
@@ -215,7 +215,7 @@ export default function AdminProductsPage() {
       if (form.description) fd.append("description", form.description);
       fd.append("basePrice", form.basePrice || "0");
       fd.append("minQuantity", form.minQuantity || "1");
-      fd.append("estimatedProductionDays", form.estimatedProductionDays || "7");
+      fd.append("estimatedProductionDays", form.estimatedProductionDays || "0");
       fd.append("isCustomizable", String(form.isCustomizable));
       fd.append("isActive", String(form.isActive));
       if (selectedFile) fd.append("image", selectedFile);
@@ -363,6 +363,10 @@ export default function AdminProductsPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
+            <p className={SECTION_KICKER_CLS} style={{ color: "var(--admin-text-subtle)" }}>
+              Thông tin cơ bản
+            </p>
+
             {/* Category */}
             <div>
               <label htmlFor="product-category" className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
@@ -430,21 +434,25 @@ export default function AdminProductsPage() {
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, description: e.target.value }))
                 }
-                rows={2}
+                rows={3}
                 placeholder="Mô tả sản phẩm..."
                 className="admin-input resize-none"
+                aria-describedby="product-description-hint"
               />
+              <p id="product-description-hint" className="mt-1 text-[11px] leading-snug" style={{ color: "var(--admin-text-subtle)" }}>
+                Hiển thị ngay dưới tên sản phẩm. Nên ngắn gọn, 1 đến 2 câu.
+              </p>
             </div>
 
             <p className={`${SECTION_KICKER_CLS} pt-1`} style={{ color: "var(--admin-text-subtle)" }}>
-              Giá &amp; sản xuất
+              Thông tin thương mại
             </p>
 
             {/* Price row */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="product-base-price" className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
-                  Giá gốc (VND) <span style={{ color: "var(--admin-danger)" }}>*</span>
+                  Giá từ (VND)
                 </label>
                 <input
                   id="product-base-price"
@@ -455,10 +463,13 @@ export default function AdminProductsPage() {
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, basePrice: e.target.value }))
                   }
-                  required
                   placeholder="150000"
                   className="admin-input"
+                  aria-describedby="product-base-price-hint"
                 />
+                <p id="product-base-price-hint" className="mt-1 text-[11px] leading-snug" style={{ color: "var(--admin-text-subtle)" }}>
+                  Để trống hoặc 0: trang sản phẩm hiện “Báo giá theo yêu cầu”.
+                </p>
               </div>
               <div>
                 <label htmlFor="product-min-quantity" className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
@@ -473,19 +484,25 @@ export default function AdminProductsPage() {
                     setForm((prev) => ({ ...prev, minQuantity: e.target.value }))
                   }
                   className="admin-input"
+                  aria-describedby="product-min-quantity-hint"
                 />
+                <p id="product-min-quantity-hint" className="mt-1 text-[11px] leading-snug" style={{ color: "var(--admin-text-subtle)" }}>
+                  Hiển thị dạng “200 cái”.
+                </p>
               </div>
             </div>
 
             {/* Production days */}
             <div>
               <label htmlFor="product-production-days" className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
-                Ngày sản xuất ước tính
+                Thời gian sản xuất (ngày)
               </label>
               <input
                 id="product-production-days"
                 type="number"
-                min="1"
+                min="0"
+                placeholder="Chưa xác định"
+                aria-describedby="product-production-days-hint"
                 value={form.estimatedProductionDays}
                 onChange={(e) =>
                   setForm((prev) => ({
@@ -495,15 +512,13 @@ export default function AdminProductsPage() {
                 }
                 className="admin-input"
               />
+              <p id="product-production-days-hint" className="mt-1 text-[11px] leading-snug" style={{ color: "var(--admin-text-subtle)" }}>
+                Để trống hoặc 0 nếu chưa xác định: trang sản phẩm hiện “Liên hệ”.
+              </p>
             </div>
 
-            <p className={`${SECTION_KICKER_CLS} pt-1`} style={{ color: "var(--admin-text-subtle)" }}>
-              Hiển thị
-            </p>
-
-            {/* Toggles */}
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
+            {/* Customisation: shown publicly as "Tùy chỉnh: Có / Không" */}
+            <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() =>
@@ -536,6 +551,13 @@ export default function AdminProductsPage() {
                 </span>
               </div>
 
+
+            <p className={`${SECTION_KICKER_CLS} pt-1`} style={{ color: "var(--admin-text-subtle)" }}>
+              Hiển thị
+            </p>
+
+            {/* Toggles */}
+            <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -572,6 +594,9 @@ export default function AdminProductsPage() {
               <label className={LABEL_CLS} style={{ color: "var(--admin-text-muted)" }}>
                 Hình ảnh
               </label>
+              <p className="-mt-1 mb-2 text-[11px] leading-snug" style={{ color: "var(--admin-text-subtle)" }}>
+                Trang sản phẩm hiển thị trọn ảnh, không cắt. Mô tả ảnh cho trình đọc màn hình dùng tên sản phẩm.
+              </p>
 
               {/* Local preview */}
               {localPreview && (

@@ -3,18 +3,17 @@
 import { useState, useEffect, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Clock,
-  Package,
-  AlertCircle,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
 import QuoteRequestModal from "@/components/quote/QuoteRequestModal";
+import { NanFanMark } from "@/components/product/CatalogueList";
 import ContentBlocksRenderer from "@/components/product/ContentBlocksRenderer";
+import ProductFacts from "@/components/product/ProductFacts";
 import ProductOptionSelector from "@/components/product/ProductOptionSelector";
+import Button from "@/components/ui/Button";
 import { getProduct, getProductsByCategory } from "@/lib/api/products";
+import { detailFacts, formatProductPrice } from "@/lib/productFacts";
 import type { Product } from "@/types/catalog";
 
 export default function ProductDetailPage({
@@ -88,161 +87,132 @@ export default function ProductDetailPage({
   }, [id]);
 
   return (
-    <div className="min-h-[100dvh] flex flex-col" style={{ background: "#0F1320" }}>
+    <div className="flex min-h-[100dvh] flex-col bg-indigo text-on-indigo">
       <Navbar />
 
       <main className="flex-1 pt-24">
 
         {/* Loading skeleton */}
         {loading && (
-          <div className="max-w-7xl mx-auto px-6 py-10">
+          <div className="mx-auto max-w-7xl px-6 py-10">
             <ProductDetailSkeleton />
           </div>
         )}
 
         {/* Error state */}
         {!loading && error && (
-          <div className="max-w-7xl mx-auto px-6 py-10">
-            <div className="flex flex-col items-center py-24 text-center gap-5">
-              <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-                <AlertCircle className="h-5 w-5 text-red-400" />
-              </div>
-              <div>
-                <p className="text-[#F1F0EA] font-medium mb-1.5">
-                  Không thể tải sản phẩm
-                </p>
-                <p className="text-[rgba(241,240,234,0.45)] text-sm max-w-xs">{error}</p>
-              </div>
-              <Link
-                href="/products"
-                className="flex items-center gap-2 text-sm text-[rgba(241,240,234,0.60)] hover:text-[#F1F0EA] transition-colors"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Xem tất cả sản phẩm
-              </Link>
-            </div>
-          </div>
+          <DetailMessage
+            title="Không thể tải sản phẩm"
+            detail={error}
+          />
         )}
 
         {/* Not found state */}
         {!loading && !error && !product && (
-          <div className="max-w-7xl mx-auto px-6 py-10">
-            <div className="flex flex-col items-center py-24 text-center gap-5">
-              <div className="w-14 h-14 rounded-full border border-[#192B88]/40 flex items-center justify-center">
-                <Package className="h-6 w-6 text-[#192B88]" />
-              </div>
-              <div>
-                <p className="text-xl font-semibold text-[#F1F0EA] mb-2">
-                  Sản phẩm không tồn tại
-                </p>
-                <p className="text-[rgba(241,240,234,0.45)] text-sm max-w-sm">
-                  Sản phẩm này có thể đã bị xóa hoặc không còn khả dụng.
-                </p>
-              </div>
-              <Link
-                href="/products"
-                className="rounded-full border border-[#192B88]/50 px-5 py-2.5 text-sm text-[rgba(241,240,234,0.70)] hover:border-[#192B88] hover:text-[#F1F0EA] transition-all"
-              >
-                Xem tất cả sản phẩm
-              </Link>
-            </div>
-          </div>
+          <DetailMessage
+            title="Sản phẩm không tồn tại"
+            detail="Sản phẩm này có thể đã bị xóa hoặc không còn khả dụng."
+          />
         )}
 
         {/* Product content */}
         {product && (
           <>
-            {/* ── PART A: Product intro (dark) ── */}
-            <div className="max-w-7xl mx-auto px-6 pb-16 pt-2 md:pb-20">
-              {/* Breadcrumb */}
-              <nav className="flex items-center gap-2 text-xs text-[rgba(241,240,234,0.40)] mb-8 flex-wrap">
-                <Link href="/" className="hover:text-[#F1F0EA] transition-colors">
-                  Trang chủ
-                </Link>
-                <span className="text-[rgba(241,240,234,0.20)]">/</span>
-                <Link href="/products" className="hover:text-[#F1F0EA] transition-colors">
-                  Sản phẩm
-                </Link>
-                {product.categoryId && product.categoryName && (
-                  <>
-                    <span className="text-[rgba(241,240,234,0.20)]">/</span>
-                    <Link
-                      href={`/products?categoryId=${product.categoryId}`}
-                      className="hover:text-[#F1F0EA] transition-colors"
-                    >
-                      {product.categoryName}
+            {/* ── PART A: Product intro. R9D: a B2B specification read top to bottom (category, name,
+                description, commercial facts, CTA), the full product image beside it. Every value
+                goes through lib/productFacts, the same rules and wording as the catalogue. ── */}
+            <div className="mx-auto max-w-7xl px-6 pb-16 pt-4 md:pb-20">
+              <nav aria-label="Đường dẫn" className="mb-6 text-xs text-on-indigo-muted">
+                <ol className="flex flex-wrap items-center gap-x-2">
+                  <li>
+                    <Link href="/" className="inline-flex min-h-11 items-center transition-colors hover:text-on-indigo focus-visible:outline-1 focus-visible:outline-on-indigo">
+                      Trang chủ
                     </Link>
-                  </>
-                )}
-                <span className="text-[rgba(241,240,234,0.20)]">/</span>
-                <span className="text-[rgba(241,240,234,0.75)] truncate max-w-[200px]">
-                  {product.name}
-                </span>
+                  </li>
+                  <li aria-hidden="true">/</li>
+                  <li>
+                    <Link href="/products" className="inline-flex min-h-11 items-center transition-colors hover:text-on-indigo focus-visible:outline-1 focus-visible:outline-on-indigo">
+                      Sản phẩm
+                    </Link>
+                  </li>
+                  {product.categoryId && product.categoryName && (
+                    <>
+                      <li aria-hidden="true">/</li>
+                      <li>
+                        <Link
+                          href={`/products?categoryId=${product.categoryId}`}
+                          className="inline-flex min-h-11 items-center transition-colors hover:text-on-indigo focus-visible:outline-1 focus-visible:outline-on-indigo"
+                        >
+                          {product.categoryName}
+                        </Link>
+                      </li>
+                    </>
+                  )}
+                  <li aria-hidden="true">/</li>
+                  <li aria-current="page" className="max-w-[16rem] truncate text-on-indigo">
+                    {product.name}
+                  </li>
+                </ol>
               </nav>
 
-              <div className="grid grid-cols-1 gap-10 md:grid-cols-2 md:items-center md:gap-14 lg:gap-20">
-                {/* Product media */}
-                <div className="relative aspect-[4/5] overflow-hidden rounded-lg bg-[#161B2C]">
-                  {product.imageUrl ? (
-                    <Image
-                      src={product.imageUrl}
-                      alt={product.name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, 50vw"
-                      priority
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="font-serif text-5xl text-[#192B88]/30">Nan</span>
-                    </div>
-                  )}
-                </div>
-
+              <div className="grid grid-cols-1 gap-10 md:grid-cols-12 md:items-start md:gap-x-10 lg:gap-x-16">
                 {/* Product information */}
-                <div className="flex flex-col">
+                <div className="min-w-0 md:col-span-6 md:pt-4">
                   {product.categoryName && (
-                    <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#192B88]">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-bamboo">
                       {product.categoryName}
                     </p>
                   )}
 
-                  <h1 className="mt-3 font-serif text-3xl md:text-4xl font-semibold text-[#F1F0EA] leading-tight tracking-tight">
+                  <h1 className="mt-3 font-serif text-4xl font-medium leading-[1.1] tracking-tight text-on-indigo [overflow-wrap:anywhere] md:text-[2.5rem] lg:text-5xl">
                     {product.name}
                   </h1>
 
-                  {product.description && (
-                    <p className="mt-4 text-sm text-[rgba(241,240,234,0.62)] leading-relaxed max-w-[52ch]">
-                      {product.description}
+                  {product.description?.trim() && (
+                    <p className="mt-5 max-w-[56ch] whitespace-pre-line text-[0.9375rem] leading-7 text-on-indigo-muted [overflow-wrap:anywhere]">
+                      {product.description.trim()}
                     </p>
                   )}
 
-                  {/* Metadata row -- typography + dividers, not boxed cards */}
-                  <div className="mt-8 grid grid-cols-3 gap-6 border-y border-white/10 py-6">
-                    <MetaStat label="Giá từ" value={
-                      product.basePrice > 0
-                        ? `${product.basePrice.toLocaleString("vi-VN")} đ`
-                        : "Liên hệ"
-                    } />
-                    <MetaStat label="SL tối thiểu" value={`${product.minQuantity} cái`} icon={Package} />
-                    <MetaStat label="Sản xuất" value={`${product.estimatedProductionDays} ngày`} icon={Clock} />
-                  </div>
+                  <ProductFacts facts={detailFacts(product)} layout="grid" className="mt-8" />
 
-                  {/* CTAs */}
-                  <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                    <button
-                      onClick={openPlainQuoteForm}
-                      className="flex items-center justify-center gap-2 rounded-full bg-[#192B88] py-3.5 px-6 text-sm font-semibold text-[#F1F0EA] hover:bg-[#F1F0EA] hover:text-[#0F1320] transition-colors"
-                    >
-                      Gửi yêu cầu báo giá
-                    </button>
+                  <div className="mt-8">
+                    <Button type="button" tone="indigo" onClick={openPlainQuoteForm} className="group">
+                      Nhận báo giá
+                      <ArrowRight
+                        size={15}
+                        aria-hidden="true"
+                        className="ml-2 transition-[translate] duration-(--dur-state) ease-(--ease-nan-ui) group-hover:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
+                      />
+                    </Button>
                   </div>
 
                   {product.isCustomizable && (
-                    <p className="mt-4 text-xs leading-relaxed text-[rgba(241,240,234,0.40)]">
+                    <p className="mt-4 text-xs leading-relaxed text-on-indigo-muted">
                       Sản phẩm hỗ trợ thiết kế và in ấn theo yêu cầu.
                     </p>
                   )}
+                </div>
+
+                {/* Product media: the whole product, contained in a 4:3 frame (fans are wide; never cropped); no
+                    box or background, the page is the plinth. */}
+                <div className="md:col-span-6">
+                  <div className="relative aspect-[4/3] w-full">
+                    {product.imageUrl ? (
+                      <Image
+                        src={product.imageUrl}
+                        alt={product.name}
+                        fill
+                        className="object-contain object-top"
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                        priority
+                      />
+                    ) : (
+                      <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center">
+                        <NanFanMark />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -252,7 +222,7 @@ export default function ProductDetailPage({
                 for the sticky summary card below and break position:sticky
                 entirely (the summary would scroll off-screen instead of
                 pinning under the Navbar). ── */}
-            <div className="relative px-6 py-16 md:py-20" style={{ background: "#F1F0EA" }}>
+            <div className="relative bg-paper px-6 py-16 md:py-20">
               <div className="relative max-w-7xl mx-auto">
                 <ProductOptionSelector product={product} onRequestQuote={handleOptionSelectorQuote} />
               </div>
@@ -266,12 +236,12 @@ export default function ProductDetailPage({
 
               {/* Nội dung chi tiết sản phẩm */}
               {product.contentBlocks && product.contentBlocks.length > 0 && (
-                <div className="mt-14 border-t border-white/10 pt-10">
+                <div className="mt-14 border-t border-line-on-indigo pt-10">
                   <div className="mb-6">
-                    <h2 className="text-xl md:text-2xl font-semibold text-[#F1F0EA] tracking-tight">
+                    <h2 className="font-serif text-2xl font-medium tracking-tight text-on-indigo md:text-3xl">
                       Nội dung chi tiết sản phẩm
                     </h2>
-                    <p className="text-sm text-[rgba(241,240,234,0.40)] mt-1.5">
+                    <p className="mt-1.5 text-sm text-on-indigo-muted">
                       Thông tin mở rộng, hình ảnh và ghi chú chi tiết về sản phẩm.
                     </p>
                   </div>
@@ -283,19 +253,19 @@ export default function ProductDetailPage({
 
               {/* Related products */}
               {relatedProducts.length > 0 && (
-                <div className="mt-14 pt-10 border-t border-white/10">
-                  <div className="flex items-center justify-between mb-7">
-                    <h2 className="text-lg font-semibold text-[#F1F0EA]">
+                <div className="mt-14 border-t border-line-on-indigo pt-10">
+                  <div className="mb-7 flex items-center justify-between">
+                    <h2 className="font-serif text-2xl font-medium text-on-indigo">
                       Sản phẩm liên quan
                     </h2>
                     <Link
                       href={product.categoryId ? `/products?categoryId=${product.categoryId}` : "/products"}
-                      className="text-xs text-[rgba(241,240,234,0.40)] hover:text-[#F1F0EA] transition-colors"
+                      className="inline-flex min-h-11 items-center text-xs text-on-indigo-muted transition-colors hover:text-on-indigo focus-visible:outline-1 focus-visible:outline-on-indigo"
                     >
                       Xem thêm &rarr;
                     </Link>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
+                  <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4">
                     {relatedProducts.slice(0, 4).map((p) => (
                       <RelatedProductCard key={p.id} product={p} />
                     ))}
@@ -326,24 +296,23 @@ export default function ProductDetailPage({
   );
 }
 
-// ─── Metadata stat (typography, not a card) ──────────────────────────────────
+// ─── Error / not-found message ────────────────────────────────────────────────
 
-function MetaStat({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string;
-  value: string;
-  icon?: typeof Clock;
-}) {
+function DetailMessage({ title, detail }: { title: string; detail: string }) {
   return (
-    <div>
-      <p className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.14em] text-[rgba(241,240,234,0.40)]">
-        {Icon && <Icon className="h-3 w-3" />}
-        {label}
-      </p>
-      <p className="mt-1.5 text-base font-semibold text-[#F1F0EA]">{value}</p>
+    <div className="mx-auto max-w-7xl px-6 py-10">
+      <div role="status" className="flex flex-col items-start gap-4 py-24">
+        <span aria-hidden="true" className="mb-6 block h-px w-24 bg-bamboo" />
+        <p className="font-serif text-3xl font-medium text-on-indigo">{title}</p>
+        <p className="max-w-sm text-sm text-on-indigo-muted">{detail}</p>
+        <Link
+          href="/products"
+          className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-on-indigo transition-colors hover:text-bamboo focus-visible:outline-1 focus-visible:outline-on-indigo"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+          Xem tất cả sản phẩm
+        </Link>
+      </div>
     </div>
   );
 }
@@ -351,35 +320,30 @@ function MetaStat({
 // ─── Related product card ─────────────────────────────────────────────────────
 
 function RelatedProductCard({ product }: { product: Product }) {
+  const price = formatProductPrice(product.basePrice);
   return (
     <Link
       href={`/products/${product.id}`}
-      className="group flex flex-col overflow-hidden rounded-lg border border-white/10 hover:border-[#192B88]/50 transition-all duration-200"
+      className="group flex flex-col focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-on-indigo"
     >
-      <div className="relative aspect-square overflow-hidden bg-[#161B2C]">
+      <div className="relative aspect-square">
         {product.imageUrl ? (
           <Image
             src={product.imageUrl}
             alt={product.name}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            className="object-contain transition-[scale] duration-500 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
             sizes="(max-width: 640px) 50vw, 25vw"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="font-serif text-xl text-[#192B88]/30">Nan</span>
+          <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center">
+            <NanFanMark />
           </div>
         )}
       </div>
-      <div className="p-3">
-        <p className="text-xs font-medium text-[#F1F0EA] line-clamp-2 leading-snug">
-          {product.name}
-        </p>
-        {product.basePrice > 0 && (
-          <p className="text-xs text-[rgba(241,240,234,0.40)] mt-1">
-            {product.basePrice.toLocaleString("vi-VN")} &#8363;
-          </p>
-        )}
+      <div className="border-t border-line-on-indigo pt-3">
+        <p className="line-clamp-2 text-sm font-medium leading-snug text-on-indigo">{product.name}</p>
+        <p className="mt-1 text-xs text-on-indigo-muted">{price.value}</p>
       </div>
     </Link>
   );
@@ -389,28 +353,22 @@ function RelatedProductCard({ product }: { product: Product }) {
 
 function ProductDetailSkeleton() {
   return (
-    <div className="animate-pulse">
-      {/* Breadcrumb skeleton */}
-      <div className="flex items-center gap-2 mb-8">
-        <div className="h-3 w-16 bg-white/5 rounded" />
-        <div className="h-3 w-2 bg-white/5 rounded" />
-        <div className="h-3 w-20 bg-white/5 rounded" />
-        <div className="h-3 w-2 bg-white/5 rounded" />
-        <div className="h-3 w-32 bg-white/5 rounded" />
+    <div aria-hidden="true" className="animate-pulse motion-reduce:animate-none">
+      <div className="mb-8 flex items-center gap-2">
+        <div className="h-3 w-16 bg-indigo-raised" />
+        <div className="h-3 w-20 bg-indigo-raised" />
+        <div className="h-3 w-32 bg-indigo-raised" />
       </div>
-
-      {/* Intro skeleton */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-        <div className="aspect-[4/5] rounded-lg bg-white/5" />
+      <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
         <div className="space-y-5">
-          <div className="h-2.5 w-20 bg-white/5 rounded" />
-          <div className="h-9 w-3/4 bg-white/5 rounded" />
-          <div className="h-4 w-full bg-white/5 rounded" />
-          <div className="h-4 w-5/6 bg-white/5 rounded" />
-          <div className="h-20 bg-white/5 rounded" />
-          <div className="h-12 bg-white/5 rounded-full" />
-          <div className="h-12 bg-white/5 rounded-full" />
+          <div className="h-3 w-20 bg-indigo-raised" />
+          <div className="h-12 w-3/4 bg-indigo-raised" />
+          <div className="h-4 w-full bg-indigo-raised" />
+          <div className="h-4 w-5/6 bg-indigo-raised" />
+          <div className="h-36 bg-indigo-raised" />
+          <div className="h-11 w-44 rounded-full bg-indigo-raised" />
         </div>
+        <div className="aspect-[4/3] bg-indigo-raised/70" />
       </div>
     </div>
   );

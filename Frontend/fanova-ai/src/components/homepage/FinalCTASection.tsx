@@ -1,23 +1,39 @@
 "use client";
 
-// CMS: all text content, stats, and the background image slot are sourced from finalCta.
-// Future: when finalCta.backgroundImage.src is set by admin upload, render
-// the image as a low-opacity overlay behind the panel.
+// R6 SM04 "Chiếc quạt cuối cùng mở ra": the closing panel. ENTER: the panel fades in at 75% of the
+// viewport, its two buttons usable from that moment. BUILD: at the reading line the finished fan
+// (the same design the Process frames ended on) opens from its pivot through the fan mask, the
+// third and last "mở nếp" of the page. PEAK: the headline rises out of its line mask, then the
+// description and the one real figure ("48h xem mockup"). EXIT: nothing; the footer stays still.
+// Navy panel on indigo is the recorded exception (DECISIONS.md §1); R6 takes its radius to 8px
+// and drops the stats row (DECISIONS.md §10). CMS: text comes from finalCta; asset: finalFan (A1).
 
-import { useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { useRef, useState, type CSSProperties } from "react";
+import { motion, useInView, useReducedMotion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import QuoteRequestModal from "@/components/quote/QuoteRequestModal";
+import AssetSlot from "@/components/ui/AssetSlot";
 import Button from "@/components/ui/Button";
 import MetaLine from "@/components/ui/MetaLine";
 import Rule from "@/components/ui/Rule";
 import Section from "@/components/ui/Section";
 import { finalCta } from "@/data/homepageData";
+import { finalFan } from "@/data/homepageAssets";
+import { EASE_NAN, FAN_OPEN_DEG, INSTANT } from "@/lib/motionTokens";
+
+/** The one stat kept, as a line of text: the mockup turnaround. */
+const MOCKUP_STAT = finalCta.stats.find((s) => s.label.toLowerCase().includes("mockup"));
+/** PEAK starts this long after the fan begins to open. */
+const PEAK = 0.6;
 
 export default function FinalCTASection() {
   const reduce = useReducedMotion();
   // General quote inquiry (no product): same modal + form as the product detail page.
   const [quoteOpen, setQuoteOpen] = useState(false);
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const built = useInView(panelRef, { once: true, margin: "0px 0px -40% 0px" }) || Boolean(reduce);
+  const peak = (delay: number) => (reduce ? INSTANT : { duration: 0.6, delay: PEAK + delay });
 
   return (
     <>
@@ -25,15 +41,15 @@ export default function FinalCTASection() {
         {/* Chapter break: follows FAQ on the same indigo surface (same place as the old divider) */}
         <Rule tone="indigo" className="mb-20" />
 
-        {/* Panel: fades and lifts as a unit. Navy on indigo is a recorded exception
-            (DECISIONS.md): the closing call to action is the page's one navy moment. No shadow,
-            glow or gradient. */}
+        {/* ENTER: the panel fades in as a unit (opacity only, no lift or scale) */}
         <motion.div
-          initial={reduce ? false : { opacity: 0, y: 30, scale: 0.985 }}
-          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+          ref={panelRef}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          animate={reduce ? { opacity: 1 } : undefined}
           viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-          className="relative overflow-hidden rounded-3xl border border-line-on-indigo bg-navy px-8 py-20 text-center md:px-16"
+          transition={reduce ? INSTANT : { duration: 0.5 }}
+          className="relative overflow-hidden rounded-lg border border-line-on-indigo bg-navy px-6 pb-16 pt-10 text-center md:px-16 md:pt-12"
         >
           {/*
             CMS: when finalCta.backgroundImage.src is set, render the admin-uploaded
@@ -46,64 +62,62 @@ export default function FinalCTASection() {
           */}
 
           <div className="relative z-10 mx-auto max-w-3xl">
-
-            {/* Badge line — reveals first */}
+            {/* BUILD: the finished fan opens from its pivot (bottom centre of the cut-out) */}
             <motion.div
-              initial={reduce ? false : { opacity: 0, y: 14 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.65, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="mb-6"
+              className="fan-mask mx-auto w-full max-w-xl"
+              style={{ "--fan-pivot": "50% 96%" } as CSSProperties}
+              initial={{ "--fan-open": "0deg" }}
+              animate={{ "--fan-open": built ? `${FAN_OPEN_DEG}deg` : "0deg" }}
+              transition={reduce ? INSTANT : { duration: 1.1, ease: EASE_NAN }}
+            >
+              <AssetSlot asset={finalFan} sizes="(min-width: 768px) 576px, 90vw" />
+            </motion.div>
+
+            {/* PEAK */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: built ? 1 : 0 }}
+              transition={peak(0.3)}
+              className="mb-5 mt-10"
             >
               <MetaLine tone="indigo" items={[finalCta.badge]} className="text-lg" />
             </motion.div>
 
-            {/* Title — CMS: finalCta.title */}
-            <motion.h2
-              initial={reduce ? false : { opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.85, delay: 0.32, ease: [0.16, 1, 0.3, 1] }}
-              className="font-serif text-4xl font-semibold leading-[1.12] tracking-tight md:text-5xl lg:text-6xl"
-            >
-              {finalCta.title}
-            </motion.h2>
+            <h2 className="font-serif text-4xl font-semibold leading-[1.12] tracking-tight md:text-5xl lg:text-6xl">
+              <span className="block overflow-hidden pb-[0.08em] pt-[0.14em]">
+                <motion.span
+                  className="block"
+                  initial={{ y: "115%" }}
+                  animate={{ y: built ? "0%" : "115%" }}
+                  transition={reduce ? INSTANT : { duration: 0.7, delay: PEAK, ease: EASE_NAN }}
+                >
+                  {finalCta.title}
+                </motion.span>
+              </span>
+            </h2>
 
-            {/* Description — CMS: finalCta.description */}
             <motion.p
-              initial={reduce ? false : { opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7, delay: 0.52 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: built ? 1 : 0 }}
+              transition={peak(0.3)}
               className="mx-auto mt-6 max-w-xl text-base leading-8 text-on-indigo-muted"
             >
               {finalCta.description}
             </motion.p>
 
-            {/* Stats row — CMS: finalCta.stats */}
-            <motion.div
-              initial={reduce ? false : { opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.65, delay: 0.64, ease: [0.16, 1, 0.3, 1] }}
-              className="mt-10 mb-10 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 border-y border-line-on-indigo py-8"
-            >
-              {finalCta.stats.map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <div className="font-serif text-2xl font-semibold">{stat.num}</div>
-                  <div className="mt-1 text-xs text-on-indigo-muted">{stat.label}</div>
-                </div>
-              ))}
-            </motion.div>
+            {MOCKUP_STAT && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: built ? 1 : 0 }}
+                transition={peak(0.4)}
+                className="mt-3 font-serif text-lg italic text-bamboo"
+              >
+                {MOCKUP_STAT.num} {MOCKUP_STAT.label.toLowerCase()}
+              </motion.p>
+            )}
 
-            {/* CTAs — appear last */}
-            <motion.div
-              initial={reduce ? false : { opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.78, ease: [0.16, 1, 0.3, 1] }}
-              className="flex flex-col items-center justify-center gap-4 sm:flex-row"
-            >
+            {/* CTA: never waits for the fan; usable as soon as the panel is */}
+            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Button type="button" tone="indigo" onClick={() => setQuoteOpen(true)}>
                 {finalCta.primaryButton}
                 <ArrowRight className="ml-2" size={15} />
@@ -112,7 +126,7 @@ export default function FinalCTASection() {
               <Button href="/products" tone="indigo" variant="secondary">
                 {finalCta.secondaryButton}
               </Button>
-            </motion.div>
+            </div>
           </div>
         </motion.div>
       </Section>

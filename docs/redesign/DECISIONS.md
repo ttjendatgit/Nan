@@ -45,10 +45,10 @@ Trên mảng ngà cũng **không** có:
 
 | Section | Tone |
 |---|---|
-| BrandStatement, Problem, Solution, UseCase, Process, FAQ, FinalCTA | `indigo` |
+| BrandStatement, Problem + Solution (một spread từ R6), UseCase, Process, FAQ, FinalCTA | `indigo` |
 | ProductType, Material | `paper` (đúng 2 mảng ngà) |
 
-**Ngăn cách hai section indigo liền nhau** (Problem → Solution, UseCase → Process → FAQ → FinalCTA): một `Rule` tone indigo ở đầu section thứ hai, như ngắt chương của sách. Không dùng nền xen kẽ, không thêm màu.
+**Ngăn cách hai section indigo liền nhau** (UseCase → Process → FAQ → FinalCTA): một `Rule` tone indigo ở đầu section thứ hai, như ngắt chương của sách. Không dùng nền xen kẽ, không thêm màu.
 
 **Ngoại lệ đã duyệt (R2d)**
 - **Panel CTA cuối trang (`FinalCTASection`) giữ nền `navy` trên nền indigo.** Đây là điểm navy duy nhất trên nền tối, dùng làm điểm nhấn kết trang. Panel không có bóng đổ, glow hay gradient. Chữ trên panel dùng token nền tối: `on-indigo` 10,52:1, `on-indigo-muted` 5,73:1, `bamboo` 4,81:1 (đều đạt). Không dùng navy trên nền tối ở bất kỳ chỗ nào khác.
@@ -211,3 +211,72 @@ Vài comment trong khối `--admin-*` vẫn nhắc tên token v3 cũ ("reuses --
 - Khi `image.src` có giá trị, vùng ảnh hiển thị ở mọi kích thước.
 - Desktop (3 cột) và tablet (2 cột) không đổi.
 - Không thay vùng ảnh trống bằng ảnh giả, icon, họa tiết, gradient hay badge.
+
+## 10. R6: ngôn ngữ "Nan & Nếp" (chốt ở R6.1.5, dựng ở R6.2)
+
+Nguồn: storyboard R6.1.5. Nan (thanh tre) là đường dẫn giữa các chương; nếp (nếp gấp) là nhịp lặp; "mở nếp" (mở từ một điểm trục) chỉ dùng đúng 3 lần: Hero, F5 của Process, FinalCTA.
+
+**R7a (bổ sung):** spread Problem + Solution có thêm một chiếc quạt làm nhân vật chính, đặt trên đường gáy và chạy theo một tiến trình cuộn duy nhất: quạt mở dần, artwork quét từ trang vấn đề sang trang giải pháp, các vấn đề lùi về `on-indigo-muted` (màu token, không hạ opacity chữ), các lời đáp mở ra từ gáy. Đây là lần "mở nếp" thứ 4 trên trang chủ, theo yêu cầu R7a. Khác ba lần kia ở chỗ nó kể **sự chuyển hoá** (quạt trơn thành quạt có thiết kế), không chỉ việc mở. Quạt là vector cục bộ (`ProblemSolutionFan`) cho tới khi có A1/A2; component nhận `src` để thay asset thật mà không đổi choreography.
+
+**Bố cục**
+- **Problem + Solution gộp thành một spread** (`ProblemSolutionSection`): trang trái là vấn đề, trang phải là cách Nan làm, mỗi vấn đề cùng hàng với lời đáp; đường gáy dọc ở giữa từ 1024px. Không đánh số, không gạch chữ. `ProblemSection` và `SolutionSection` đã gỡ.
+- **FinalCTA:** giữ panel `navy` (ngoại lệ ở mục 1) nhưng **bo góc 8px** (trước là 24px) và **bỏ hàng 4 chỉ số**; chỉ giữ "48h xem mockup" thành một dòng chữ.
+- **Motif cũ** (`HomepageNarrativeMotif`: đường cung cố định và đốm sáng mờ) **đã gỡ**: vai trò sợi chỉ chuyển cho cây nan của BrandStatement và rail của Process.
+- **Material:** "4 bước kiểm tra in" đã thành một câu văn (đúng mục 3).
+
+**Motion**
+- Token thêm: `--dur-signature` 900ms, `--dur-wipe` 520ms; JS: `PLEAT` 60ms, `PLEAT_FINE` 40ms, `CLIP_FROM`/`CLIP_OPEN`, `FAN_OPEN_DEG` 80°.
+- Reduced motion: `initial` cố định giữa server và client; `animate` về trạng thái cuối với `INSTANT`; trạng thái phụ thuộc trình duyệt chỉ áp dụng sau hydration (`useHydrated`).
+- `whileInView` **không** đặt trên phần tử đang bị clip-path che hết (trình duyệt coi nó là không giao); quan sát wrapper và truyền trạng thái bằng `variants` (`wipeVariants`).
+
+**Asset**
+- Mọi asset trang chủ R6 khai báo trong `src/data/homepageAssets.ts` với đúng tỉ lệ cuối; `AssetSlot` vẽ placeholder có nhãn khi `src` rỗng.
+- **Placeholder chỉ dùng cho prototype**, không lên production. Không dùng ảnh sinh (AI), ảnh stock hay 2 PNG trong `public/images` làm asset.
+
+## 11. R9B: catalogue `/products` (chốt ở R9B, thay cho gallery R9)
+
+**Khái niệm**: B2B catalogue + editorial, không phải lưới card thương mại điện tử, cũng không phải gallery/triển lãm. Khách phải biết ngay Nan có những dòng nào, mẫu nào, giá cơ bản, và tới báo giá trong vài giây. Component: `CatalogueList` (`src/components/product/CatalogueList.tsx`); gallery R9 (`ProductGallery`) đã gỡ.
+
+**Bố cục**
+- `/products`: nhãn "Sản phẩm", tiêu đề và câu mô tả cũ, rồi mỗi dòng sản phẩm một hàng editorial: số, đường tre, tên, mô tả, CTA "Xem dòng quạt", ảnh ~50% hàng, tràn một gutter ra phía ngoài.
+- `/products?categoryId=`: tên dòng, mô tả, thanh chuyển dòng bằng chữ ("Tất cả" + các dòng, dòng hiện tại có gạch tre và `aria-current`, thay cho link "Tất cả dòng quạt" riêng), số sản phẩm; mỗi sản phẩm một hàng gọn hơn: tên, mô tả, dữ kiện (giá hoặc "Báo giá theo yêu cầu" · "Tùy chỉnh" · "SL tối thiểu N cái", đúng chữ và định dạng của trang chi tiết), CTA "Xem chi tiết", ảnh ~40%. Từ 1024px chữ và ảnh là một cặp 5 + 5 cột đặt sát nhau.
+- Ảnh và chữ đổi bên luân phiên. Từ 768px là 2 cột; dưới 768px một cột theo thứ tự số + tên, ảnh, mô tả, dữ kiện, CTA. Không card, bóng, pill, khung ảnh.
+- Thông tin luôn hiện, không phụ thuộc hover; ảnh `object-contain` (không crop), neo về phía chữ.
+
+**Đánh số**: giữ 01/02/03 (`IndexMarker`, EB Garamond, `bamboo`): ngoại lệ của mục 3, vì đây là danh mục có thứ tự.
+
+**Motion**: chỉ một nhịp ngắn khi hàng vào viewport (ảnh 0,97 → 1 và opacity 0,6 → 1 trong 0,5s, chữ trễ 80ms, đường tre mở); không parallax, pin hay scroll story. Hover/focus: ảnh 1,03, tên 4px, mũi tên 4px. Reduced motion: `initial` giống server, `animate` về trạng thái cuối với `INSTANT`.
+
+**Asset**: A1 khai báo trong `src/data/productAssets.ts` theo slug (danh mục và sản phẩm). `src` rỗng thì dùng `imageUrl` của API, nên không có placeholder lên production. A2 không dùng ở listing; để dành cho trang chi tiết.
+
+**R9C (bổ sung, chỉnh tinh R9B)**
+- Khối chữ của mỗi hàng **canh theo mép trên ảnh** (trước đó canh giữa, làm tên tụt ~170px); padding đầu trang và giữa các hàng giảm. Ở 1440×900, dòng 01 (số, tên, mô tả, CTA) và trọn ảnh đầu tiên nằm trong màn hình đầu.
+- **Dữ kiện thương mại là một `<dl>` 3 cột** (Giá từ · Tùy chỉnh · SL tối thiểu), nhãn nhỏ trên giá trị, ngăn bằng đường mảnh; cùng thứ tự và cùng nhãn trên mọi hàng để so sánh. Giá và SL tối thiểu đậm hơn một bậc. Không ô, pill, icon hay màu.
+- "Tùy chỉnh" hiện **"Có" / "Không"** từ `isCustomizable` (dữ liệu boolean, không phải copy mới), để hàng nào cũng có đủ ô. SL tối thiểu = 0 hiện "Liên hệ" (cùng chữ fallback của trang chi tiết).
+- **Mâu thuẫn còn mở:** giá = 0 ở listing là "Báo giá theo yêu cầu" (chữ cũ của card), ở trang chi tiết là "Liên hệ". Chưa thống nhất, chờ quyết định.
+- Hàng dòng sản phẩm thêm một dòng **"{n} sản phẩm"** (dữ liệu thật, cùng chữ với số đếm ở trang dòng), lấy bằng `totalCount`; ô giữ chiều cao khi đang tải.
+
+## 12. R9D: trang chi tiết sản phẩm theo dữ liệu (chốt ở R9D)
+
+**Một nguồn quy tắc**: `src/lib/productFacts.ts` (`formatProductPrice`, `formatCustomization`, `formatMinimumQuantity`, `formatProductionTime`, `catalogueFacts`, `detailFacts`) dùng cho cả catalogue và trang chi tiết; hiển thị qua `ProductFacts` (`<dl>`: "strip" 3 cột ở catalogue, "grid" 2 × 2 ở trang chi tiết).
+
+**Ý nghĩa dữ liệu (theo entity + validator backend)**
+| Trường | Có giá trị | Không có / 0 |
+|---|---|---|
+| `basePrice` (decimal ≥ 0) | "Giá từ" · "40.000 đ" | "Giá" · "Báo giá theo yêu cầu" |
+| `isCustomizable` (bool) | "Tùy chỉnh" · "Có" / "Không" | "Liên hệ" |
+| `minQuantity` (int > 0) | "SL tối thiểu" · "200 cái" | "Liên hệ" |
+| `estimatedProductionDays` (int ≥ 0, mặc định 0, không có logic nghiệp vụ nào đọc) | "Thời gian sản xuất" · "15 ngày" | 0 = **chưa cấu hình** → "Liên hệ" |
+
+- Thay quyết định R9C: giá = 0 giờ là "Báo giá theo yêu cầu" ở **cả hai** trang (trang chi tiết bỏ "Liên hệ"); nhãn đổi "Giá từ" → "Giá" khi không có giá. Không trang public nào hiện "0 đ", "0 cái", "0 ngày", "undefined", "null", "NaN".
+- Trang chi tiết: nhãn danh mục chữ thường sans viết hoa, màu `bamboo` (thay navy trên nền tối); nền `indigo`, mảng cấu hình `paper`, chữ/đường mảnh theo token; nút chính là `Button tone="indigo"` (nền paper, chữ ink) "Nhận báo giá →"; ảnh `object-contain` trong khung 4:3 (không crop), không khung/nền; thiếu ảnh thì hiện nét quạt Nan. Geist Mono không còn dùng ở trang chi tiết (`MetaStat` đã gỡ), nên mục 2 "Mono chỉ ở MetaStat" nay là: không dùng mono ở trang public.
+- Admin sản phẩm: nhóm "Thông tin cơ bản" / "Thông tin thương mại" / "Hiển thị" / "Hình ảnh"; "Tùy chỉnh được" chuyển sang nhóm thương mại; thời gian sản xuất để trống = 0 (trước đây tự lưu 7 ngày); mỗi trường thương mại có một dòng gợi ý trang public sẽ hiện gì. Không có điều khiển trình bày (font, màu, khoảng cách).
+
+## 13. R9E: Product Navigator (chốt ở R9E)
+
+- "Sản phẩm" trên navbar **không còn là link**: là nút disclosure (`aria-expanded`, `aria-controls`, chevron nhỏ màu tre), mở một **mục lục catalogue** thay vì đi thẳng tới `/products`. Vẫn có gạch tre active ở mọi trang `/products*`.
+- Desktop (từ 768px): panel dưới thanh nav, nền `--nan-dark`, đường mảnh, một lớp phủ tối (không blur) phía sau; trái là các dòng sản phẩm (nút, số sản phẩm, dòng đang chọn có đường tre dọc), phải là tối đa 8 sản phẩm của dòng đó (tên, một dòng mô tả, giá theo `formatProductPrice`, "Xem sản phẩm →"), cùng "Xem tất cả N sản phẩm →" và "Tất cả sản phẩm →". Mỗi cột cao tối đa min(62vh, 520px) và tự cuộn, nên menu dùng được với 10+ dòng và 100+ sản phẩm mà trang không phải cuộn.
+- Mở bằng click (hoặc Enter/Space, khi đó focus vào dòng đang chọn); đóng bằng click ra ngoài, Escape (focus về nút), khi focus rời header, hoặc khi điều hướng. Trong trang dòng hoặc trang sản phẩm, mục lục mở sẵn ở dòng đó.
+- Mobile: "Sản phẩm" trong menu mobile mở một màn riêng (dòng sản phẩm → sản phẩm của dòng), có nút quay lại ở mỗi cấp, dùng chung focus trap / khoá cuộn / Escape của menu mobile.
+- Dữ liệu: chỉ API hiện có (`getCategories`, `getProductsByCategory(id, pageSize 8)`, lấy `totalCount` làm số đếm), cache trong phiên trang.
+- Hàng catalogue không còn là một link lớn vô hình: CTA ("Xem chi tiết" / "Xem dòng quạt") là link duy nhất trong tab order; ảnh là lối tắt chuột tới cùng trang (`tabIndex=-1`, `aria-hidden`); hiệu ứng hover chỉ chạy khi trỏ vào hai link đó.
