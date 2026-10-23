@@ -552,22 +552,21 @@ export default function Navbar() {
   return (
     <>
     <header ref={headerRef} className="fixed left-0 top-0 z-[999] w-full">
-      {/* ── Announcement bar ── */}
+      {/* ── Announcement bar (R10.2): a quiet line, no dots, no mono. Collapses once the page
+          scrolls, so the reading-state header is a single 64px bar. ── */}
       {announcementBar.visible && (
         <div
-          className="flex items-center justify-center px-4 py-[7px] transition-[background-color] duration-(--dur-state) ease-(--ease-nan-ui) motion-reduce:transition-none"
-          style={{ background: solid ? "var(--nan-dark)" : "rgba(15,19,32,0.35)" }}
+          className="grid transition-[grid-template-rows,background-color] duration-(--dur-state) ease-(--ease-nan-ui) motion-reduce:transition-none"
+          style={{
+            gridTemplateRows: scrolled ? "0fr" : "1fr",
+            background: solid ? "var(--nan-dark)" : "transparent",
+          }}
+          aria-hidden={scrolled || undefined}
         >
-          <div className="flex items-center gap-2">
-            <span aria-hidden="true" className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#B6A17B]/60" />
-            {/* Below 400px the desktop tracking (0.22em) wraps this line onto two rows, which makes
-                the fixed header ~13.5px taller and pushes the whole mobile hero down. Tighter
-                tracking keeps it on one line down to ~352px; below 360px the size also drops to 8px
-                (fits down to ~312px). Tailwind v4's max-[Npx] means width < N. */}
-            <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#F1F0EA]/45 max-[400px]:tracking-[0.12em] max-[360px]:text-[8px] max-[360px]:tracking-[0.1em]">
+          <div className="min-h-0 overflow-hidden">
+            <p className="px-4 pt-2.5 text-center text-[10px] uppercase leading-none tracking-[0.16em] text-[#F1F0EA]/45 max-[400px]:tracking-[0.08em]">
               {announcementBar.text}
-            </span>
-            <span aria-hidden="true" className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#B6A17B]/60" />
+            </p>
           </div>
         </div>
       )}
@@ -583,18 +582,18 @@ export default function Navbar() {
       >
         {/* md (768-1023): a single justified row, so the three groups share the width instead of
             the centred grid squeezing the right group. lg+: logo | centred nav | actions. */}
-        <div className="mx-auto flex h-[84px] max-w-7xl items-center justify-between gap-6 px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:px-10">
+        <div className="mx-auto flex h-16 max-w-[83rem] items-center justify-between gap-6 px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           {/* Left: wordmark -- generous breathing room, no badge/card. The tagline steps aside at md,
               where the nav needs its width. */}
           <Link
             href="/"
             className="flex h-11 shrink-0 items-center gap-3 justify-self-start focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-on-indigo"
           >
-            <span className="font-serif text-[24px] font-medium leading-none tracking-tight text-[#F1F0EA]">
+            <span className="font-serif text-[22px] font-medium leading-none tracking-tight text-[#F1F0EA]">
               Nan
             </span>
             <span aria-hidden="true" className="hidden h-5 w-px bg-white/15 sm:block md:hidden lg:block" />
-            <span className="hidden whitespace-nowrap font-mono text-[9px] font-medium uppercase leading-[1.4] tracking-[0.26em] text-[#A9ABA5] sm:block md:hidden lg:block">
+            <span className="hidden whitespace-nowrap text-[9px] font-medium uppercase leading-[1.45] tracking-[0.2em] text-[#A9ABA5] sm:block md:hidden lg:block">
               Custom
               <br />
               Fan Design

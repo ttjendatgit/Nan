@@ -1,0 +1,353 @@
+/* Homepage Hero R20 (HeroSignatureR20, rollback), namespace .s20-*; the fan object is in fan.css.
+   Geometry of the fan object (SignatureFan): --fw is SilkFan's box width; the visible box is
+   0.76 × 0.45 --fw; the rivet sits 0.38 --fw from its left and 0.395 --fw from its top.
+   Desktop places everything from the rivet (--px, --py) and --fw; below that it is a flow. */
+
+/* ── the room ───────────────────────────────────────────────────────────────────────────────── */
+.s20 {
+  --nav: var(--nav-height, 85px);
+  --gx: max(1rem, 6vw);
+  --tilt: 6deg;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 100svh;
+  background: #0b0e1b;
+  color: var(--color-on-indigo);
+}
+/* one key light from the upper left, a faint champagne bounce near the tag, darker corners, and a
+   foot that meets BrandStatement's indigo (#0f1320) */
+.s20-room {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(56% 46% at 46% 40%, rgb(62 82 172 / 0.42), transparent 72%),
+    radial-gradient(30% 24% at 50% 46%, rgb(120 140 220 / 0.1), transparent 70%),
+    radial-gradient(40% 30% at 78% 92%, rgb(182 161 123 / 0.06), transparent 70%),
+    radial-gradient(140% 110% at 45% 38%, transparent 48%, rgb(3 4 10 / 0.62) 100%),
+    linear-gradient(180deg, #0b0e1b 0%, #0b0e1b 70%, #0f1320 100%);
+}
+
+/* ── phones and tablets: a vertical sequence ────────────────────────────────────────────────── */
+.s20-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  padding: calc(var(--nav) + clamp(1rem, 3svh, 2rem)) var(--gx) clamp(1.5rem, 4svh, 2.5rem);
+}
+.s20-title {
+  position: relative;
+  z-index: 3;
+}
+.s20-h1 {
+  font-weight: 500;
+  font-size: clamp(2.05rem, 8.6vw, 3.75rem);
+  line-height: 1.06;
+  letter-spacing: -0.012em;
+  color: var(--color-on-indigo);
+}
+.s20-h1 > span,
+.s20-h1 > em {
+  display: inline;
+}
+.s20-h1-l1 {
+  display: block !important;
+}
+.s20-h1-l3 {
+  font-style: italic;
+  color: #d4c29f;
+}
+.s20-lede {
+  margin-top: 0.75rem;
+  max-width: 22rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--color-on-indigo-muted);
+  text-wrap: pretty;
+}
+.s20-fan {
+  --fw: min(calc((100vw - 2 * var(--gx)) / 0.76), calc((100svh - var(--nav)) * 0.95));
+  --tilt: 5deg;
+  z-index: 2;
+  align-self: center;
+  margin-top: clamp(1rem, 3.5svh, 2.25rem);
+}
+.s20-commission {
+  position: relative;
+  z-index: 4;
+  margin-top: clamp(1.25rem, 3.5svh, 2rem);
+  width: 100%;
+  max-width: 30rem;
+  align-self: center;
+}
+/* the cord drops straight from the handle to the eyelet at the tag's top centre */
+.s20-cord {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 0.9rem);
+  width: 1px;
+  height: calc(clamp(1.25rem, 3.5svh, 2rem) + 1.4rem);
+  overflow: visible;
+}
+.s20-cord path {
+  fill: none;
+  stroke: var(--color-bamboo);
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.85;
+}
+.s20-cord-desk,
+.s20-link.s20-link-desk {
+  display: none;
+}
+@media (max-height: 720px) and (max-width: 1023px) {
+  .s20-lede {
+    display: none;
+  }
+}
+
+/* ── the tag ────────────────────────────────────────────────────────────────────────────────── */
+.s20-tag {
+  position: relative;
+  border-radius: 3px;
+  padding: 1.6rem 1.15rem 0.95rem;
+  background: linear-gradient(172deg, #f8f4ec 0%, #f1ebdf 100%);
+  color: var(--color-ink);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), 0 6px 8px -2px rgb(2 4 12 / 0.45);
+  transition: box-shadow 0.3s ease;
+}
+.s20-tag:focus-within {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), 0 6px 8px -2px rgb(2 4 12 / 0.45), 0 0 0 2px var(--color-bamboo);
+}
+/* a punched hole with a brass grommet, showing the room through it */
+.s20-eyelet {
+  position: absolute;
+  left: 50%;
+  top: 0.8rem;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: #0b0e1b;
+  box-shadow: 0 0 0 2px #c3ad84, 0 0 0 3px rgb(115 95 62 / 0.5), inset 0 1px 1px rgb(0 0 0 / 0.7);
+  transform: translate(-50%, -50%);
+}
+.s20-tag-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.s20-tag-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-ink-muted);
+}
+.s20-tag-count {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-muted);
+}
+.s20-tag-row {
+  container-type: inline-size;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.3rem;
+  border-bottom: 1px solid rgb(42 36 30 / 0.3);
+  padding-bottom: 0.45rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.s20-tag-row:focus-within {
+  border-bottom-color: var(--color-navy);
+  box-shadow: 0 1px 0 0 var(--color-navy);
+}
+.s20-input {
+  --fs-max: clamp(1.45rem, 5.6vw, 1.85rem);
+  min-width: 0;
+  flex: 1;
+  background: transparent;
+  outline: none;
+  padding: 0.15rem 0;
+  /* the word always fits the tag: capitals at ≈ 0.8em each (with tracking), beside the button */
+  font-size: min(var(--fs-max, 1.85rem), calc((100cqi - 6.5rem) / (max(var(--chars, 0), 9) * 0.8)));
+  line-height: 1.25;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-navy);
+}
+.s20-input::placeholder {
+  color: var(--color-ink-muted);
+  letter-spacing: 0.04em;
+}
+.s20-print {
+  flex-shrink: 0;
+  min-height: 2.75rem;
+  border-radius: 999px;
+  background: var(--color-navy);
+  padding: 0 1.15rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-paper);
+  transition: background-color 0.18s ease, transform 0.12s ease;
+}
+.s20-print:hover {
+  background: #13216b;
+}
+.s20-print:active {
+  transform: scale(0.97);
+}
+.s20-print:disabled {
+  cursor: progress;
+  background: #3b4790;
+}
+.s20-print:focus-visible,
+.s20-reset:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 2px;
+}
+.s20-tag-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.9rem;
+  row-gap: 0.15rem;
+  min-height: 2.7em;
+  margin-top: 0.55rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--color-ink-muted);
+}
+.s20-reset {
+  font-weight: 600;
+  color: var(--color-navy);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── actions ────────────────────────────────────────────────────────────────────────────────── */
+.s20-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.9rem 1.5rem;
+  margin-top: 1.1rem;
+}
+.s20-link {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-on-indigo);
+  text-decoration: underline;
+  text-decoration-color: rgb(182 161 123 / 0.6);
+  text-underline-offset: 6px;
+}
+.s20-link:hover {
+  text-decoration-color: var(--color-on-indigo);
+}
+.s20-link:focus-visible {
+  outline: 2px solid var(--color-on-indigo);
+  outline-offset: 3px;
+}
+
+/* ── tablets (portrait): more room, same sequence ───────────────────────────────────────────── */
+@media (min-width: 640px) and (max-width: 1023px), (min-width: 640px) and (max-aspect-ratio: 4/3) {
+  .s20-fan {
+    --fw: min(calc((100vw - 2 * var(--gx)) / 0.76), calc((100svh - var(--nav)) * 0.9));
+  }
+  .s20-lede {
+    font-size: 1rem;
+  }
+}
+
+/* ── desktop (landscape ≥ 1024): a composed frame placed from the rivet ─────────────────────── */
+@media (min-width: 1024px) and (min-aspect-ratio: 4/3) {
+  .s20 {
+    /* the fan is as large as the frame allows: under 75vw, under the height left above the tag,
+       and narrow enough that its left wing clears the copy column (6vw + 17rem + 2.5rem) while the
+       tag still fits to the right of the rivet */
+    --tag-w: clamp(21rem, 27vw, 30rem);
+    --fw: min(75vw, calc((100svh - var(--nav) - 19.5rem) * 2.5), calc((90vw - 19.5rem - var(--tag-w)) / 0.45));
+    --px: max(55vw, calc(6vw + 19.5rem + 0.36 * var(--fw)));
+    --py: calc(100% - 17.25rem);
+    height: max(100svh, 42rem);
+    min-height: 0;
+  }
+  .s20-frame {
+    position: absolute;
+    inset: 0;
+    display: block;
+    min-height: 0;
+    padding: 0;
+  }
+  .s20-title {
+    position: absolute;
+    left: 6vw;
+    top: calc(var(--nav) + 7svh);
+  }
+  .s20-h1 {
+    font-size: clamp(2.75rem, 4.6vw, 5.5rem);
+    line-height: 1.04;
+  }
+  .s20-h1 > span,
+  .s20-h1 > em {
+    display: block;
+  }
+  .s20-h1-l3 {
+    padding-left: 0.04em;
+  }
+  .s20-lede {
+    margin-top: 1.5rem;
+    max-width: 17rem;
+  }
+  .s20-fan {
+    --fw: inherit;
+    --tilt: 8deg;
+    position: absolute;
+    left: calc(var(--px) - 0.38 * var(--fw));
+    top: calc(var(--py) - 0.395 * var(--fw));
+    margin: 0;
+  }
+  .s20-commission {
+    position: absolute;
+    left: calc(var(--px) + 0.09 * var(--fw));
+    top: calc(var(--py) + 0.02 * var(--fw));
+    width: var(--tag-w);
+    max-width: none;
+    margin: 0;
+  }
+  .s20-tag {
+    padding: 1rem 1.25rem 0.9rem 2.6rem;
+  }
+  .s20-eyelet {
+    left: 1.25rem;
+    top: 1.35rem;
+  }
+  .s20-input {
+    --fs-max: clamp(1.5rem, 1.7vw, 2.1rem);
+  }
+  /* the cord loops from the rivet down to the eyelet */
+  .s20-cord {
+    left: calc(-0.09 * var(--fw));
+    top: calc(-0.02 * var(--fw));
+    bottom: auto;
+    width: calc(0.09 * var(--fw) + 1.25rem);
+    height: calc(0.02 * var(--fw) + 1.35rem);
+  }
+  .s20-cord-desk {
+    display: inline;
+  }
+  .s20-cord-port,
+  .s20-link.s20-link-port {
+    display: none;
+  }
+  .s20-link.s20-link-desk {
+    display: inline-flex;
+    margin-top: 1.1rem;
+  }
+}

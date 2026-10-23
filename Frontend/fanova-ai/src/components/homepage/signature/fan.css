@@ -1,0 +1,63 @@
+/* The R20 SVG fan object (SignatureFan, .sgf-*): used by the R20 rollback Hero, the lab's
+   Gallery exploration, and as the R20.1 Hero's fallback when WebGL is unavailable. */
+
+/* ── the fan object ─────────────────────────────────────────────────────────────────────────── */
+.sgf {
+  position: relative;
+  width: calc(0.76 * var(--fw));
+  height: calc(0.45 * var(--fw));
+  pointer-events: none;
+}
+.sgf-tilt {
+  position: absolute;
+  left: calc(-0.12 * var(--fw));
+  top: calc(-0.105 * var(--fw));
+  width: var(--fw);
+  aspect-ratio: 1132 / 648.235;
+  transform: rotate(var(--tilt, 0deg));
+  transform-origin: 50% 87.3%;
+}
+.sgf-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+/* the fan's shadow on the wall: light from the upper left, so it falls down and to the right */
+.sgf-shadow {
+  position: absolute;
+  left: 0;
+  top: calc(0.395 * var(--fw) - 0.4 * var(--fw));
+  width: calc(0.76 * var(--fw));
+  height: calc(0.4 * var(--fw));
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: rgb(2 3 10 / 0.62);
+  filter: blur(calc(0.024 * var(--fw)));
+  transform-origin: 50% 100%;
+  transform: translate(calc(0.026 * var(--fw)), calc(0.05 * var(--fw))) rotate(var(--tilt, 0deg)) scale(0.96);
+  /* back to full as the fan re-opens (1.5 s); the printing rule below sets the way in */
+  transition: opacity 1.5s cubic-bezier(0.16, 1, 0.3, 1), transform 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sgf-shadow {
+    animation: sgf-shadow-in 2.4s cubic-bezier(0.16, 1, 0.3, 1) 0.6s both;
+  }
+}
+@keyframes sgf-shadow-in {
+  from {
+    opacity: 0;
+  }
+}
+[data-phase="printing"] .sgf-shadow {
+  opacity: 0.2;
+  transform: translate(calc(0.026 * var(--fw)), calc(0.05 * var(--fw))) rotate(var(--tilt, 0deg)) scale(0.18, 0.9);
+  transition-duration: 0.6s;
+  transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+}
+.sgf-pivot {
+  position: absolute;
+  left: calc(0.38 * var(--fw));
+  top: calc(0.395 * var(--fw));
+  width: 0;
+  height: 0;
+}

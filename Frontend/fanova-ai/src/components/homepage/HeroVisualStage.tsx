@@ -13,7 +13,8 @@ const HeroSilkStage = dynamic(() => import("./silk-fan/HeroSilkStage"), {
   loading: () => null,
 });
 
-export default function HeroVisualStage() {
+/** R10.5-H: `rays` false draws the fan alone (the Hero's oversized, cropped object). */
+export default function HeroVisualStage({ rays = true }: { rays?: boolean }) {
   return (
     <div className="relative h-full w-full overflow-hidden">
       {/* H4-polish: this ambient glow was sized/positioned specifically to sit behind the old
@@ -27,7 +28,7 @@ export default function HeroVisualStage() {
         />
       )}
 
-      {HERO_VARIANT === "silk" ? <HeroSilkStage className="h-full w-full" /> : <HeroCanvas />}
+      {HERO_VARIANT === "silk" ? <HeroSilkStage className="h-full w-full" rays={rays} /> : <HeroCanvas />}
     </div>
   );
 }

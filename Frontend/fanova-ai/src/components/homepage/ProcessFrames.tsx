@@ -11,6 +11,9 @@
 import type { CSSProperties } from "react";
 import { motion } from "motion/react";
 import AssetSlot from "@/components/ui/AssetSlot";
+import NanField from "@/components/ui/NanField";
+import { useHydrated } from "@/lib/useHydrated";
+import { FanObject, useFanState, type FanStateTarget } from "./ProblemSolutionFan";
 import type { AssetDef } from "@/data/homepageAssets";
 import { processFrames } from "@/data/homepageAssets";
 import {
@@ -40,6 +43,67 @@ export const FRAMES: { asset: AssetDef; kind: FrameKind }[] = [
 /** Which frames belong to which step: step 04 (Sản xuất) shows the print, then the fold. */
 export const STEP_FRAMES = [[0], [1], [2], [3, 4], [5]];
 
+// ── R10.1: until the A2 photographs exist, the frames are the page's fan being rebuilt ──
+// The same object as the Problem/Solution fan, one physical state per frame: the skeleton of
+// ribs, the plain material leaf, the artwork, the print aligned on the ribs, the folds, the
+// finished fan. Index -1 = before step 01 (nearly shut skeleton).
+const STAGES: FanStateTarget[] = [
+  { open: 0.6, sweep: 0, leaf: 0, bare: 1, pleat: 1 }, // F1 · the skeleton: ribs only
+  { open: 0.6, sweep: 0, leaf: 1, bare: 0, pleat: 0.2 }, // F2 · the material leaf, plain and soft
+  { open: 0.6, sweep: 1, leaf: 1, bare: 0, pleat: 0.2 }, // F3 · the artwork goes on
+  { open: 0.82, sweep: 1, leaf: 1, bare: 0, pleat: 0.55 }, // F4a · printed leaf aligned on the ribs
+  { open: 0.9, sweep: 1, leaf: 1, bare: 0, pleat: 1 }, // F4b · folded
+  { open: 1, sweep: 1, leaf: 1, bare: 0, pleat: 1 }, // F5 · finished
+];
+// R10.2: the object waits as a readable half-open skeleton (was nearly shut, which read as a stick)
+const BEFORE: FanStateTarget = { open: 0.4, sweep: 0, leaf: 0, bare: 1, pleat: 1 };
+const stageState = (stage: number) => (stage < 0 ? BEFORE : STAGES[Math.min(stage, STAGES.length - 1)]);
+/** True while the A2 production photographs are still missing. */
+const VECTOR_FRAMES = FRAMES.every((f) => !f.asset.src);
+
+/**
+ * The fan at one production stage. Moves between stages on --ease-nan-state. R10.2 `object`: the
+ * whole fan standing on the section's own canvas (no paper box, no ring), the hero of the Process;
+ * otherwise the cropped fan in a paper box (reduced-motion contact sheet).
+ */
+function StageFan({
+  stage,
+  reduce,
+  className,
+  style,
+  object,
+  halo,
+}: {
+  stage: number;
+  reduce: boolean;
+  className?: string;
+  style?: CSSProperties;
+  object?: boolean;
+  /** R10.3: the faint halo of short ribs and arcs around the pivot (main stage only). */
+  halo?: boolean;
+}) {
+  const fan = useFanState(stageState(stage), reduce, 0.85);
+  return (
+    <div aria-hidden="true" className={`overflow-hidden ${object ? "" : "bg-paper-deep"} ${className ?? ""}`} style={style}>
+      {halo && (
+        <NanField
+          x="50%"
+          y="90%"
+          radius="56%"
+          from={-80}
+          to={80}
+          ribs={21}
+          arcs={[0.86, 1]}
+          inner={0.8}
+          opacity={0.14}
+          style={{ height: "auto", aspectRatio: "1" }}
+        />
+      )}
+      {object ? <FanObject {...fan} x="50%" y="90%" width="96%" /> : <FanObject {...fan} x="58%" y="92%" width="150%" />}
+    </div>
+  );
+}
+
 const FOLD_STRIPS = 8;
 const foldPleat = (k: number) => Math.floor(Math.abs(k - (FOLD_STRIPS - 1) / 2));
 
@@ -52,10 +116,20 @@ interface FrameLayerProps {
   className?: string;
   style?: CSSProperties;
   sizes?: string;
+  /** R10.1: this frame's production stage (index in FRAMES); without a photo, the fan stands in. */
+  stage?: number;
 }
 
 /** One frame with its own entrance. Start states are fixed, so server and client render the same. */
-export function FrameLayer({ asset, kind, shown, reduce, className, style, sizes }: FrameLayerProps) {
+export function FrameLayer({ asset, kind, shown, reduce, className, style, sizes, stage }: FrameLayerProps) {
+  // `shown` can be true from the first client render under reduced motion; until hydration the
+  // fan's state ignores that, so its SVG matches the server HTML.
+  const hydrated = useHydrated();
+  if (!asset.src && stage !== undefined) {
+    // Not reached yet: the fan waits at the previous stage; reached: it moves to this one.
+    const reached = hydrated ? shown : shown && !reduce;
+    return <StageFan stage={reached ? stage : stage - 1} reduce={reduce} className={className} style={style} />;
+  }
   const slot = <AssetSlot asset={asset} tone="paper" fill sizes={sizes} />;
 
   if (kind === "pleat") {
@@ -122,15 +196,25 @@ interface ProcessFrameStackProps {
 }
 
 /**
- * The sticky frame (1024px and up): all six frames stacked in one 4:5 box, each covering the one
- * before. Under reduced motion it rests on the finished fan, with the six stages as a contact
- * sheet below, so nothing depends on watching the transitions.
+ * The Process visual: all six frames stacked in one box, each covering the one before (or, until
+ * the A2 photographs exist, the one fan rebuilt stage by stage, standing on the indigo). Under
+ * reduced motion it rests on the finished fan, with the six stages as a contact sheet below, so
+ * nothing depends on watching the transitions. Positioning (sticky) belongs to the caller.
  */
 export function ProcessFrameStack({ activeFrame, reduce }: ProcessFrameStackProps) {
+  // Reduced motion rests on the finished fan, but only after hydration (server HTML = story state).
+  const hydrated = useHydrated();
   return (
-    // Sits just under the fixed navbar (Navbar publishes --nav-height); capped at 62vh tall so the
-    // step list stays longer than the frame and the frame really holds while the steps pass.
-    <div className="sticky top-[calc(var(--nav-height,112px)+4vh)] ml-auto w-full max-w-[calc(62vh*0.8)]">
+    <div className="w-full">
+      {VECTOR_FRAMES ? (
+        <StageFan
+          stage={hydrated && reduce ? STAGES.length - 1 : activeFrame}
+          reduce={reduce}
+          object
+          halo
+          className="relative aspect-[4/3] w-full"
+        />
+      ) : (
       <div className="relative aspect-[4/5] w-full overflow-hidden bg-paper-deep ring-1 ring-line-on-indigo">
         {FRAMES.map((frame, i) => (
           <FrameLayer
@@ -145,11 +229,17 @@ export function ProcessFrameStack({ activeFrame, reduce }: ProcessFrameStackProp
           />
         ))}
       </div>
-      {/* Contact sheet, reduced motion only (pure CSS media query: no hydration difference) */}
+      )}
+      {/* Contact sheet, reduced motion only (pure CSS media query: no hydration difference). With
+          the vector frames it is the reconstruction itself, stage by stage. */}
       <div className="mt-3 hidden grid-cols-6 gap-2 motion-reduce:grid">
-        {FRAMES.map((frame) => (
-          <AssetSlot key={frame.asset.id} asset={{ ...frame.asset, alt: "" }} tone="paper" sizes="80px" />
-        ))}
+        {FRAMES.map((frame, i) =>
+          VECTOR_FRAMES ? (
+            <StageFan key={frame.asset.id} stage={i} reduce object className="relative aspect-[4/3] w-full" />
+          ) : (
+            <AssetSlot key={frame.asset.id} asset={{ ...frame.asset, alt: "" }} tone="paper" sizes="80px" />
+          ),
+        )}
       </div>
     </div>
   );

@@ -51,6 +51,8 @@ export interface HeroSilkStageProps {
   /** Overrides individual fields of DEFAULT_STAGE_CONFIG -- see stageConfig.ts. Only used by the
    * dev-only TuningPanel today; every real caller can omit it and get the defaults. */
   config?: Partial<StageConfig>;
+  /** R10.5-H: the radial ray halo around the fan (SilkFan `rays`). Default true. */
+  rays?: boolean;
 }
 
 // Reads a media query as external browser state via useSyncExternalStore, rather than reading it
@@ -167,7 +169,7 @@ function edgeFadeMaskStyle(fadePercent: number): CSSProperties {
   } as CSSProperties;
 }
 
-export default function HeroSilkStage({ text, className, config }: HeroSilkStageProps) {
+export default function HeroSilkStage({ text, className, config, rays = true }: HeroSilkStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fanTiltRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);
@@ -383,6 +385,7 @@ export default function HeroSilkStage({ text, className, config }: HeroSilkStage
             onOpened={() => setOpened(true)}
             className="h-full w-full"
             palette={stage.palette}
+            rays={rays}
           />
         </div>
       </div>

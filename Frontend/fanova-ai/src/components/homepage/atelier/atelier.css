@@ -1,0 +1,365 @@
+/* Homepage Hero (HeroAtelier). Its own namespace (.atl-*).
+   The paper is drawn with clip-path polygons; the same coordinates draw the champagne hairline on
+   its folded edge (the SVG polylines in HeroAtelier, viewBox 0 0 100 100, stretched to the frame).
+   Keep the two in step when changing the fold.
+     desktop  (≥1024): one sheet  0 nav · 34% nav · 41% 72% · 100% 79% · 100% 100% · 0 100%
+     portrait (<1024): leaf       0 nav · 100% nav · 100% 37% · 0 43%
+                       band       0 77% · 100% 72% · 100% 100% · 0 100%
+   The fan is placed by its pivot (.atl-fan-anchor) on the paper's edge; FanObject's box width sets
+   its size (visible fan = 0.747 × width). */
+
+.atl {
+  height: max(100svh, 46rem);
+  background: #0f1320;
+  color: var(--color-ink);
+}
+
+/* the stage: navy, one soft light where the fan stands, darker toward the edges */
+.atl-stage {
+  background:
+    radial-gradient(ellipse 34% 26% at 50% 56%, rgb(74 96 196 / 0.26), transparent 74%),
+    radial-gradient(ellipse 120% 90% at 50% 60%, transparent 40%, rgb(4 6 14 / 0.55) 100%),
+    #0f1320;
+  transition: opacity 0.7s ease;
+}
+
+/* the paper casts a soft shadow onto the stage */
+.atl-paper-shade {
+  filter: drop-shadow(0 18px 28px rgb(3 5 14 / 0.55)) drop-shadow(0 2px 3px rgb(3 5 14 / 0.35));
+}
+.atl-paper {
+  background-color: var(--color-paper);
+  /* a faint fall of light across the sheet, darker as it turns toward the fold */
+  background-image: linear-gradient(104deg, rgb(255 253 248 / 0.7) 0%, transparent 46%, rgb(120 100 70 / 0.1) 100%);
+}
+/* the sheet starts under the header, which stays on the navy stage (the navigation is designed for
+   a dark ground and is not restyled) */
+.atl-paper-a {
+  clip-path: polygon(0 var(--nav-height, 64px), 100% var(--nav-height, 64px), 100% 37%, 0 43%);
+}
+.atl-paper-b {
+  clip-path: polygon(0 77%, 100% 72%, 100% 100%, 0 100%);
+}
+/* the fold: along the sheet's edge the paper is turned back on itself, showing its slightly
+   darker reverse as a narrow strip with a crease highlight */
+.atl-flap {
+  pointer-events: none;
+  z-index: 4;
+  background: linear-gradient(180deg, #e2d6c1 0%, #ece3d3 70%, #f7f2e9 100%);
+}
+.atl-flap-a {
+  clip-path: polygon(0 43%, 100% 37%, 100% 34.6%, 0 40.4%);
+}
+.atl-flap-b {
+  clip-path: polygon(0 77%, 100% 72%, 100% 74.4%, 0 79.4%);
+  background: linear-gradient(0deg, #e2d6c1 0%, #ece3d3 70%, #f7f2e9 100%);
+}
+.atl-flap-desk {
+  display: none;
+}
+
+/* the folded edge: a champagne hairline, brighter while the visitor writes */
+.atl-edge {
+  pointer-events: none;
+  z-index: 5;
+}
+.atl-edge polyline {
+  fill: none;
+  stroke: var(--color-bamboo);
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.55;
+  transition: opacity 0.6s ease, stroke-width 0.6s ease;
+}
+.atl-edge-desk {
+  display: none;
+}
+.atl[data-state="writing"] .atl-edge polyline,
+.atl[data-state="printing"] .atl-edge polyline {
+  opacity: 1;
+  stroke-width: 1.75;
+}
+
+/* the object */
+.atl-fan-anchor {
+  left: 50vw;
+  top: 75%;
+  width: 0;
+  height: 0;
+  z-index: 10;
+}
+.atl-fan-lift {
+  left: 0;
+  top: 0;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.atl[data-state="writing"] .atl-fan-lift,
+.atl[data-state="printing"] .atl-fan-lift {
+  transform: translateY(-10px);
+}
+.atl-fan {
+  left: 0;
+  top: 0;
+  width: 124vw;
+}
+/* the fan's handle rests on the paper: a soft contact shadow on the sheet */
+.atl-contact {
+  left: 0;
+  top: 0;
+  width: 26vw;
+  height: 1.1rem;
+  transform: translate(-50%, 15%);
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgb(30 24 16 / 0.42), transparent 72%);
+  filter: blur(3px);
+}
+
+/* printed on the leaf */
+.atl-title {
+  left: 6vw;
+  right: 6vw;
+  top: calc(var(--nav-height, 64px) + 0.75rem);
+}
+.atl-h1 {
+  color: var(--color-navy);
+  font-size: clamp(2.05rem, 8.8vw, 3.4rem);
+  line-height: 1.02;
+}
+.atl-h1-step {
+  padding-left: 0.85em;
+}
+.atl-lede {
+  margin-top: 0.7rem;
+  max-width: 26rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--color-ink);
+}
+.atl-offer {
+  display: none;
+  margin-top: 0.35rem;
+  max-width: 26rem;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--color-ink-muted);
+}
+
+/* printed on the band: the writing line */
+.atl-write {
+  left: 6vw;
+  right: 6vw;
+  top: 79.5%;
+}
+.atl-write-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+.atl-write-row {
+  margin-top: 0.35rem;
+  border-bottom: 1px solid rgb(42 36 30 / 0.45);
+  transition: border-color 0.3s ease;
+}
+/* focus: the writing line turns navy and thickens (the field itself has no box) */
+.atl-write-row:focus-within {
+  border-bottom-color: var(--color-navy);
+  box-shadow: 0 1.5px 0 0 var(--color-navy);
+}
+.atl-input {
+  padding: 0.2rem 0 0.45rem;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  color: var(--color-navy);
+}
+.atl-input::placeholder {
+  color: rgb(94 85 74 / 0.55);
+  font-style: italic;
+}
+.atl-print {
+  margin-bottom: 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-navy);
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-navy);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.atl-print:hover {
+  background: var(--color-navy);
+  color: var(--color-paper);
+}
+.atl-print:focus-visible,
+.atl-reset:focus-visible,
+.atl-link:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 3px;
+}
+.atl-write-hint {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--color-ink-muted);
+}
+.atl-reset {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: var(--color-navy);
+}
+
+.atl-actions {
+  left: 6vw;
+  right: 6vw;
+  bottom: 2.5%;
+  gap: 0.75rem 1.5rem;
+}
+/* phones: the count hint goes (the field limits itself); the preview note stays */
+@media (max-width: 767px) {
+  .atl-write-hint-count {
+    display: none;
+  }
+}
+.atl-link {
+  border-bottom: 1px solid rgb(25 43 136 / 0.45);
+  padding-bottom: 0.2rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-navy);
+}
+.atl-link:hover {
+  border-bottom-color: var(--color-navy);
+}
+
+@media (min-height: 800px) {
+  .atl-offer {
+    display: block;
+  }
+}
+
+/* ── tablet portrait ── */
+@media (min-width: 768px) {
+  .atl {
+    height: max(100svh, 56rem);
+  }
+  .atl-fan {
+    width: 112vw;
+  }
+  .atl-title {
+    left: 8vw;
+    right: 8vw;
+  }
+  .atl-write {
+    left: 8vw;
+    right: auto;
+    width: min(30rem, 60vw);
+  }
+  .atl-actions {
+    left: 8vw;
+    right: 8vw;
+    bottom: 4%;
+  }
+}
+
+/* ── desktop: one L-shaped sheet, the window opens to the upper right ── */
+@media (min-width: 1024px) {
+  .atl {
+    height: clamp(720px, 100svh, 940px);
+  }
+  .atl-stage {
+    background:
+      radial-gradient(ellipse 30% 34% at 70% 46%, rgb(74 96 196 / 0.27), transparent 74%),
+      radial-gradient(ellipse 110% 100% at 70% 50%, transparent 42%, rgb(4 6 14 / 0.55) 100%),
+      #0f1320;
+  }
+  .atl-paper-a {
+    clip-path: polygon(0 var(--nav-height, 96px), 34% var(--nav-height, 96px), 41% 72%, 100% 79%, 100% 100%, 0 100%);
+  }
+  .atl-paper-b,
+  .atl-flap-a,
+  .atl-flap-b {
+    display: none;
+  }
+  .atl-flap-desk {
+    display: block;
+    clip-path: polygon(34% var(--nav-height, 96px), 41% 72%, 100% 79%, 100% 76.6%, 42.7% 69.9%, 36.6% var(--nav-height, 96px));
+    background: linear-gradient(115deg, #f7f2e9 0%, #ece3d3 40%, #e0d3bd 100%);
+  }
+  .atl-edge-desk {
+    display: inline;
+  }
+  .atl-edge-port {
+    display: none;
+  }
+  /* the pivot sits on the sheet's lower edge (that edge is at y ≈ 75.4% where x = 70%) */
+  .atl-fan-anchor {
+    left: 70vw;
+    top: 76%;
+  }
+  .atl-fan {
+    width: min(84vw, 114svh);
+  }
+  .atl-contact {
+    width: 13vw;
+  }
+  .atl-title {
+    left: 5vw;
+    right: auto;
+    top: 17%;
+    width: 29vw;
+  }
+  /* two lines that fit the leaf left of the fold (≈ 29vw): "từng nếp quạt." ≈ 5.5 em + the step */
+  .atl-h1 {
+    font-size: clamp(2.75rem, 4.55vw, 4.9rem);
+    line-height: 1;
+  }
+  .atl-h1-step {
+    padding-left: 0.55em;
+  }
+  .atl-lede {
+    margin-top: 1.4rem;
+    font-size: 1.0625rem;
+  }
+  .atl-offer {
+    display: block;
+    margin-top: 0.5rem;
+  }
+  /* the writing line lies on the band directly beneath the fan */
+  /* the writing line lies on the band directly beneath the fan, centred on its axis (no
+     transform: the entrance animation owns transform) */
+  .atl-write {
+    left: calc(70vw - min(30rem, 36vw) / 2);
+    right: auto;
+    top: 84%;
+    width: min(30rem, 36vw);
+  }
+  .atl-actions {
+    left: 5vw;
+    right: auto;
+    bottom: 7%;
+    width: 33vw;
+  }
+}
+
+/* 1024–1279: a narrower desktop frame; the fan steps in so its right tip stays inside */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .atl-fan-anchor {
+    left: 68vw;
+  }
+  .atl-fan {
+    width: min(74vw, 104svh);
+  }
+  .atl-write {
+    left: calc(68vw - min(30rem, 40vw) / 2);
+    width: min(30rem, 40vw);
+  }
+}
+/* short phones: tighter band so the field and the primary action stay on the first screen */
+@media (max-width: 767px) and (max-height: 700px) {
+  .atl-fan-anchor {
+    top: 74%;
+  }
+  .atl-write {
+    top: 78.5%;
+  }
+  .atl-input {
+    font-size: 1.25rem;
+  }
+}

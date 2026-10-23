@@ -399,6 +399,113 @@ body {
   );
 }
 
+/*
+  R10.5-H HERO FAN: the fan is placed by its pivot. --hx / --hy put the pivot in the parent,
+  --px / --py say where the pivot is inside the asset's own box, --hw sizes the box and --hr turns
+  it around the pivot. Set per breakpoint by .hero-collide below.
+*/
+.hero-fan {
+  left: var(--hx);
+  top: var(--hy);
+  width: var(--hw);
+  transform: translate(calc(-1 * var(--px)), calc(-1 * var(--py))) rotate(var(--hr));
+  transform-origin: var(--px) var(--py);
+}
+
+/*
+  R11.1 "Typographic collision": the Hero's headline and its 3D fan occupy the same space. The fan
+  is sized by its VISIBLE width --fv (box width = --fv / --fw, --fw from heroFan.extent, set on the
+  section by HeroSection) and placed by its pivot, turned −9°.
+    · phone / tablet: --fv 86vw / 84vw, pivot at 51vw, 70% / 74% of the frame (line 2 crosses the
+      arc, line 3 the leaf, above the gold ribs);
+    · 1024+: min(57vw, 91svh, 856px), pivot at 52.8vw, 78.4% (crossing both lines).
+  The whole fan stays inside the frame at every size (checked from 375 to 1920 px).
+*/
+.hero-collide .hero-fan {
+  --fv: 86vw;
+  --hw: calc(var(--fv) / var(--fw));
+  --hx: 51vw;
+  --hy: 70%;
+  --hr: -9deg;
+}
+@media (min-width: 768px) {
+  .hero-collide .hero-fan {
+    --fv: 84vw;
+    --hy: 74%;
+  }
+}
+@media (min-width: 1024px) {
+  .hero-collide .hero-fan {
+    --fv: min(57vw, 91svh, 856px);
+    --hx: 52.8vw;
+    --hy: 78.4%;
+  }
+}
+/* The outline layer: the same lines drawn as a hairline over the fan, so type that passes behind
+   the fan stays legible without covering it. */
+.hero-outline {
+  color: transparent;
+  -webkit-text-stroke: 1.15px rgb(244 239 230 / 0.9);
+}
+
+/* R10.5-H: Hero copy rises in from the first paint (CSS, so server-rendered text never flashes
+   on hydration). 16px, once, staggered by --rise-delay. Reduced motion: no animation at all. */
+@media (prefers-reduced-motion: no-preference) {
+  .hero-rise {
+    animation: hero-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) var(--rise-delay, 0.1s) both;
+  }
+}
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* R10.4.1: Vietnamese headings break into balanced lines (no lone "quạt." on the last line), and
+   paragraphs avoid a one-word last line. Pure typography; nothing moves. */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
+
+/* R10.2: anchored sections land below the fixed header (Navbar publishes --nav-height). */
+html {
+  scroll-padding-top: var(--nav-height, 96px);
+}
+
+/*
+  R10.3 ATMOSPHERE (Section atmosphere): the light a section sits in. One soft radial light placed
+  on the section's focal object (--gx / --gy), a faint warm core inside it, and a side-only
+  vignette. The vignette darkens the left and right edges only, so two dark sections in a row
+  never form a darker band where they meet. Felt, not seen: no blur, no visible gradient edge.
+  R10.2's grey "seam" gradients between cream and navy are gone; tone changes are clean edges.
+*/
+.nan-atmos {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.nan-atmos-indigo {
+  background:
+    radial-gradient(ellipse 34% 30% at var(--gx, 70%) var(--gy, 45%), rgb(182 161 123 / 0.055), transparent 72%),
+    radial-gradient(ellipse 62% 58% at var(--gx, 70%) var(--gy, 45%), rgb(25 43 136 / 0.24), transparent 72%),
+    linear-gradient(90deg, rgb(6 8 18 / 0.38), transparent 24%, transparent 76%, rgb(6 8 18 / 0.38));
+}
+.nan-atmos-paper {
+  background:
+    radial-gradient(ellipse 58% 52% at var(--gx, 30%) var(--gy, 25%), rgb(251 248 242 / 0.85), transparent 72%),
+    linear-gradient(90deg, rgb(115 95 62 / 0.06), transparent 22%, transparent 78%, rgb(115 95 62 / 0.06));
+}
+
 /* Smooth anchor scrolling only for people who haven't asked for less motion. */
 @media (prefers-reduced-motion: no-preference) {
   html {
@@ -416,6 +523,39 @@ body {
     animation: nav-rule-open var(--dur-state) var(--ease-nan-state) 120ms both;
   }
 }
+/*
+  R10 material atmosphere (Section material="quiet" | "tactile"). A paper-fibre texture over the
+  section canvas: one small deterministic SVG tile (feTurbulence with a fixed seed, stretched so it
+  reads as fibre, not as noise; thresholded so only sparse fibres show), tiled by the browser. On
+  indigo the grain is finer and near-isotropic (dyed cloth, not ripples); on paper it is fibre.
+  "tactile" is a touch more fibre (R10.2: the chain lines are gone). No raster file, no animation; the
+  layer sits under the content (::before is the section's first positioned box).
+*/
+.nan-material::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--nan-fibre);
+  background-size: 260px 260px;
+  opacity: var(--nan-fibre-opacity, 0.5);
+}
+.nan-material-indigo {
+  --nan-fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25' filterUnits='userSpaceOnUse'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.32 0.55' numOctaves='1' seed='11' stitchTiles='stitch' x='0' y='0' width='260' height='260'/%3E%3CfeColorMatrix values='0 0 0 0 0.957 0 0 0 0 0.937 0 0 0 0 0.902 0 0 0 1.3 -0.62'/%3E%3C/filter%3E%3Crect x='0' y='0' width='260' height='260' filter='url(%23f)'/%3E%3C/svg%3E");
+  --nan-fibre-opacity: 0.05; /* R10.3: felt, not seen (R10.1 0.08, R10.2 0.035) */
+}
+.nan-material-paper {
+  --nan-fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25' filterUnits='userSpaceOnUse'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.09 0.22' numOctaves='2' seed='11' stitchTiles='stitch' x='0' y='0' width='260' height='260'/%3E%3CfeColorMatrix values='0 0 0 0 0.451 0 0 0 0 0.373 0 0 0 0 0.243 0 0 0 1.1 -0.5'/%3E%3C/filter%3E%3Crect x='0' y='0' width='260' height='260' filter='url(%23f)'/%3E%3C/svg%3E");
+  --nan-fibre-opacity: 0.07; /* R10.3: felt, not seen (R10.1 0.12, R10.2 0.05) */
+}
+.nan-material-tactile.nan-material-paper::before {
+  /* R10.2: the chain lines are gone; tactile is only a touch more fibre than quiet */
+  opacity: 0.1;
+}
+.nan-material-tactile.nan-material-indigo::before {
+  opacity: 0.05;
+}
+
 @keyframes nav-rule-open {
   from {
     transform: scaleX(0);

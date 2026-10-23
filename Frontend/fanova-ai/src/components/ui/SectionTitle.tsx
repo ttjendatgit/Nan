@@ -49,7 +49,9 @@ export default function SectionTitle({
       {eyebrow && <p className={cn("font-serif text-lg italic", eyebrowTone[tone])}>{eyebrow}</p>}
       <Heading
         className={cn(
-          "font-serif text-4xl font-semibold leading-[1.12] md:text-5xl",
+          // R10.2 hierarchy: Hero very large; a major section large but controlled (this); subsection
+          // medium. Weight 500, not 600: the size carries the importance, not the weight.
+          "font-serif text-[2rem] font-medium leading-[1.14] tracking-tight md:text-[2.5rem] lg:text-[2.75rem]",
           eyebrow ? "mt-3" : undefined,
           titleClassName,
         )}
@@ -59,7 +61,7 @@ export default function SectionTitle({
       {description && (
         <p
           className={cn(
-            "mt-5 max-w-2xl font-sans text-base leading-relaxed md:text-lg",
+            "mt-5 max-w-xl font-sans text-[0.9375rem] leading-7 md:text-base md:leading-7",
             align === "center" && "mx-auto",
             descriptionTone[tone],
             descriptionClassName,

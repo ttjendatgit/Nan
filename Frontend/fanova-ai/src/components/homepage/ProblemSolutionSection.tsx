@@ -19,11 +19,14 @@
 //   0.86–1.00  resolution: everything holds still.
 // Scrolling back runs it backwards. Below 1024px the same story reads top to bottom: problems, the
 // fan, then the solution. Reduced motion: the story sits at 1 from the first frame after hydration.
+//
+// R10.2: the fan is the central object, not a figure in the gutter. From 1024px the spread is three
+// columns: the problems on the left (set against the fan), the fan in the middle at up to 580px
+// (was 260-320px), the answers on the right. The spine line is gone; the fan is the fold.
 
 import { useEffect, useRef, type CSSProperties } from "react";
 import {
   motion,
-  useInView,
   useMotionValueEvent,
   useReducedMotion,
   useScroll,
@@ -34,7 +37,7 @@ import {
 import Section from "@/components/ui/Section";
 import SectionTitle from "@/components/ui/SectionTitle";
 import { problemSection, solutionSection } from "@/data/homepageData";
-import { DUR_SIGNATURE, EASE_NAN, INSTANT } from "@/lib/motionTokens";
+import { EASE_NAN, INSTANT } from "@/lib/motionTokens";
 import ProblemSolutionFan, { FAN_PIVOT_ORIGIN, FAN_RATIO } from "./ProblemSolutionFan";
 
 /** problemSection.points[i] ↔ solutionSection.pillars[j]. The pillar left over closes the spread. */
@@ -74,11 +77,11 @@ const STORY_SPRING = { stiffness: 120, damping: 30, restDelta: 0.0005 };
 const ON_INDIGO = "#f4efe6"; // --color-on-indigo
 const ON_INDIGO_MUTED = "#b9b2a6"; // --color-on-indigo-muted
 
-/** From 1024px each grid row holds one problem and its answer. */
+/** From 1024px each grid row holds one problem and its answer, either side of the fan. */
 const ROW_START = ["lg:row-start-2", "lg:row-start-3", "lg:row-start-4", "lg:row-start-5"];
 
-/** Reading measures. --measure (set on the grid) narrows from 1280px down so the fan fits the gutter. */
-const HEAD_MEASURE = "max-w-[30rem]";
+/** Page-head measure. */
+const HEAD_MEASURE = "max-w-[28rem]";
 
 function ProblemRow({ story, text, window, color, row }: {
   story: MotionValue<number>;
@@ -91,11 +94,11 @@ function ProblemRow({ story, text, window, color, row }: {
   return (
     // Opens out of the spine from 1024px (its right edge), from the left edge below that
     <motion.div
-      className={`wipe-x relative z-10 border-t border-line-on-indigo py-5 [--from:0%] lg:col-start-1 lg:py-6 lg:pr-16 lg:[--from:100%] ${row}`}
+      className={`wipe-x relative z-10 border-t border-line-on-indigo py-5 [--from:0%] lg:col-start-1 lg:py-6 lg:pr-10 lg:text-right lg:[--from:100%] ${row}`}
       style={{ "--reveal": reveal } as CSSProperties}
     >
       <motion.p
-        className="max-w-[26rem] text-base leading-7 lg:max-w-[var(--measure)] lg:text-[1.0625rem]"
+        className="max-w-[26rem] text-base leading-7 lg:ml-auto lg:max-w-[18rem] xl:max-w-[20rem]"
         style={{ color }}
       >
         {text}
@@ -114,12 +117,12 @@ function AnswerRow({ story, pillar, window, className }: {
   return (
     // Opens out of the spine (its left edge), hairline included
     <motion.div
-      className={`wipe-x relative z-10 lg:col-start-2 lg:pl-16 ${className}`}
+      className={`wipe-x relative z-10 lg:col-start-3 lg:pl-10 ${className}`}
       style={{ "--reveal": reveal } as CSSProperties}
     >
-      <div className="max-w-[30rem] lg:ml-auto lg:max-w-[var(--measure)]">
-        <h3 className="font-serif text-xl font-semibold leading-snug lg:text-[1.375rem]">{pillar.title}</h3>
-        <p className="mt-2 text-sm leading-6 text-on-indigo-muted">{pillar.description}</p>
+      <div className="max-w-[30rem] lg:max-w-[20rem]">
+        <h3 className="font-serif text-xl font-medium leading-snug">{pillar.title}</h3>
+        <p className="mt-2 text-[0.9375rem] leading-7 text-on-indigo-muted">{pillar.description}</p>
       </div>
     </motion.div>
   );
@@ -127,8 +130,6 @@ function AnswerRow({ story, pillar, window, className }: {
 
 export default function ProblemSolutionSection() {
   const reduce = useReducedMotion();
-  const leftHeadRef = useRef<HTMLDivElement>(null);
-  const spineOpen = useInView(leftHeadRef, { once: true, margin: "0px 0px -40% 0px" }) || Boolean(reduce);
 
   // ── The story ──
   // Two readings of the same scroll, one per layout:
@@ -184,36 +185,27 @@ export default function ProblemSolutionSection() {
   const solutionHeadReveal = useTransform(story, SOLUTION_HEAD_WINDOW, [0, 1]);
 
   return (
-    <Section tone="indigo" className="py-20 md:py-20">
+    <Section tone="indigo" className="overflow-x-clip pb-16 pt-20 md:pb-20 md:pt-24" material="quiet" atmosphere={{ x: "50%", y: "62%" }}>
       {/* DOM order is the mobile story: problem head, problems, fan, solution head, answers. From
           1024px every item is placed on the two-page grid explicitly. */}
       <div
         ref={gridRef}
-        className="relative grid grid-cols-1 lg:grid-cols-2 lg:[--measure:20rem] xl:[--measure:26rem]"
+        className="relative grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,clamp(300px,calc(100vw-760px),440px))_minmax(0,1fr)]"
       >
-        {/* The spine (1024px and up), drawn once when the left page reaches the reading line */}
-        <motion.div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 left-1/2 hidden w-px origin-top bg-bamboo/45 lg:block"
-          initial={{ scaleY: 0 }}
-          animate={{ scaleY: spineOpen ? 1 : 0 }}
-          transition={reduce ? INSTANT : { duration: DUR_SIGNATURE, ease: EASE_NAN }}
-        />
 
         {/* Left page head */}
         <motion.div
-          ref={leftHeadRef}
-          className="relative z-10 pb-10 lg:col-start-1 lg:row-start-1 lg:pb-12 lg:pr-16"
+          className="relative z-10 pb-8 lg:col-start-1 lg:col-end-3 lg:row-start-1 lg:pb-12"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           animate={reduce ? { opacity: 1 } : undefined}
           viewport={{ once: true }}
-          transition={reduce ? INSTANT : { duration: 0.6 }}
+          transition={reduce ? INSTANT : { duration: 0.7, ease: EASE_NAN }}
         >
           <SectionTitle
             tone="indigo"
             className={HEAD_MEASURE}
-            titleClassName="tracking-tight lg:text-[2.75rem] lg:leading-[1.1]"
+            titleClassName="lg:text-[2.5rem] lg:leading-[1.12]"
             descriptionClassName="mt-5 max-w-[26rem] text-[0.9375rem] leading-7 md:text-[0.9375rem]"
             title={problemSection.headline}
             description={problemSection.body}
@@ -238,7 +230,7 @@ export default function ProblemSolutionSection() {
           ref={frameRef}
           aria-hidden="true"
           data-story-frame
-          className="pointer-events-none hidden lg:col-span-2 lg:col-start-1 lg:row-start-1 lg:row-end-4 lg:block"
+          className="pointer-events-none hidden lg:col-span-3 lg:col-start-1 lg:row-start-1 lg:row-end-4 lg:block"
         />
 
         {/* The fan: centred on the spine across the first two rows from 1024px, so it sits right
@@ -247,9 +239,9 @@ export default function ProblemSolutionSection() {
             gutter only. Below 1024px: between the problems and the solution. */}
         <div
           aria-hidden="true"
-          className="pointer-events-none relative my-8 lg:col-span-2 lg:col-start-1 lg:row-start-2 lg:row-end-4 lg:my-0 lg:flex lg:items-center lg:justify-center"
+          className="pointer-events-none relative my-10 lg:col-start-2 lg:row-start-2 lg:row-end-6 lg:my-0 lg:flex lg:items-center lg:justify-center"
         >
-          <div className="mx-auto w-full max-w-[360px] md:max-w-[420px] lg:mx-0 lg:w-[min(260px,calc(100%-2*var(--measure)-48px))] lg:max-w-none xl:w-[min(320px,calc(100%-2*var(--measure)-48px))]">
+          <div className="relative mx-auto w-full max-w-[380px] lg:mx-0 lg:max-w-none">
             <motion.div
               style={{
                 aspectRatio: FAN_RATIO,
@@ -268,14 +260,14 @@ export default function ProblemSolutionSection() {
 
         {/* Right page head: opens out of the spine (its left edge) during the transition */}
         <motion.div
-          className="wipe-x relative z-10 pb-8 lg:col-start-2 lg:row-start-1 lg:pb-12 lg:pl-16"
+          className="wipe-x relative z-10 pb-8 lg:col-start-2 lg:col-end-4 lg:row-start-1 lg:pb-12"
           style={{ "--reveal": solutionHeadReveal } as CSSProperties}
         >
           <SectionTitle
             tone="indigo"
             className={`lg:ml-auto ${HEAD_MEASURE}`}
             title={solutionSection.headline}
-            titleClassName="tracking-tight lg:text-[2.75rem] lg:leading-[1.1]"
+            titleClassName="lg:text-[2.5rem] lg:leading-[1.12]"
           />
         </motion.div>
 

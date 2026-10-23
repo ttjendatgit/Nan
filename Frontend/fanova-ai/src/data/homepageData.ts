@@ -82,6 +82,13 @@ export const heroConfig = {
   // ── Text content ───────────────────────────────────────────────────────────
   badge: "Vietnamese Heritage Fan Design",
   headline: "Di sản trong từng nếp quạt.",
+  /** R11.1: the same headline as the Hero's collision lines: two on desktop, three on phones/tablets. */
+  headlineLines: ["Di sản trong", "từng nếp quạt."],
+  headlineParts: ["Di sản", "trong từng", "nếp quạt."],
+  /** R11: the Hero's one supporting note (replaces `subheadline` in the Hero). */
+  statement: "Bạn đưa ý tưởng. Nan biến nó thành một chiếc quạt mang dấu ấn riêng.",
+  /** Hero showcase: the second supporting line, under the subheadline. */
+  supportLine: "Từ ý tưởng, chất liệu đến hoàn thiện, Nan biến mỗi chiếc quạt thành một dấu ấn riêng.",
   subheadline:
     "Quạt thủ công cá nhân hóa cho sự kiện, thương hiệu và quà tặng cao cấp.",
   primaryCta:   "Gửi yêu cầu báo giá",
@@ -213,6 +220,10 @@ export const collections: Collection[] = [
 export type Material = {
   name: string;
   description: string;
+  /** R10.5: what the surface is / does (the first half of `description`, nothing added). */
+  surface: string;
+  /** R10.5: when to choose it (the "phù hợp" half of `description`, nothing added). */
+  bestFor: string;
   tag: string;
   /** Tailwind gradient classes — visual fallback when image.src is empty */
   gradient: string;
@@ -229,6 +240,8 @@ export const materials: Material[] = [
     name: "Giấy Couche",
     description:
       "Bề mặt mịn, màu sắc in rõ, phù hợp quạt sự kiện, quảng cáo và số lượng lớn.",
+    surface: "Bề mặt mịn, màu sắc in rõ.",
+    bestFor: "Quạt sự kiện, quảng cáo, đơn số lượng lớn.",
     tag: "Popular",
     gradient: "from-blue-50 to-[#F5F8FF]",
     image: {
@@ -241,6 +254,8 @@ export const materials: Material[] = [
     name: "Giấy mỹ thuật",
     description:
       "Texture sang hơn, phù hợp wedding, resort, thương hiệu lifestyle và quà tặng cao cấp.",
+    surface: "Bề mặt có vân giấy, cảm giác sang hơn khi cầm.",
+    bestFor: "Tiệc cưới, resort, thương hiệu lifestyle, quà tặng cao cấp.",
     tag: "Premium",
     gradient: "from-amber-50 to-[#F5F8FF]",
     image: {
@@ -253,6 +268,8 @@ export const materials: Material[] = [
     name: "Cán mờ",
     description:
       "Tạo cảm giác mềm, tinh tế, hạn chế phản sáng và giúp thiết kế nhìn cao cấp hơn.",
+    surface: "Lớp phủ mờ, cảm giác mềm, hạn chế phản sáng.",
+    bestFor: "Thiết kế cần vẻ nhã nhặn, cao cấp.",
     tag: "Elegant",
     gradient: "from-slate-100 to-[#F5F8FF]",
     image: {
@@ -265,6 +282,8 @@ export const materials: Material[] = [
     name: "Cán bóng",
     description:
       "Làm màu sắc nổi bật hơn, phù hợp thiết kế rực rỡ, sự kiện ngoài trời và quảng cáo.",
+    surface: "Lớp phủ bóng, làm màu sắc nổi bật hơn.",
+    bestFor: "Thiết kế rực rỡ, sự kiện ngoài trời, quảng cáo.",
     tag: "Vibrant",
     gradient: "from-violet-50 to-[#F5F8FF]",
     image: {
@@ -277,6 +296,8 @@ export const materials: Material[] = [
     name: "Ép kim",
     description:
       "Điểm nhấn ánh kim cho logo, tên thương hiệu hoặc chi tiết trang trí đặc biệt.",
+    surface: "Điểm nhấn ánh kim trên bề mặt in.",
+    bestFor: "Logo, tên thương hiệu, chi tiết trang trí đặc biệt.",
     tag: "Luxury",
     gradient: "from-yellow-50 to-[#F5F8FF]",
     image: {
@@ -289,6 +310,8 @@ export const materials: Material[] = [
     name: "Tay cầm",
     description:
       "Có thể chọn cán nhựa, cán gỗ hoặc kiểu dáng phù hợp với mục đích sử dụng.",
+    surface: "Cán nhựa, cán gỗ hoặc kiểu dáng khác.",
+    bestFor: "Chọn theo mục đích sử dụng của quạt.",
     tag: "Custom",
     gradient: "from-emerald-50 to-[#F5F8FF]",
     image: {
@@ -299,6 +322,18 @@ export const materials: Material[] = [
   },
 ];
 
+// ─── Prepress check (R10.5) ───────────────────────────────────────────────────
+// What is checked before printing: the same four checks the site already states (Material,
+// R10.4), as a list, plus the mockup approval step that Process and the FAQ describe.
+
+export const prepress = {
+  /** Two sentences, one line each from md (never "màn / hình" split across lines). */
+  title: ["Thiết kế đẹp trên màn hình.", "Chuẩn khi in thật."],
+  lead: "Trước khi in, file được kiểm tra:",
+  checks: ["Kích thước và độ phân giải", "Vùng an toàn và bleed", "Màu sắc khi in"],
+  approval: "Bạn duyệt mockup trước khi đơn hàng được đưa vào sản xuất.",
+};
+
 // ─── Process steps ────────────────────────────────────────────────────────────
 // CMS path: admin/process
 
@@ -307,31 +342,31 @@ export const processSteps = [
     step: "01",
     title: "Chọn kiểu quạt",
     description:
-      "Bắt đầu với kiểu quạt phù hợp: quạt tròn, quạt gấp, quạt cán nhựa, quạt wedding hoặc quạt sự kiện.",
+      "Xem các dòng quạt và chọn kiểu gần với nhu cầu của bạn. Nếu chưa chắc, Nan sẽ gợi ý ở bước tư vấn.",
   },
   {
     step: "02",
     title: "Gửi yêu cầu báo giá",
     description:
-      "Điền thông tin về số lượng, chất liệu và thời gian cần thiết. Chúng tôi phản hồi trong 24 giờ làm việc.",
+      "Cho Nan biết số lượng, ngày cần hàng và mục đích sử dụng. Báo giá dựa trên kiểu quạt, chất liệu, số lượng và yêu cầu hoàn thiện.",
   },
   {
     step: "03",
     title: "Tư vấn thiết kế",
     description:
-      "Đội ngũ tư vấn giúp bạn lựa chọn chất liệu, kiểu in và hoàn thiện phù hợp với ngữ cảnh sử dụng.",
+      "Nan tư vấn chất liệu, kiểu in và hoàn thiện, nhận logo hoặc artwork của bạn, rồi gửi mockup để bạn duyệt.",
   },
   {
     step: "04",
     title: "Sản xuất",
     description:
-      "Sau khi xác nhận file thiết kế, đơn hàng được sản xuất theo tiêu chuẩn in ấn chuyên nghiệp.",
+      "Khi bạn đã duyệt mockup và xác nhận báo giá, file được kiểm tra trước khi in rồi đưa vào sản xuất.",
   },
   {
     step: "05",
     title: "Giao hàng",
     description:
-      "Kiểm tra chất lượng toàn bộ trước khi đóng gói và giao đến địa chỉ của bạn đúng tiến độ.",
+      "Quạt được kiểm tra trước khi đóng gói. Thời gian và cách giao hàng được thống nhất khi xác nhận đơn.",
   },
 ];
 
@@ -363,7 +398,7 @@ export const finalCta = {
   badge: "Premium custom fan design",
   title: "Biến mỗi chiếc quạt thành một điểm chạm thương hiệu.",
   description:
-    "Bắt đầu từ một ý tưởng, một logo hoặc một câu chuyện thương hiệu.",
+    "Bạn gửi ý tưởng hoặc logo. Nan tư vấn kiểu quạt, chất liệu và hoàn thiện, rồi báo giá theo số lượng.",
   primaryButton:   "Gửi yêu cầu báo giá",
   secondaryButton: "Khám phá sản phẩm",
   /**
@@ -375,12 +410,9 @@ export const finalCta = {
     alt: "Final CTA premium fan design background",
     fallback: "",
   } as ImageSlot,
-  stats: [
-    { num: "5+",   label: "Kiểu quạt" },
-    { num: "48h",  label: "Xem mockup" },
-    { num: "100%", label: "Cá nhân hóa" },
-    { num: "∞",    label: "Số lượng linh hoạt" },
-  ],
+  // R10.4: the old stats row ("5+", "48h xem mockup", "100%", "∞") was never confirmed business
+  // data, so it is gone. Add figures here only when they are real and documented.
+  stats: [] as { num: string; label: string }[],
 };
 
 // ─── FAQ ──────────────────────────────────────────────────────────────────────
@@ -388,24 +420,24 @@ export const finalCta = {
 
 export const faqItems = [
   {
-    q: "Tôi có thể upload logo riêng không?",
-    a: "Có. Bạn gửi logo, artwork hoặc hình ảnh (PNG, JPG, JPEG, WEBP) cùng yêu cầu báo giá; đội ngũ Nan dựng mockup để bạn duyệt.",
+    q: "Tôi có thể dùng logo riêng không?",
+    a: "Có. Sau khi bạn gửi yêu cầu báo giá, Nan liên hệ để nhận logo hoặc artwork và dựng mockup để bạn duyệt.",
   },
   {
-    q: "Có thể xem mockup trước khi in không?",
-    a: "Có. Trước khi sản xuất, Nan gửi mockup quạt để bạn duyệt màu nền, bố cục và vị trí logo.",
+    q: "Có thể xem mockup trước khi sản xuất không?",
+    a: "Có. Trước khi sản xuất, Nan gửi mockup để bạn duyệt màu sắc, bố cục và vị trí logo.",
   },
   {
     q: "Có hỗ trợ thiết kế không?",
-    a: "Có. Nan cung cấp dịch vụ tư vấn và hỗ trợ thiết kế. Đơn hàng đầu tiên được tư vấn thiết kế miễn phí.",
+    a: "Có. Nan tư vấn và hỗ trợ thiết kế, từ chọn kiểu quạt, chất liệu đến bố cục in. Đơn hàng đầu tiên được tư vấn thiết kế miễn phí.",
   },
   {
-    q: "Thời gian sản xuất bao lâu?",
-    a: "Thông thường 5-10 ngày làm việc sau khi xác nhận file. Đối với đơn số lượng lớn hoặc yêu cầu đặc biệt, thời gian có thể thay đổi, chúng tôi sẽ xác nhận cụ thể khi báo giá.",
+    q: "Thời gian sản xuất phụ thuộc vào yếu tố nào?",
+    a: "Vào kiểu quạt, chất liệu, số lượng và yêu cầu hoàn thiện. Nan xác nhận thời gian cụ thể khi báo giá, trước khi bạn đặt hàng.",
   },
   {
     q: "Có nhận số lượng ít không?",
-    a: "Có. Nan nhận đơn từ số lượng nhỏ cho đến sản xuất đại trà. Báo giá được tính theo số lượng và chất liệu, minh bạch và rõ ràng.",
+    a: "Có. Nan nhận cả đơn nhỏ lẫn đơn số lượng lớn. Báo giá được tính theo số lượng, chất liệu và yêu cầu hoàn thiện.",
   },
 ];
 
@@ -414,8 +446,8 @@ export const faqItems = [
 
 export const brandStatement = {
   headlineA: "Nan không chỉ sản xuất quạt.",
-  headlineB: "Nan biến một vật dụng cầm tay thành điểm chạm thương hiệu cao cấp.",
-  body: "Được tạo ra từ nghề thủ công Việt Nam, Nan kết hợp tay nghề tinh xảo với quy trình thiết kế hiện đại. Mỗi chiếc quạt là một câu chuyện đáng được kể.",
+  headlineB: "Mỗi chiếc quạt được thiết kế theo thương hiệu, sự kiện và không gian sẽ dùng nó.",
+  body: "Nan thiết kế và sản xuất quạt cầm tay thủ công: từ chọn kiểu quạt, chất liệu, in ấn đến hoàn thiện. Bạn đưa ý tưởng, Nan lo phần còn lại.",
 };
 
 // ─── Problem Section ──────────────────────────────────────────────────────────
@@ -440,25 +472,25 @@ export const solutionSection = {
     {
       title: "Thiết kế theo ngữ cảnh",
       description:
-        "Mỗi mẫu được thiết kế riêng cho từng thương hiệu, sự kiện hoặc kênh phân phối. Không có mẫu chung.",
+        "Mỗi mẫu được thiết kế theo thương hiệu, sự kiện hoặc kênh phân phối của bạn, không in sẵn hàng loạt.",
       icon: "Palette",
     },
     {
       title: "Chất liệu theo mục đích",
       description:
-        "Giấy couche, mỹ thuật, cán mờ, ép kim. Được lựa chọn dựa trên nhu cầu thực tế, không phải chi phí thấp nhất.",
+        "Giấy couche, giấy mỹ thuật, cán mờ, ép kim: chọn theo cách quạt sẽ được dùng, không chỉ theo giá.",
       icon: "Layers",
     },
     {
       title: "Sản xuất linh hoạt",
       description:
-        "Từ số lượng nhỏ cho sự kiện đến đại trà cho chiến dịch thương hiệu. Quy mô phù hợp với ngân sách của bạn.",
+        "Từ số lượng nhỏ cho một sự kiện đến số lượng lớn cho chiến dịch thương hiệu.",
       icon: "Package",
     },
     {
       title: "Báo giá trước sản xuất",
       description:
-        "Gửi yêu cầu, nhận báo giá chi tiết, xác nhận trước khi bắt đầu. Không phát sinh chi phí bất ngờ.",
+        "Bạn nhận báo giá chi tiết và xác nhận trước khi sản xuất bắt đầu.",
       icon: "FileText",
     },
   ],
@@ -488,7 +520,7 @@ export const useCases: UseCase[] = [
     id: "resort",
     title: "Resort & Khách sạn",
     description:
-      "Vật phẩm trải nghiệm cao cấp cho resort, beach club và không gian nghỉ dưỡng phong cách.",
+      "Vật phẩm cho khách lưu trú, hồ bơi, beach club và không gian nghỉ dưỡng.",
     icon: "Sun",
     examples: ["Beach club", "Spa resort", "Boutique hotel"],
   },
@@ -496,7 +528,7 @@ export const useCases: UseCase[] = [
     id: "restaurant",
     title: "Nhà hàng & Quán cà phê",
     description:
-      "Branded touchpoint tinh tế cho không gian ẩm thực mùa hè, outdoor seating và rooftop bar.",
+      "Quạt mang nhận diện của quán cho khu ngồi ngoài trời, rooftop bar và những ngày hè.",
     icon: "Coffee",
     examples: ["Rooftop bar", "Garden café", "Fine dining"],
   },

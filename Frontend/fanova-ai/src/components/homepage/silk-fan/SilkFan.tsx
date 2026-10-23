@@ -77,6 +77,22 @@ export interface SilkFanProps {
    * integration this standalone component has no equivalent for. Read through a ref, same reason
    * as tiltTarget. */
   onOpened?: () => void;
+  /** R10.2: the radial ray field around the fan. Default true (the Hero, reduced to 19 fainter
+   * rays); false draws the fan alone (FinalCTA). Read once per build, like `text`. */
+  rays?: boolean;
+  /** R18: an external fold control, 0 = fully open … 1 = folded into one upright slat (the same
+   * path as the opening animation, run backwards). When provided, the fan does not idle (no sway,
+   * bob or breath): after its opening it holds still and redraws only when the value changes.
+   * Omitted: unchanged behaviour. */
+  foldRef?: { current: number };
+  /** R20: with foldRef, the held fan is not frozen: its sheen drifts slowly across the folds and
+   * it sways by a fraction of a degree, so the material reads in light. Paused off-screen and
+   * under reduced motion. Default false (R18/R19 behaviour). Read once per build. */
+  ambient?: boolean;
+  /** R20: the opening animation's delay and length, read once per build (so a caller can make
+   * the re-opening after a reprint quicker than the first one). Defaults: 450 ms, 2600 ms. */
+  openDelayMs?: number;
+  openMs?: number;
 }
 
 // ─── Small typed handles over the raw SVG nodes ────────────────────────────
@@ -131,6 +147,28 @@ interface SilkFanBuild {
   guards: RibNode[];
   inner: SVGPathElement;
   rim: SVGPathElement;
+  rimEdge: SVGPathElement;
+}
+
+/** The printed word fits its arc. NAN keeps the original 130 / 30. Any other word is sized from an
+ * estimate of its glyph widths (per grapheme, so Vietnamese stacked diacritics count once): wide
+ * capitals (M, W) count more, spaces and punctuation less, so a long or wide word is scaled down
+ * until it fits inside the ±50° text band (≈ 460 units of the 508-unit arc). */
+function fitText(value: string): { value: string; size: number; spacing: number } {
+  if (value === "NAN") return { value, size: 130, spacing: 30 };
+  const seg = typeof Intl !== "undefined" && "Segmenter" in Intl ? new Intl.Segmenter("vi", { granularity: "grapheme" }) : null;
+  const graphemes = seg ? Array.from(seg.segment(value), (g) => g.segment) : Array.from(value);
+  const units = graphemes.reduce((sum, g) => {
+    const base = g.normalize("NFD")[0] ?? g;
+    if (base === " ") return sum + 0.32;
+    if (/[MWŴ]/.test(base)) return sum + 0.98;
+    if (/[.,·'’\-]/.test(base)) return sum + 0.34;
+    if (/[\p{Script=Han}\p{Script=Hangul}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(base)) return sum + 1.05;
+    return sum + 0.74;
+  }, 0);
+  const n = graphemes.length;
+  const size = Math.max(32, Math.min(130, Math.floor(460 / (units + 0.12 * n))));
+  return { value, size, spacing: Math.round(size * 0.12) };
 }
 
 export default function SilkFan({
@@ -140,7 +178,17 @@ export default function SilkFan({
   tiltRef,
   onOpened,
   palette = "nan",
+  rays: showRays = true,
+  foldRef,
+  ambient = false,
+  openDelayMs = 450,
+  openMs = 2600,
 }: SilkFanProps) {
+  // Declared before the build effect, so a rebuild (new text) reads the timing of the same render.
+  const openTiming = useRef({ delay: openDelayMs, dur: openMs });
+  useEffect(() => {
+    openTiming.current = { delay: openDelayMs, dur: openMs };
+  }, [openDelayMs, openMs]);
   const svgRef = useRef<SVGSVGElement>(null);
   const activePalette = palette === "original" ? ORIGINAL_PALETTE : NAN_PALETTE;
 
@@ -256,16 +304,22 @@ export default function SilkFan({
       const S = (2 * o.half) / o.n;
       const root = el("g", { transform: `translate(${o.cx} ${o.cy})` }, svgEl);
       const rays = el("g", { class: "rays", stroke: activePalette.goldLineStroke, "stroke-width": "1" }, root);
-      for (let k = 0; k <= 36; k++) {
-        const a = ((-90 + k * 5) * Math.PI) / 180;
-        const q0 = o.r2 + 30, q1 = o.r2 + (k % 2 ? 78 : 128);
-        el("line", {
-          x1: (q0 * Math.sin(a)).toFixed(1), y1: (-q0 * Math.cos(a)).toFixed(1),
-          x2: (q1 * Math.sin(a)).toFixed(1), y2: (-q1 * Math.cos(a)).toFixed(1),
-          opacity: k % 2 ? ".35" : ".6",
-        }, rays);
+      // R10.2: 37 rays at .35/.6 read as a sunburst; cut to 19 short ones. R10.3: 25 rays every
+      // 7.5° with the original long/short rhythm (like the ribs of a second, larger fan behind the
+      // first), fading towards the guards, at about half the original strength.
+      if (showRays) {
+        for (let k = 0; k <= 24; k++) {
+          const a = ((-90 + k * 7.5) * Math.PI) / 180;
+          const q0 = o.r2 + 30, q1 = o.r2 + (k % 2 ? 62 : 104);
+          const edge = Math.abs(k - 12) / 12; // 0 at the top, 1 at the guards
+          el("line", {
+            x1: (q0 * Math.sin(a)).toFixed(1), y1: (-q0 * Math.cos(a)).toFixed(1),
+            x2: (q1 * Math.sin(a)).toFixed(1), y2: (-q1 * Math.cos(a)).toFixed(1),
+            opacity: ((k % 2 ? 0.2 : 0.34) * (1 - 0.6 * edge)).toFixed(2),
+          }, rays);
+        }
+        el("path", { d: arc(o.r2 + 22, -o.half - 6, o.half + 6), fill: "none", stroke: activePalette.goldLineStroke, "stroke-width": "1", opacity: ".3" }, rays);
       }
-      el("path", { d: arc(o.r2 + 22, -o.half - 6, o.half + 6), fill: "none", stroke: activePalette.goldLineStroke, "stroke-width": "1", opacity: ".5" }, rays);
       const fanG = el("g", {}, root);
 
       // silk: opaque sapphire, a touch deeper at the inner edge
@@ -297,9 +351,15 @@ export default function SilkFan({
       const R = (o.r1 + o.r2) / 2 + 4;
       el("path", { id: uid("nanSilkArc"), d: arc(R, -50, 50), fill: "none" }, defs);
       const flat = el("g", { id: uid("nanSilkText") }, defs);
-      (["url(#" + uid("nanSilkFoil") + ")", "url(#" + uid("nanSilkShine") + ")"]).forEach((fill) => {
+      // R20: the foil is pressed into the silk: a soft dark impression under the letters (offset
+      // away from the light), then the foil, then the travelling shine.
+      ([
+        [activePalette.foldShadeColor, "translate(1.6 2.4)", ".5"],
+        ["url(#" + uid("nanSilkFoil") + ")", "", "1"],
+        ["url(#" + uid("nanSilkShine") + ")", "", "1"],
+      ] as const).forEach(([fill, transform, opacity]) => {
         const tx = el("text", {
-          fill, "font-family": activePalette.fontStack, "font-weight": "400",
+          fill, opacity, ...(transform ? { transform } : {}), "font-family": activePalette.fontStack, "font-weight": "400",
           "font-size": o.text.size, "letter-spacing": o.text.spacing,
           "text-anchor": "middle", "dominant-baseline": "middle",
         }, flat);
@@ -320,7 +380,7 @@ export default function SilkFan({
       ([[0, 0.28], [(o.tail + 45) / tot, 0], [(o.tail + o.r1 - 40) / tot, 0], [1, 0.42]] as const)
         .forEach(([offset, opacity]) => el("stop", { offset: offset.toFixed(3), "stop-color": activePalette.ribAoColor, "stop-opacity": opacity }, ao));
 
-      const F: SilkFanBuild = { o, S, rays, fanG, sheen, ribs: [], halves: [], ridges: [], creases: [], guards: [], inner: undefined as unknown as SVGPathElement, rim: undefined as unknown as SVGPathElement };
+      const F: SilkFanBuild = { o, S, rays, fanG, sheen, ribs: [], halves: [], ridges: [], creases: [], guards: [], inner: undefined as unknown as SVGPathElement, rim: undefined as unknown as SVGPathElement, rimEdge: undefined as unknown as SVGPathElement };
       F.guards[1] = bambooRib(fanG, o, o.r2, o.slat * 0.3, o.slat * 0.78, uid("nanBambooG"), null, true); // back guard, behind the fabric
       // inner slats: flat and wide, overlapping near the rivet; they end just under the fabric
       for (let j = o.n - 1; j >= 1; j--) F.ribs[j] = bambooRib(fanG, o, o.r1 + 14, o.slat * 0.24, o.slat * 0.62, uid("nanBamboo"));
@@ -350,7 +410,13 @@ export default function SilkFan({
       for (let j = 1; j < o.n; j++) F.ridges[j] = el("path", { stroke: activePalette.ridgeStroke, "stroke-width": "3.4" }, edges);
       for (let p = 0; p < o.n; p++) F.creases[p] = el("path", { stroke: activePalette.creaseStroke, "stroke-width": "2.4" }, edges);
       F.inner = el("path", { stroke: activePalette.goldLineStroke, "stroke-width": o.deco * 0.9, opacity: ".75" }, edges);
-      F.rim = el("path", { stroke: activePalette.goldLineStroke, "stroke-width": o.deco * 1.6, "stroke-linejoin": "round" }, edges);
+      // R20: the gilt edge is metal, not a flat line: a dark bed that defines the silhouette
+      // against any ground, and the trim itself in the foil gradient (lit from the upper left).
+      const rimFoil = el("linearGradient", { id: uid("nanRimFoil"), gradientUnits: "userSpaceOnUse", x1: -o.r2, y1: -o.r2, x2: o.r2, y2: 0 }, defs);
+      (["0", ".28", ".5", ".72", "1"] as const).forEach((offset, i) =>
+        el("stop", { offset, "stop-color": activePalette.goldFoilStops[i] }, rimFoil));
+      F.rimEdge = el("path", { stroke: activePalette.foldShadeColor, "stroke-width": o.deco * 4.2, "stroke-linejoin": "round", opacity: ".45" }, edges);
+      F.rim = el("path", { stroke: `url(#${uid("nanRimFoil")})`, "stroke-width": o.deco * 2.2, "stroke-linejoin": "round" }, edges);
       F.guards[0] = bambooRib(fanG, o, o.r2, o.slat * 0.3, o.slat * 0.78, uid("nanBambooG"), [48, 95, 190, 260, 330, 400], true, true); // front guard, over the fabric
       el("circle", { r: 10, fill: activePalette.pivotFill, stroke: activePalette.pivotFillStroke, "stroke-width": ".8" }, fanG);
       el("circle", { r: 6.5, fill: "none", stroke: activePalette.pivotRingStroke, "stroke-width": ".8", opacity: ".8" }, fanG);
@@ -414,6 +480,7 @@ export default function SilkFan({
         if (p > 0 && F.ribs[p]) F.ridges[p]!.setAttribute("d", `M${F2(PP(r1, a0))}L${F2(PP(r2, a0))}`);
       }
       F.rim.setAttribute("d", rimD);
+      F.rimEdge.setAttribute("d", rimD);
       F.inner.setAttribute("d", inD);
       F.sheen.setAttribute("x1", (g.sheenX - 280).toFixed(1));
       F.sheen.setAttribute("x2", (g.sheenX + 280).toFixed(1));
@@ -424,7 +491,7 @@ export default function SilkFan({
 
     const SF = buildSilk({
       cx: 500, cy: 575, r1: 145, r2: 430, half: 78, n: 14, slat: 22, tail: 58, deco: 1,
-      text: { value: text || "NAN", size: 130, spacing: 30 },
+      text: fitText(text || "NAN"),
     });
 
     // .rays fade-in, ported from reference/nan-landing.css: `.rays,.fan-text{opacity:0;
@@ -471,7 +538,58 @@ export default function SilkFan({
       }
     }
 
+    // R18: controlled fold. Renders the opening path at t = 1 − fold; redraws only on change.
+    // R20: the loop sleeps while the fan is off-screen; with `ambient` (and motion allowed) the
+    // held fan's sheen drifts and it sways by ≤ 0.45°, eased in over 2 s after the opening.
+    function heldSilk(): void {
+      let last = -1;
+      let run = true;
+      let t0: number | null = null;
+      const drift = ambient && !reduce;
+      const TAU = Math.PI * 2;
+      if ("IntersectionObserver" in window) {
+        observer = new IntersectionObserver((entries) => {
+          const visible = entries[0].isIntersecting;
+          if (visible && !run) {
+            run = true;
+            last = -1;
+            idleRafId = requestAnimationFrame(loop);
+          }
+          run = visible;
+        });
+        observer.observe(svgEl);
+      }
+      function loop(ts: number): void {
+        if (!run) return;
+        const f = Math.max(0, Math.min(1, foldRef!.current));
+        if (drift) {
+          if (t0 === null) t0 = ts;
+          const s = (ts - t0) / 1000;
+          const amp = Math.min(1, s / 2) * (1 - f);
+          const t = 1 - f;
+          const g = openGroup(t);
+          renderSilk(SF, openAngles(t, RIBS), {
+            ...g,
+            rot: g.rot + amp * 0.45 * Math.sin((TAU * s) / 7.5),
+            dy: g.dy + amp * 1.6 * Math.sin((TAU * s) / 7.5 + 0.9),
+            sheenX: -140 + amp * (150 * Math.sin((TAU * s) / 11) + 30 * Math.sin((TAU * s) / 4.1 + 0.6)),
+          });
+        } else if (Math.abs(f - last) > 0.0005) {
+          last = f;
+          const t = 1 - f;
+          const g = openGroup(t);
+          renderSilk(SF, openAngles(t, RIBS), { ...g, sheenX: -140 });
+        }
+        idleRafId = requestAnimationFrame(loop);
+      }
+      idleRafId = requestAnimationFrame(loop);
+    }
+
     function idleSilk(): void {
+      if (foldRef) {
+        heldSilk();
+        return;
+      }
       let t0: number | null = null;
       let tilt = 0;
       let run = true;
@@ -522,9 +640,10 @@ export default function SilkFan({
     if (reduce) {
       renderSilk(SF, RIBS.map((r) => r.open), { rot: 0, dy: 0, sc: 1, sheenX: -140 });
       done();
+      if (foldRef) heldSilk();
     } else {
       renderSilk(SF, openAngles(0, RIBS), openGroup(0));
-      const DUR = 2600;
+      const DUR = openTiming.current.dur;
       let start: number | null = null;
       function frame(ts: number): void {
         if (start === null) start = ts;
@@ -539,7 +658,7 @@ export default function SilkFan({
       }
       openTimeoutId = window.setTimeout(() => {
         rafId = requestAnimationFrame(frame);
-      }, 450);
+      }, openTiming.current.delay);
     }
 
     return () => {
@@ -555,7 +674,7 @@ export default function SilkFan({
     // loop instead, per the task's own requirement that changing their value must not restart this
     // effect/rebuild the SVG.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idPrefix, text, palette]);
+  }, [idPrefix, text, palette, showRays, foldRef, ambient]);
 
   return (
     <svg

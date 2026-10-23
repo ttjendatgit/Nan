@@ -1,95 +1,98 @@
 "use client";
 
-// R6 SM04 "Chiếc quạt cuối cùng mở ra": the closing panel. ENTER: the panel fades in at 75% of the
-// viewport, its two buttons usable from that moment. BUILD: at the reading line the finished fan
-// (the same design the Process frames ended on) opens from its pivot through the fan mask, the
-// third and last "mở nếp" of the page. PEAK: the headline rises out of its line mask, then the
-// description and the one real figure ("48h xem mockup"). EXIT: nothing; the footer stays still.
-// Navy panel on indigo is the recorded exception (DECISIONS.md §1); R6 takes its radius to 8px
-// and drops the stats row (DECISIONS.md §10). CMS: text comes from finalCta; asset: finalFan (A1).
+// R10.2 "The fan returns". The closing section is the Hero's own deep field (--nan-dark) and the
+// Hero's own silk fan, come back large and cropped by the lower-right edge, as if it has followed
+// the reader down the page. No panel, no rays, no geometry: the strongest visual of the site and
+// one CTA. The R6/R10.1 navy panel (DECISIONS §1 exception) and its vector fan are gone. R10.3: a
+// soft light behind the fan, the subliminal fibre and the fan's own faint ray halo. R10.4: the
+// unverified "48h xem mockup" line is gone; the description says what happens next.
+//
+// ENTER: the field eases in from the FAQ's indigo (seam). BUILD: when the section reaches the
+// reading line the fan is mounted and plays its own opening (SilkFan's built-in choreography, the
+// same one as the Hero; static under reduced motion). PEAK: the headline rises out of its line
+// mask, then the description and the CTA. The CTA is usable from the first frame.
+//
+// The fan is decorative (aria-hidden) and client-only (it builds its SVG in an effect), so it is
+// loaded with next/dynamic, ssr: false, and only once the section is near.
 
-import { useRef, useState, type CSSProperties } from "react";
+import dynamic from "next/dynamic";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { motion, useInView, useReducedMotion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import QuoteRequestModal from "@/components/quote/QuoteRequestModal";
-import AssetSlot from "@/components/ui/AssetSlot";
 import Button from "@/components/ui/Button";
-import MetaLine from "@/components/ui/MetaLine";
-import Rule from "@/components/ui/Rule";
 import Section from "@/components/ui/Section";
 import { finalCta } from "@/data/homepageData";
-import { finalFan } from "@/data/homepageAssets";
-import { EASE_NAN, FAN_OPEN_DEG, INSTANT } from "@/lib/motionTokens";
+import { EASE_NAN, INSTANT } from "@/lib/motionTokens";
 
-/** The one stat kept, as a line of text: the mockup turnaround. */
-const MOCKUP_STAT = finalCta.stats.find((s) => s.label.toLowerCase().includes("mockup"));
+const SilkFan = dynamic(() => import("./silk-fan/SilkFan"), { ssr: false, loading: () => null });
+
 /** PEAK starts this long after the fan begins to open. */
-const PEAK = 0.6;
+const PEAK = 0.5;
+
+const LG_QUERY = "(min-width: 1024px)";
+function subscribeToLg(onChange: () => void): () => void {
+  const mql = window.matchMedia(LG_QUERY);
+  mql.addEventListener("change", onChange);
+  return () => mql.removeEventListener("change", onChange);
+}
 
 export default function FinalCTASection() {
   const reduce = useReducedMotion();
   // General quote inquiry (no product): same modal + form as the product detail page.
   const [quoteOpen, setQuoteOpen] = useState(false);
 
-  const panelRef = useRef<HTMLDivElement>(null);
-  const built = useInView(panelRef, { once: true, margin: "0px 0px -40% 0px" }) || Boolean(reduce);
-  const peak = (delay: number) => (reduce ? INSTANT : { duration: 0.6, delay: PEAK + delay });
+  const sectionRef = useRef<HTMLDivElement>(null);
+  // Mount the fan a little before it is seen, so its opening plays in view.
+  const near = useInView(sectionRef, { once: true, margin: "0px 0px 10% 0px" });
+  const built = useInView(sectionRef, { once: true, margin: "0px 0px -35% 0px" }) || Boolean(reduce);
+  const peak = (delay: number) => (reduce ? INSTANT : { duration: 0.7, delay: PEAK + delay, ease: EASE_NAN });
+
+  // Only one fan is ever mounted (each SilkFan runs its own animation loop): the one for this
+  // breakpoint. null on the server and during hydration, so neither renders there.
+  const isLg = useSyncExternalStore(subscribeToLg, () => window.matchMedia(LG_QUERY).matches, () => null);
+
+  const fan = (
+    // R10.3: the fan's own ray halo returns (the R10.3 rays: 25, long/short, faint), drawn from its
+    // real pivot: the page's one radial language, closing the page as it opened it.
+    <SilkFan text="NAN" tiltTarget={0} className="h-full w-full" />
+  );
 
   return (
     <>
-      <Section tone="indigo" id="quote" className="py-24 md:py-24" innerClassName="z-10">
-        {/* Chapter break: follows FAQ on the same indigo surface (same place as the old divider) */}
-        <Rule tone="indigo" className="mb-20" />
+      <Section
+        tone="indigo"
+        id="quote"
+        seam="var(--color-indigo)"
+        material="quiet"
+        atmosphere={{ x: "76%", y: "78%" }}
+        className="overflow-hidden bg-[var(--nan-dark)] pb-0 pt-0 md:pb-0 md:pt-0"
+        innerClassName="z-10"
+      >
+        <div ref={sectionRef} className="relative lg:flex lg:min-h-[min(40rem,90svh)] lg:items-center">
+          {/* The fan, below 1024px: cropped across the top, above the copy */}
+          <div aria-hidden="true" className="pointer-events-none relative -mx-6 mt-12 h-[min(46vw,260px)] overflow-hidden lg:hidden">
+            <div className="absolute left-1/2 top-0 aspect-[1132/648] w-[112vw] max-w-[640px] -translate-x-1/2">
+              {near && isLg === false && fan}
+            </div>
+          </div>
 
-        {/* ENTER: the panel fades in as a unit (opacity only, no lift or scale) */}
-        <motion.div
-          ref={panelRef}
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          animate={reduce ? { opacity: 1 } : undefined}
-          viewport={{ once: true, amount: 0.2 }}
-          transition={reduce ? INSTANT : { duration: 0.5 }}
-          className="relative overflow-hidden rounded-lg border border-line-on-indigo bg-navy px-6 pb-16 pt-10 text-center md:px-16 md:pt-12"
-        >
-          {/*
-            CMS: when finalCta.backgroundImage.src is set, render the admin-uploaded
-            background image as an overlay:
-            <img
-              src={finalCta.backgroundImage.src}
-              alt={finalCta.backgroundImage.alt}
-              className="absolute inset-0 h-full w-full object-cover opacity-20 mix-blend-luminosity"
-            />
-          */}
+          {/* The fan, 1024px and up: much larger than the copy, rising from the lower-right edge */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-[10vw] bottom-[-12%] hidden aspect-[1132/648] w-[min(62vw,900px)] lg:block xl:-right-[6vw]"
+          >
+            {near && isLg === true && fan}
+          </div>
 
-          <div className="relative z-10 mx-auto max-w-3xl">
-            {/* BUILD: the finished fan opens from its pivot (bottom centre of the cut-out) */}
-            <motion.div
-              className="fan-mask mx-auto w-full max-w-xl"
-              style={{ "--fan-pivot": "50% 96%" } as CSSProperties}
-              initial={{ "--fan-open": "0deg" }}
-              animate={{ "--fan-open": built ? `${FAN_OPEN_DEG}deg` : "0deg" }}
-              transition={reduce ? INSTANT : { duration: 1.1, ease: EASE_NAN }}
-            >
-              <AssetSlot asset={finalFan} sizes="(min-width: 768px) 576px, 90vw" />
-            </motion.div>
-
-            {/* PEAK */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: built ? 1 : 0 }}
-              transition={peak(0.3)}
-              className="mb-5 mt-10"
-            >
-              <MetaLine tone="indigo" items={[finalCta.badge]} className="text-lg" />
-            </motion.div>
-
-            <h2 className="font-serif text-4xl font-semibold leading-[1.12] tracking-tight md:text-5xl lg:text-6xl">
+          <div className="relative pb-20 pt-8 lg:max-w-[30rem] lg:py-28">
+            <h2 className="font-serif text-[2.5rem] font-medium leading-[1.1] tracking-tight md:text-[3rem] lg:text-[3.5rem]">
               <span className="block overflow-hidden pb-[0.08em] pt-[0.14em]">
                 <motion.span
                   className="block"
                   initial={{ y: "115%" }}
                   animate={{ y: built ? "0%" : "115%" }}
-                  transition={reduce ? INSTANT : { duration: 0.7, delay: PEAK, ease: EASE_NAN }}
+                  transition={reduce ? INSTANT : { duration: 0.8, delay: PEAK, ease: EASE_NAN }}
                 >
                   {finalCta.title}
                 </motion.span>
@@ -100,35 +103,20 @@ export default function FinalCTASection() {
               initial={{ opacity: 0 }}
               animate={{ opacity: built ? 1 : 0 }}
               transition={peak(0.3)}
-              className="mx-auto mt-6 max-w-xl text-base leading-8 text-on-indigo-muted"
+              className="mt-6 max-w-md text-base leading-8 text-on-indigo-muted"
             >
               {finalCta.description}
             </motion.p>
 
-            {MOCKUP_STAT && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: built ? 1 : 0 }}
-                transition={peak(0.4)}
-                className="mt-3 font-serif text-lg italic text-bamboo"
-              >
-                {MOCKUP_STAT.num} {MOCKUP_STAT.label.toLowerCase()}
-              </motion.p>
-            )}
-
-            {/* CTA: never waits for the fan; usable as soon as the panel is */}
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            {/* One CTA. Never waits for the fan; usable from the first frame. */}
+            <div className="mt-10">
               <Button type="button" tone="indigo" onClick={() => setQuoteOpen(true)}>
                 {finalCta.primaryButton}
                 <ArrowRight className="ml-2" size={15} />
               </Button>
-
-              <Button href="/products" tone="indigo" variant="secondary">
-                {finalCta.secondaryButton}
-              </Button>
             </div>
           </div>
-        </motion.div>
+        </div>
       </Section>
 
       {/* Outside the Section so the fixed modal is not trapped in its z-10 stacking context

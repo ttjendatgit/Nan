@@ -6,13 +6,12 @@ import { ArrowRight } from "lucide-react";
 import QuoteRequestModal from "@/components/quote/QuoteRequestModal";
 import Button from "@/components/ui/Button";
 import IndexMarker from "@/components/ui/IndexMarker";
-import Rule from "@/components/ui/Rule";
+import Reveal from "@/components/ui/Reveal";
 import Section from "@/components/ui/Section";
 import SectionTitle from "@/components/ui/SectionTitle";
 import { processSteps } from "@/data/homepageData";
-import { INSTANT } from "@/lib/motionTokens";
 import { useHydrated } from "@/lib/useHydrated";
-import { FRAMES, FrameLayer, ProcessFrameStack, STEP_FRAMES } from "./ProcessFrames";
+import { ProcessFrameStack, STEP_FRAMES } from "./ProcessFrames";
 
 type StepState = "neutral" | "upcoming" | "active" | "completed";
 
@@ -93,130 +92,82 @@ export default function ProcessSection() {
   const storyStep = reduce || !hydrated ? null : activeStep;
   return (
     <>
-      <Section tone="indigo" id="process">
-        {/* Chapter break: follows UseCase on the same indigo surface */}
-        <Rule tone="indigo" className="-mt-20 mb-20 md:-mt-28 md:mb-28" />
-
-        {/* Section header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          animate={reduce ? { opacity: 1, y: 0 } : undefined}
-          viewport={{ once: true }}
-          transition={reduce ? INSTANT : { duration: 0.72, ease: [0.16, 1, 0.3, 1] }}
-          className="mb-14"
-        >
+      <Section tone="indigo" id="process" material="quiet" atmosphere={{ x: "70%", y: "60%" }} className="pt-12 md:pt-16">
+        {/* R10.2: no chapter rule after UseCase; the two indigo sections run on as one surface. */}
+        <Reveal className="mb-12 md:mb-14">
           <SectionTitle
             tone="indigo"
-            titleClassName="leading-tight tracking-tight lg:max-w-xl"
-            descriptionClassName="max-w-lg text-[0.9375rem] leading-7 md:text-[0.9375rem]"
-            title={
-              <>
-                Từ ý tưởng đến{" "}
-                <span className="text-bamboo">chiếc quạt hoàn thiện.</span>
-              </>
-            }
+            title="Từ ý tưởng đến chiếc quạt hoàn thiện."
             description="Quy trình được thiết kế để bạn có thể yêu cầu báo giá, tư vấn thiết kế và nhận hàng mà không cần hiểu kỹ thuật in ấn."
           />
-          <div className="mt-7">
+          <div className="mt-8">
             <Button type="button" tone="indigo" onClick={() => setQuoteOpen(true)}>
               Gửi yêu cầu báo giá
               <ArrowRight className="ml-2" size={14} />
             </Button>
           </div>
-        </motion.div>
+        </Reveal>
 
-        {/* Process steps — numbered structural list, not stacked cards. The one homepage block
-            that keeps numbering (DECISIONS.md), via IndexMarker. A hairline rail on the left fills
-            with scroll; the step the reading line crosses is active (full title, long tick), the
-            ones before it completed and the ones after it waiting: muted title, never faded
-            (DECISIONS.md: no lowered text opacity). */}
-        <div className="lg:grid lg:grid-cols-12 lg:gap-12">
-        <div ref={listRef} className="relative border-t border-line-on-indigo lg:col-span-7">
-          {/* Rail (md+): a quiet track and its bamboo fill, scaled from the top by scroll */}
-          <div
+        {/* R10.2: left, the steps as a quiet vertical index; right, ONE large object, the fan being
+            built stage by stage (skeleton → leaf → artwork → print → fold → finished). Below
+            1024px the same object sits sticky above the list (on the indigo, so the steps pass
+            under it), instead of a small box beside every step. */}
+        <div className="lg:grid lg:grid-cols-12 lg:items-start lg:gap-12">
+          {/* The object. Decorative: every stage is also told in the step text. */}
+          <aside
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 left-0 hidden w-px bg-line-on-indigo md:block"
-          />
-          <motion.div
-            aria-hidden="true"
-            data-rail-fill
-            className="pointer-events-none absolute inset-y-0 left-0 hidden w-px origin-top bg-bamboo md:block"
-            style={{ scaleY: railFill }}
-          />
+            className="sticky top-[var(--nav-height,64px)] z-10 -mx-6 bg-indigo px-6 pb-3 pt-2 lg:order-2 lg:top-[calc(var(--nav-height,64px)+8vh)] lg:col-span-5 lg:col-start-8 lg:mx-0 lg:bg-transparent lg:p-0"
+          >
+            <div className="mx-auto w-full max-w-[min(100%,calc(24vh*4/3))] lg:max-w-[min(100%,calc(48vh*4/3))]">
+              <ProcessFrameStack activeFrame={activeFrame} reduce={Boolean(reduce)} />
+            </div>
+          </aside>
 
-          <ol>
-            {processSteps.map((item, index) => (
-              <motion.li
-                key={item.step}
-                ref={(el) => {
-                  stepRefs.current[index] = el;
-                }}
-                data-state={stepState(index, storyStep)}
-                initial={{ opacity: 0, y: 22 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                animate={reduce ? { opacity: 1, y: 0 } : undefined}
-                viewport={{ once: true }}
-                transition={reduce ? INSTANT : { duration: 0.72, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
-                className="group relative border-b border-line-on-indigo"
-              >
-                {/* Step tick on the rail (md+): short when waiting or done, long when active */}
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute left-0 top-1/2 hidden h-px w-5 origin-left scale-x-[0.45] bg-bamboo transition-[scale,background-color] duration-(--dur-state) ease-(--ease-nan-state) group-data-[state=active]:scale-x-100 group-data-[state=upcoming]:bg-line-on-indigo motion-reduce:transition-none md:block"
-                />
-                {/* Mobile marker (below md, no rail): a bamboo segment on the row's top rule,
-                    drawn once the reading line reaches the step */}
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -top-px left-0 h-px w-10 origin-left bg-bamboo transition-[scale] duration-(--dur-state) ease-(--ease-nan-state) group-data-[state=upcoming]:scale-x-0 motion-reduce:transition-none md:hidden"
-                />
+          <div ref={listRef} className="relative mt-6 border-t border-line-on-indigo lg:order-1 lg:col-span-6 lg:mt-0">
+            {/* Rail (md+): a quiet track and its bamboo fill, scaled from the top by scroll */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 left-0 hidden w-px bg-line-on-indigo md:block"
+            />
+            <motion.div
+              aria-hidden="true"
+              data-rail-fill
+              className="pointer-events-none absolute inset-y-0 left-0 hidden w-px origin-top bg-bamboo md:block"
+              style={{ scaleY: railFill }}
+            />
 
-                <div className="flex flex-col gap-5 py-7 pl-0 md:flex-row md:items-center md:py-8 md:pl-8 lg:py-14">
-                  {/* Step number */}
-                  <div className="shrink-0 md:w-16">
-                    <IndexMarker tone="indigo" number={item.step} />
-                  </div>
+            <ol>
+              {processSteps.map((item, index) => (
+                <li
+                  key={item.step}
+                  ref={(el) => {
+                    stepRefs.current[index] = el;
+                  }}
+                  data-state={stepState(index, storyStep)}
+                  className="group relative border-b border-line-on-indigo"
+                >
+                  {/* Step tick on the rail (md+): short when waiting or done, long when active */}
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-0 top-[2.6rem] hidden h-px w-5 origin-left scale-x-[0.45] bg-bamboo transition-[scale,background-color] duration-(--dur-state) ease-(--ease-nan-state) group-data-[state=active]:scale-x-100 group-data-[state=upcoming]:bg-line-on-indigo motion-reduce:transition-none md:block lg:top-[2.6rem]"
+                  />
+                  {/* Mobile marker (below md, no rail): a bamboo segment on the row's top rule */}
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -top-px left-0 h-px w-10 origin-left bg-bamboo transition-[scale] duration-(--dur-state) ease-(--ease-nan-state) group-data-[state=upcoming]:scale-x-0 motion-reduce:transition-none md:hidden"
+                  />
 
-                  {/* Divider */}
-                  <div className="hidden h-12 w-px bg-line-on-indigo md:block" />
-
-                  {/* Content */}
-                  <div className="flex-1">
-                    {/* Below 1024px each step carries its own production frame(s), opening with
-                        the same gesture as in the sticky frame when the step becomes active */}
-                    <div aria-hidden="true" className="mb-6 grid max-w-sm gap-3 lg:hidden">
-                      {STEP_FRAMES[index].map((f) => (
-                        <FrameLayer
-                          key={FRAMES[f].asset.id}
-                          asset={FRAMES[f].asset}
-                          kind={FRAMES[f].kind}
-                          shown={Boolean(reduce) || activeFrame >= f}
-                          reduce={Boolean(reduce)}
-                          className="relative w-full overflow-hidden"
-                          style={{ aspectRatio: FRAMES[f].asset.ratio }}
-                          sizes="(max-width: 1023px) 384px, 1px"
-                        />
-                      ))}
-                    </div>
-                    <h3 className="font-serif text-xl font-semibold transition-colors duration-(--dur-state) ease-(--ease-nan-state) group-data-[state=completed]:text-on-indigo-muted group-data-[state=upcoming]:text-on-indigo-muted motion-reduce:transition-none">
+                  <div className="py-6 md:pl-10 lg:py-8">
+                    <h3 className="flex items-baseline gap-4 font-serif text-xl font-medium leading-snug transition-colors duration-(--dur-state) ease-(--ease-nan-state) group-data-[state=completed]:text-on-indigo-muted group-data-[state=upcoming]:text-on-indigo-muted motion-reduce:transition-none md:text-[1.375rem]">
+                      <IndexMarker tone="indigo" size="sm" number={item.step} className="w-7 shrink-0" />
                       {item.title}
                     </h3>
-                    <p className="mt-2 max-w-2xl text-sm leading-7 text-on-indigo-muted">
-                      {item.description}
-                    </p>
+                    <p className="mt-2 max-w-lg pl-11 text-[0.9375rem] leading-7 text-on-indigo-muted">{item.description}</p>
                   </div>
-                </div>
-              </motion.li>
-            ))}
-          </ol>
-        </div>
-
-        {/* R6 SM02: the sticky production frame (1024px and up). Decorative: every stage is also
-            told in the step text. */}
-        <aside aria-hidden="true" className="hidden lg:col-span-5 lg:block">
-          <ProcessFrameStack activeFrame={activeFrame} reduce={Boolean(reduce)} />
-        </aside>
+                </li>
+              ))}
+            </ol>
+          </div>
         </div>
       </Section>
 

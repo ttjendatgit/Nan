@@ -1,7 +1,15 @@
 "use client";
 
-import { useState } from "react";
+// The quote request form, shared by the homepage (general inquiry) and the product detail page
+// (product quote). It posts to the real API (createQuoteRequest) and shows the success state only
+// after the server accepted the request; a failed request shows the server's message and keeps the
+// form filled in. R10.4: brand tokens (DECISIONS §1, §5) instead of the pre-redesign blue palette;
+// every label is tied to its control, errors are announced and tied to the field
+// (aria-describedby), placeholders meet contrast, and the form says what a quote is based on.
+
+import { useId, useState } from "react";
 import { X, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import Button from "@/components/ui/Button";
 import { createQuoteRequest } from "@/lib/api/quoteRequests";
 import type { CreateQuoteRequestInput } from "@/types/quote";
 
@@ -16,6 +24,8 @@ interface QuoteRequestFormProps {
   initialQuantity?: number;
   /** IDs of ProductOption values selected in the configurator, if any. Sent as-is; the backend recalculates price server-side. */
   selectedOptionIds?: string[];
+  /** Pre-fills "Ghi chú thêm", e.g. the word a visitor printed on the Hero fan. Editable. */
+  initialMessage?: string;
   onSuccess?: () => void;
   onCancel?: () => void;
   /** id for the visible title, so a wrapping dialog can point aria-labelledby at it. */
@@ -51,6 +61,12 @@ function validate(f: FormFields): FieldErrors {
   return errors;
 }
 
+/** Shared control styles: borders at on-indigo-muted/60 meet 3:1 (DECISIONS §5). */
+const CONTROL =
+  "w-full rounded-md border bg-indigo-deep px-4 py-3 text-[0.9375rem] text-on-indigo placeholder:text-on-indigo-muted placeholder:italic transition-colors focus:outline-none focus-visible:ring-1";
+const CONTROL_OK = "border-on-indigo-muted/60 focus-visible:border-bamboo focus-visible:ring-bamboo";
+const CONTROL_ERROR = "border-danger focus-visible:border-danger focus-visible:ring-danger";
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function QuoteRequestForm({
@@ -60,6 +76,7 @@ export default function QuoteRequestForm({
   minQuantity,
   initialQuantity,
   selectedOptionIds,
+  initialMessage,
   onSuccess,
   onCancel,
   titleId,
@@ -72,12 +89,14 @@ export default function QuoteRequestForm({
     quantity: String(initialQuantity ?? minQuantity ?? 1),
     neededDate: "",
     useCase: "",
-    message: "",
+    message: initialMessage ?? "",
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const uid = useId();
+  const idFor = (field: keyof FormFields) => `${uid}-${field}`;
 
   function update(field: keyof FormFields, value: string) {
     setFields((prev) => ({ ...prev, [field]: value }));
@@ -89,6 +108,9 @@ export default function QuoteRequestForm({
     const errs = validate(fields);
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
+      // Take the reader to the first field that needs attention.
+      const first = (Object.keys(errs) as (keyof FormFields)[])[0];
+      document.getElementById(idFor(first))?.focus();
       return;
     }
 
@@ -112,36 +134,31 @@ export default function QuoteRequestForm({
       setSubmitted(true);
     } catch (err) {
       setApiError(
-        err instanceof Error
+        err instanceof Error && err.message
           ? err.message
-          : "Không thể gửi yêu cầu. Vui lòng thử lại."
+          : "Không thể gửi yêu cầu. Vui lòng kiểm tra kết nối và thử lại.",
       );
     } finally {
       setSubmitting(false);
     }
   }
 
-  // ── Success state ──────────────────────────────────────────────────────────
+  // ── Success state (only after the API accepted the request) ────────────────
   if (submitted) {
     return (
-      <div className="flex flex-col items-center justify-center gap-5 px-6 py-14 text-center">
-        <div className="w-14 h-14 rounded-full bg-[#273481]/15 border border-[#273481]/35 flex items-center justify-center">
-          <CheckCircle className="h-7 w-7 text-[#B6D6F2]" />
-        </div>
+      <div role="status" className="flex flex-col items-center justify-center gap-5 px-6 py-14 text-center">
+        <CheckCircle aria-hidden="true" className="h-9 w-9 text-bamboo" strokeWidth={1.5} />
         <div>
-          <p id={titleId} className="text-base font-semibold text-white mb-2">
+          <p id={titleId} className="mb-2 font-serif text-2xl font-medium text-on-indigo">
             Yêu cầu đã được gửi
           </p>
-          <p className="text-sm text-[#B6D6F2]/55 leading-relaxed max-w-[28ch] mx-auto">
-            Yêu cầu báo giá đã được gửi. Nan sẽ liên hệ lại với bạn sớm.
+          <p className="mx-auto max-w-[32ch] text-[0.9375rem] leading-7 text-on-indigo-muted">
+            Nan đã nhận yêu cầu báo giá của bạn và sẽ liên hệ lại qua số điện thoại bạn để lại.
           </p>
         </div>
-        <button
-          onClick={onSuccess}
-          className="mt-1 rounded-full border border-[#273481]/50 px-6 py-2.5 text-sm font-medium text-[#B6D6F2] hover:border-[#273481] hover:text-white transition-all active:scale-[0.98]"
-        >
+        <Button type="button" tone="indigo" variant="secondary" onClick={onSuccess}>
           Đóng
-        </button>
+        </Button>
       </div>
     );
   }
@@ -150,151 +167,143 @@ export default function QuoteRequestForm({
   return (
     <div className="flex flex-col">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-[#1B1C4A]">
+      <div className="flex items-start justify-between gap-4 border-b border-line-on-indigo px-6 pb-4 pt-5">
         <div className="min-w-0">
-          <h2 id={titleId} className="text-[15px] font-semibold text-white leading-snug truncate">
-            {productName
-              ? `Nhận báo giá cho ${productName}`
-              : "Gửi yêu cầu báo giá"}
+          <h2 id={titleId} className="font-serif text-2xl font-medium leading-snug text-on-indigo">
+            {productName ? `Nhận báo giá cho ${productName}` : "Gửi yêu cầu báo giá"}
           </h2>
-          {categoryName && (
-            <p className="mt-1 text-xs text-[#B6D6F2]/40">{categoryName}</p>
-          )}
+          {categoryName && <p className="mt-1 text-sm text-on-indigo-muted">{categoryName}</p>}
+          <p className="mt-2 max-w-md text-sm leading-6 text-on-indigo-muted">
+            Báo giá dựa trên kiểu quạt, chất liệu, số lượng và yêu cầu hoàn thiện.
+          </p>
         </div>
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
             aria-label="Đóng"
-            className="flex-shrink-0 p-1.5 -mt-0.5 -mr-1 rounded-lg text-[#B6D6F2]/40 hover:text-white hover:bg-[#1B1C4A] transition-all"
+            className="-mr-2 -mt-1 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md text-on-indigo-muted transition-colors hover:text-on-indigo focus-visible:outline-2 focus-visible:outline-on-indigo"
           >
-            <X className="h-4 w-4" />
+            <X aria-hidden="true" className="h-5 w-5" />
           </button>
         )}
       </div>
 
       {/* Scrollable form body */}
       <form id="quote-form" onSubmit={handleSubmit} noValidate>
-        <div className="overflow-y-auto px-6 py-5 space-y-4"
-             style={{ maxHeight: "min(58dvh, 460px)" }}>
-
-          {/* Full name */}
-          <FormField label="Họ và tên" required error={errors.fullName}>
+        <div className="space-y-4 overflow-y-auto px-6 py-5" style={{ maxHeight: "min(58dvh, 480px)" }}>
+          <FormField id={idFor("fullName")} label="Họ và tên" required error={errors.fullName}>
             <FormInput
+              id={idFor("fullName")}
               type="text"
               value={fields.fullName}
               onChange={(v) => update("fullName", v)}
-              placeholder="Nguyễn Văn An"
               required
-              hasError={!!errors.fullName}
+              error={errors.fullName}
               autoComplete="name"
             />
           </FormField>
 
-          {/* Phone + Email */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField label="Số điện thoại" required error={errors.phone}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField id={idFor("phone")} label="Số điện thoại" required error={errors.phone}>
               <FormInput
+                id={idFor("phone")}
                 type="tel"
                 value={fields.phone}
                 onChange={(v) => update("phone", v)}
-                placeholder="0901 234 567"
                 required
-                hasError={!!errors.phone}
+                error={errors.phone}
                 autoComplete="tel"
               />
             </FormField>
-            <FormField label="Email" error={errors.email}>
+            <FormField id={idFor("email")} label="Email" error={errors.email}>
               <FormInput
+                id={idFor("email")}
                 type="email"
                 value={fields.email}
                 onChange={(v) => update("email", v)}
-                placeholder="an@company.vn"
-                hasError={!!errors.email}
+                error={errors.email}
                 autoComplete="email"
               />
             </FormField>
           </div>
 
-          {/* Company name */}
-          <FormField label="Công ty / thương hiệu">
+          <FormField id={idFor("companyName")} label="Công ty / thương hiệu">
             <FormInput
+              id={idFor("companyName")}
               type="text"
               value={fields.companyName}
               onChange={(v) => update("companyName", v)}
-              placeholder="Tên công ty hoặc thương hiệu"
               autoComplete="organization"
             />
           </FormField>
 
-          {/* Quantity + Needed date */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField
+              id={idFor("quantity")}
               label="Số lượng"
               required
               error={errors.quantity}
               hint={minQuantity ? `Tối thiểu ${minQuantity} cái` : undefined}
             >
               <FormInput
+                id={idFor("quantity")}
                 type="number"
+                inputMode="numeric"
                 value={fields.quantity}
                 onChange={(v) => update("quantity", v)}
-                placeholder="300"
                 min="1"
                 required
-                hasError={!!errors.quantity}
+                error={errors.quantity}
+                hint={minQuantity ? `Tối thiểu ${minQuantity} cái` : undefined}
               />
             </FormField>
-            <FormField label="Ngày cần hàng">
+            <FormField id={idFor("neededDate")} label="Ngày cần hàng">
               <FormInput
+                id={idFor("neededDate")}
                 type="date"
                 value={fields.neededDate}
                 onChange={(v) => update("neededDate", v)}
-                isDate
               />
             </FormField>
           </div>
 
-          {/* Use case */}
-          <FormField label="Mục đích sử dụng">
+          <FormField id={idFor("useCase")} label="Mục đích sử dụng">
             <FormInput
+              id={idFor("useCase")}
               type="text"
               value={fields.useCase}
               onChange={(v) => update("useCase", v)}
-              placeholder="Sự kiện thương hiệu, wedding, resort..."
+              placeholder="Ví dụ: sự kiện khai trương, quà tặng khách, resort"
             />
           </FormField>
 
-          {/* Message */}
-          <FormField label="Ghi chú thêm">
+          <FormField id={idFor("message")} label="Ghi chú thêm">
             <textarea
+              id={idFor("message")}
               value={fields.message}
               onChange={(e) => update("message", e.target.value)}
-              placeholder="Yêu cầu về chất liệu, màu sắc, thiết kế..."
+              placeholder="Kiểu quạt, chất liệu, màu sắc. Nếu có logo hoặc artwork, hãy ghi chú để Nan liên hệ nhận file."
               rows={3}
-              className="w-full rounded-xl bg-[#0A0F1E] border border-[#1B1C4A] px-4 py-3 text-sm text-white placeholder-[#B6D6F2]/22 focus:outline-none focus:border-[#273481] transition-colors resize-none leading-relaxed"
+              className={`${CONTROL} ${CONTROL_OK} resize-none leading-relaxed`}
             />
           </FormField>
 
-          {/* API-level error */}
+          {/* API-level error: announced, with the next step */}
           {apiError && (
-            <div className="flex items-start gap-2.5 rounded-xl bg-red-500/8 border border-red-500/18 px-4 py-3">
-              <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-red-400 leading-relaxed">{apiError}</p>
+            <div role="alert" className="flex items-start gap-2.5 rounded-md border border-danger/60 px-4 py-3">
+              <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 flex-shrink-0 text-danger" />
+              <p className="text-sm leading-relaxed text-danger">{apiError}</p>
             </div>
           )}
         </div>
 
-        {/* Footer — always visible */}
-        <div className="px-6 pb-6 pt-4 border-t border-[#1B1C4A]">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#273481] py-3.5 text-sm font-semibold text-white hover:bg-[#273481]/90 disabled:opacity-55 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
-          >
-            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+        {/* Footer, always visible */}
+        <div className="border-t border-line-on-indigo px-6 pb-6 pt-4">
+          <Button type="submit" tone="indigo" disabled={submitting} aria-busy={submitting} className="w-full gap-2 py-3.5">
+            {submitting && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" />}
             {submitting ? "Đang gửi..." : "Gửi yêu cầu báo giá"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -304,12 +313,14 @@ export default function QuoteRequestForm({
 // ─── Field wrapper ─────────────────────────────────────────────────────────────
 
 function FormField({
+  id,
   label,
   required,
   hint,
   error,
   children,
 }: {
+  id: string;
   label: string;
   required?: boolean;
   hint?: string;
@@ -318,18 +329,22 @@ function FormField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-[#B6D6F2]/60">
+      <label htmlFor={id} className="text-sm font-medium text-on-indigo-muted">
         {label}
         {required && (
-          <span className="ml-1 text-[#B6D6F2]/30" aria-hidden="true">*</span>
+          <span className="ml-1 text-bamboo" aria-hidden="true">
+            *
+          </span>
         )}
       </label>
       {children}
       {hint && !error && (
-        <p className="text-[10px] text-[#B6D6F2]/28">{hint}</p>
+        <p id={`${id}-hint`} className="text-xs text-on-indigo-muted">
+          {hint}
+        </p>
       )}
       {error && (
-        <p role="alert" className="text-[11px] text-red-400 leading-tight">
+        <p id={`${id}-error`} role="alert" className="text-sm leading-tight text-danger">
           {error}
         </p>
       )}
@@ -340,47 +355,46 @@ function FormField({
 // ─── Input primitive ───────────────────────────────────────────────────────────
 
 function FormInput({
+  id,
   type,
   value,
   onChange,
   placeholder,
   required,
-  hasError,
-  isDate,
+  error,
+  hint,
   min,
+  inputMode,
   autoComplete,
 }: {
+  id: string;
   type: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   required?: boolean;
-  hasError?: boolean;
-  isDate?: boolean;
+  error?: string;
+  hint?: string;
   min?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
   autoComplete?: string;
 }) {
+  const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
   return (
     <input
+      id={id}
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       min={min}
+      inputMode={inputMode}
       required={required}
       aria-required={required}
-      aria-invalid={hasError || undefined}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={describedBy}
       autoComplete={autoComplete}
-      className={[
-        "w-full rounded-xl bg-[#0A0F1E] border px-4 py-3 text-sm text-white",
-        "placeholder-[#B6D6F2]/22 focus:outline-none transition-colors",
-        isDate ? "[color-scheme:dark] text-[#B6D6F2]/55" : "",
-        hasError
-          ? "border-red-500/45 focus:border-red-400"
-          : "border-[#1B1C4A] focus:border-[#273481]",
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      className={`${CONTROL} ${error ? CONTROL_ERROR : CONTROL_OK} ${type === "date" ? "[color-scheme:dark]" : ""}`}
     />
   );
 }

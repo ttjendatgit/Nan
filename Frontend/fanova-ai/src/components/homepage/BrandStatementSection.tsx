@@ -1,16 +1,23 @@
 "use client";
 
-// R6 SM01 "Mở nếp", second half: one bamboo rib drops from the Hero fan's pivot and becomes the edge
-// the craftsperson photo (A5) opens from. The rib is scrubbed by scroll; the photo and the two
-// headline lines open once, when they reach the reading line. Nothing else in the section moves.
+// R6 SM01 "Mở nếp", second half: one bamboo rib drops from the Hero fan's pivot onto the photo. The
+// rib is scrubbed by scroll; the photo and the two headline lines open once, when they reach the
+// reading line. Nothing else in the section moves.
 //
-// The rib and the photo's opening edge sit on the Hero fan's pivot:
-//  · from 1024px the pivot is 74% across the Hero container (text 48% + half of the 52% stage) and
-//    that container is min(section, 1280px) wide less its 48px side padding, so the pivot is
-//    0.24 × (min(100cqw, 1280px) − 96px) right of centre (the section is the size container);
-//  · at 768–1023px it is 75% across the content box, which matches this section's;
-//  · below 768px the fan sits above the headline, centred.
-// Asset: brandPhoto (A5) in data/homepageAssets.ts.
+// R10.2: an editorial introduction with one strong visual moment. The R10/R10.1 geometry (three
+// NanField layers of ribs and arcs) is gone; the rib is the only thread left from the Hero. The
+// photo is the real catalogue paper fan (brandPhoto), half the grid wide and bleeding off the right
+// edge, and it opens downwards from the edge the rib lands on. R10.3: a quiet fan field from the
+// same pivot and a soft light on the photograph give the indigo depth.
+//
+// R10.6: the rib continues the Hero's hinge. The Hero's fan pivot stands on the word space between
+// the headline's two halves (published by HeroSection as --hero-hinge-x, a viewport x). The rib
+// drops on that same vertical from the Hero's rail (between the copy and the actions, where the
+// frame is empty), crosses the Hero's lower edge and ends in this section's top padding, above the
+// headline (lg+, where the Hero's headline is one line). x is converted to the inner container
+// with its 1.5rem + max(0, (100cqw − 80rem) / 2) offset (the section is the size container; cqw is
+// its content box, already inside the 1.5rem padding). Below
+// 1024px the Hero is a stacked cover with the actions under the headline, so there is no rib.
 
 import { useEffect, useRef } from "react";
 import { motion, useInView, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll } from "motion/react";
@@ -39,41 +46,48 @@ export default function BrandStatementSection() {
 
   // ── The photo and the headline open once, at the reading line ──
   const photoRef = useRef<HTMLDivElement>(null);
-  const photoOpen = useInView(photoRef, { once: true, margin: "0px 0px -40% 0px" }) || Boolean(reduce);
+  const photoOpen = useInView(photoRef, { once: true, margin: "0px 0px -30% 0px" }) || Boolean(reduce);
   const headRef = useRef<HTMLHeadingElement>(null);
-  const headOpen = useInView(headRef, { once: true, margin: "0px 0px -40% 0px" }) || Boolean(reduce);
+  const headOpen = useInView(headRef, { once: true, margin: "0px 0px -30% 0px" }) || Boolean(reduce);
 
   return (
-    <Section tone="indigo" id="about" className="py-24 [container-type:inline-size] md:py-36">
+    <Section
+      tone="indigo"
+      id="about"
+      className="overflow-x-clip py-20 [container-type:inline-size] md:py-28"
+      material="quiet"
+      seam="var(--nan-dark)"
+      atmosphere={{ x: "74%", y: "52%" }}
+    >
       {/* The rib. Owned by this section and drawn up over the Hero's lower part (z above the Hero
           content), so the Hero itself is untouched. */}
       <motion.div
         ref={ribRef}
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-[-80px] z-20 h-[80px] w-px origin-top bg-bamboo md:left-3/4 md:top-[calc(-144px-34vh)] md:h-[calc(144px+34vh)] lg:left-[calc(50%+0.24*(min(100cqw,1280px)-96px))] lg:h-[calc(144px+34vh+96px)]"
+        className="pointer-events-none absolute z-20 hidden w-px origin-top bg-bamboo/70 lg:block lg:left-[calc(var(--hero-hinge-x,47vw)-1.5rem-max(0px,(100cqw-80rem)/2))] lg:top-[calc(-112px-5.25rem)] lg:h-[calc(5.25rem+48px)]"
         style={{ scaleY: ribDraw }}
       />
 
-      <div className="flex flex-col gap-12 lg:grid lg:grid-cols-[calc(50%+0.24*(min(100cqw,1280px)-96px))_1fr] lg:gap-0">
+      <div className="flex flex-col gap-12 lg:grid lg:grid-cols-12 lg:gap-12">
         {/* Headline + body */}
-        <div className="lg:pr-12">
-          <h2 ref={headRef} className="font-serif font-semibold tracking-tight">
+        <div className="lg:col-span-6 lg:pt-4">
+          <h2 ref={headRef} className="font-serif font-medium tracking-tight">
             <span className={LINE_MASK}>
               <motion.span
-                className="block text-[2.5rem] leading-[1.08] md:text-[3.5rem] lg:text-[4.5rem]"
+                className="block text-[2.5rem] leading-[1.08] md:text-[3.25rem] lg:text-[3.75rem]"
                 initial={{ y: "115%" }}
                 animate={{ y: headOpen ? "0%" : "115%" }}
-                transition={reduce ? INSTANT : { duration: 0.7, ease: EASE_NAN }}
+                transition={reduce ? INSTANT : { duration: 0.8, ease: EASE_NAN }}
               >
                 {brandStatement.headlineA}
               </motion.span>
             </span>
-            <span className={`${LINE_MASK} mt-3`}>
+            <span className={`${LINE_MASK} mt-4`}>
               <motion.span
-                className="block text-[1.75rem] leading-[1.18] text-on-indigo-muted md:text-[2.25rem] lg:text-[2.75rem]"
+                className="block max-w-[34rem] text-[1.5rem] leading-[1.25] text-on-indigo-muted md:text-[1.75rem] lg:text-[2rem]"
                 initial={{ y: "115%" }}
                 animate={{ y: headOpen ? "0%" : "115%" }}
-                transition={reduce ? INSTANT : { duration: 0.7, delay: 0.14, ease: EASE_NAN }}
+                transition={reduce ? INSTANT : { duration: 0.8, delay: 0.12, ease: EASE_NAN }}
               >
                 {brandStatement.headlineB}
               </motion.span>
@@ -83,27 +97,32 @@ export default function BrandStatementSection() {
             className="mt-10 max-w-md text-[0.9375rem] leading-7 text-on-indigo-muted"
             initial={{ opacity: 0 }}
             animate={{ opacity: headOpen ? 1 : 0 }}
-            transition={reduce ? INSTANT : { duration: 0.5, delay: DUR_SIGNATURE }}
+            transition={reduce ? INSTANT : { duration: 0.6, delay: 0.5 }}
           >
             {brandStatement.body}
           </motion.p>
         </div>
 
-        {/* The craftsperson photo, opening from the rib. Above the headline below 1024px, where the
-            rib comes straight down onto it; beside it, one beat lower, from 1024px. */}
-        <div ref={photoRef} className="order-first md:ml-[33.333%] lg:order-none lg:ml-0 lg:mt-24">
+        {/* The photo: above the headline below 1024px (the rib comes straight down onto it);
+            from 1024px half the grid, one beat lower, bleeding off the right edge. It opens
+            downwards from its top edge, where the rib lands. */}
+        {/* photoRef is on this never-clipped wrapper, so useInView sees it (DECISIONS §10) */}
+        <div
+          ref={photoRef}
+          className="order-first -mx-6 md:mx-0 lg:order-none lg:col-span-6 lg:mr-[calc(-1*max(1.5rem,(100vw-80rem)/2))] lg:mt-24"
+        >
           <motion.div
-            className="rib-open"
-            initial={{ "--open": 0 }}
-            animate={{ "--open": photoOpen ? 1 : 0 }}
+            className="overflow-hidden"
+            initial={{ clipPath: "inset(0 0 100% 0)" }}
+            animate={{ clipPath: photoOpen ? "inset(0 0 0% 0)" : "inset(0 0 100% 0)" }}
             transition={reduce ? INSTANT : { duration: DUR_SIGNATURE, ease: EASE_NAN }}
           >
             <motion.div
-              initial={{ scale: 1.04 }}
-              animate={{ scale: photoOpen ? 1 : 1.04 }}
-              transition={reduce ? INSTANT : { duration: DUR_SIGNATURE, ease: EASE_NAN }}
+              initial={{ scale: 1.06 }}
+              animate={{ scale: photoOpen ? 1 : 1.06 }}
+              transition={reduce ? INSTANT : { duration: DUR_SIGNATURE * 1.4, ease: EASE_NAN }}
             >
-              <AssetSlot asset={brandPhoto} sizes="(min-width: 1024px) 30vw, (min-width: 768px) 66vw, 100vw" />
+              <AssetSlot asset={brandPhoto} sizes="(min-width: 1024px) 50vw, 100vw" />
             </motion.div>
           </motion.div>
         </div>

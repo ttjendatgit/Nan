@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * The ambient background layers around HeroSection's fan area -- solid base color, grid texture,
- * focal light, left ambient accent, top/bottom fades -- extracted into one place (H4-polish) so
+ * The ambient background layers around HeroSection's fan area -- solid base color, focal light, left ambient accent, top/bottom fades -- extracted into one place (H4-polish) so
  * HeroSection.tsx and the dev-only /dev/silk-fan preview can never drift apart on what "the real
  * hero background" looks like. The dev page's whole point is tuning HeroSilkStage's config against
  * the *actual* background it will sit on, so the two need to render identical DOM/styles here.
@@ -24,19 +23,14 @@ export const HERO_BACKGROUND_COLOR = "#0F1320";
 export default function HeroSectionBackground() {
   return (
     <>
-      {/* ── Subtle grid texture: masked to fan-side only ── */}
+      {/* R10.2: the 60px grid texture is gone (DECISIONS §1: no background grids). The fan alone
+          is the focal point; the field around it stays deep and quiet. R10.3: the same
+          subliminal fibre as the other dark sections, and a side-only vignette (cinematic frame). */}
+      <div aria-hidden="true" className="nan-material nan-material-indigo pointer-events-none absolute inset-0" />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.28) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.28) 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
-          WebkitMaskImage:
-            "linear-gradient(to right, transparent 0%, transparent 38%, rgba(255,255,255,0.50) 62%, rgba(255,255,255,0.85) 100%)",
-          maskImage:
-            "linear-gradient(to right, transparent 0%, transparent 38%, rgba(255,255,255,0.50) 62%, rgba(255,255,255,0.85) 100%)",
-        }}
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "linear-gradient(90deg, rgb(6 8 18 / 0.42), transparent 26%, transparent 74%, rgb(6 8 18 / 0.42))" }}
       />
 
       {/* ── Single restrained focal light: separates the fan silhouette from the panel/canvas
@@ -49,7 +43,7 @@ export default function HeroSectionBackground() {
         className="pointer-events-none absolute right-[12%] top-[24%] hidden h-[38%] w-[28%] md:block"
         style={{
           background:
-            "radial-gradient(ellipse at 55% 48%, rgba(25,43,136,0.30) 0%, transparent 62%)",
+            "radial-gradient(ellipse at 55% 48%, rgba(25,43,136,0.18) 0%, transparent 62%)",
         }}
       />
 

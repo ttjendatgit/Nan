@@ -1,0 +1,129 @@
+/* Homepage Hero (HeroImprint). Its own namespace (.himp-*). The fan anchor is a zero-size point at
+   the fan's pivot; FanObject is placed on it (translate −50%, −pivot) and sized by its box width
+   (visible fan = 0.747 × width). */
+
+.himp {
+  height: max(100svh, 44rem);
+  background: #0f1320;
+}
+.himp-light {
+  /* one soft pool of light behind the fan, so the silk reads against the wall */
+  background: radial-gradient(ellipse 58% 34% at 50% 30%, rgb(70 90 190 / 0.24), transparent 72%);
+}
+.himp-fan-anchor {
+  left: 50vw;
+  top: 41%;
+  width: 0;
+  height: 0;
+}
+.himp-fan {
+  left: 0;
+  top: 0;
+  width: 120vw;
+}
+.himp-copy {
+  left: 6vw;
+  right: 6vw;
+  top: calc(41% + 2.25rem);
+}
+.himp-h1 {
+  font-size: clamp(2.1rem, 9vw, 2.6rem);
+  line-height: 1.04;
+}
+.himp-lead {
+  margin-top: 0.85rem;
+  max-width: 24rem;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+.himp-try {
+  margin-top: 1.5rem;
+  max-width: 22rem;
+}
+.himp-input {
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+.himp-actions {
+  margin-top: 1.5rem;
+}
+/* short phones: the hint goes, the field stays */
+@media (max-height: 700px) and (max-width: 767px) {
+  .himp-try p {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .himp {
+    height: max(100svh, 56rem);
+  }
+  .himp-fan-anchor {
+    top: 45%;
+  }
+  .himp-fan {
+    width: 104vw;
+  }
+  .himp-copy {
+    left: 8vw;
+    right: 8vw;
+    top: calc(45% + 3rem);
+  }
+  .himp-h1 {
+    font-size: 3.4rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .himp {
+    height: clamp(720px, 100svh, 940px);
+  }
+  .himp-light {
+    background: radial-gradient(ellipse 40% 42% at 66% 46%, rgb(70 90 190 / 0.24), transparent 72%);
+  }
+  /* the fan stands large on the right; its handle is where the Brand rib begins */
+  .himp-fan-anchor {
+    left: 66vw;
+    top: 80%;
+  }
+  .himp-fan {
+    width: min(98vw, 134svh);
+  }
+  .himp-copy {
+    left: 5.5vw;
+    right: auto;
+    top: 50%;
+    transform: translateY(-44%);
+    width: min(29rem, 32vw);
+  }
+  .himp-h1 {
+    font-size: clamp(2.5rem, 3.7vw, 3.9rem);
+    line-height: 1.02;
+  }
+  .himp-lead {
+    margin-top: 1.1rem;
+  }
+  .himp-try {
+    margin-top: 2.25rem;
+  }
+  .himp-input {
+    font-size: clamp(1.5rem, 2vw, 2rem);
+  }
+  .himp-actions {
+    margin-top: 2rem;
+  }
+}
+
+/* 1024–1279: a narrower frame, so the fan is smaller and further right, clear of the field */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .himp-fan-anchor {
+    left: 69vw;
+    top: 78%;
+  }
+  .himp-fan {
+    width: min(80vw, 112svh);
+  }
+  .himp-copy {
+    width: 31vw;
+  }
+}

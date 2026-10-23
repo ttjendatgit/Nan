@@ -1,6 +1,6 @@
 import { MotionConfig } from "motion/react";
 import Navbar from "@/components/common/Navbar";
-import HeroSection from "@/components/homepage/HeroSection";
+import HeroSignature from "@/components/homepage/signature/HeroSignature";
 import BrandStatementSection from "@/components/homepage/BrandStatementSection";
 import ProductTypeSection from "@/components/homepage/ProductTypeSection";
 import ProblemSolutionSection from "@/components/homepage/ProblemSolutionSection";
@@ -23,8 +23,10 @@ export default function Home() {
             future decision brings the full-screen intro back. */}
         <Navbar />
 
-        {/* 1. Hero — what Nan is, primary CTA */}
-        <HeroSection />
+        {/* 1. Hero — what Nan is, primary CTA. R20: HeroSignature (one fan in one light, with a
+            name tag the visitor writes on). Rollback to R19: import and mount
+            components/homepage/atelier/HeroAtelier instead (R18: HeroImprint). */}
+        <HeroSignature />
 
         {/* Narrative wrapper: BrandStatement → FinalCTA. The R6 bamboo rib (BrandStatement) and
             the Process rail carry the thread between chapters; the old fixed motif is gone. */}
@@ -33,25 +35,27 @@ export default function Home() {
           {/* 2. Brand Statement — manifesto, why Nan exists */}
           <BrandStatementSection />
 
-          {/* 3. Choose Fan Type — real category discovery */}
-          <ProductTypeSection />
-
-          {/* 4–5. Problem + Solution — one editorial spread (R6) */}
+          {/* 3. Problem + Solution — one editorial spread (R6). R10.2: moved ahead of the
+              catalogue so the two paper sections (ProductType, Material) form one continuous paper
+              chapter: dark → paper → dark, instead of navy/cream alternating block by block. */}
           <ProblemSolutionSection />
 
-          {/* 6. Materials & Craft — paper, fabric, finishes */}
+          {/* 4. Choose Fan Type — real category discovery */}
+          <ProductTypeSection />
+
+          {/* 5. Materials & Craft — paper, fabric, finishes */}
           <MaterialSection />
 
-          {/* 7. Use Cases — events, resorts, restaurants, corporate, brand */}
+          {/* 6. Use Cases — events, resorts, restaurants, corporate, brand */}
           <UseCaseSection />
 
-          {/* 8. Process — quote-first workflow */}
+          {/* 7. Process — quote-first workflow */}
           <ProcessSection />
 
-          {/* 9. FAQ */}
+          {/* 8. FAQ */}
           <FAQSection />
 
-          {/* 10. Final Quote CTA */}
+          {/* 9. Final Quote CTA */}
           <FinalCTASection />
 
         </div>

@@ -128,13 +128,15 @@ const GLOW_OFFSET_SCALE = 3.2;
 export const DEFAULT_STAGE_CONFIG: StageConfig = {
   // Behind the fan (see HeroSilkStage: this canvas is the lowest DOM layer) -- dense, small, slow.
   back: {
-    count: 500,
-    countReduced: 250, // small screens / pointer:coarse -- roughly half
+    // R10.2: 500 -> 110 (the starfield read as "tech"). R10.3: 170. R10.4: 80, so the fan reads
+    // as a crafted object in a quiet field, not a CGI render in a particle system.
+    count: 80,
+    countReduced: 40, // small screens / pointer:coarse -- roughly half
     // H2 -> H2.5: opacity 0.15/0.5 -> 0.4/0.9 (~2.7x / ~1.8x -- the max is capped well under 1.0
     // rather than scaled a full 2-3x, since opacity can't exceed 1). Size 0.05/0.14 -> 0.08/0.21
     // (~1.5x both ends).
     sizeRange: [0.08, 0.21],
-    opacityRange: [0.4, 0.9],
+    opacityRange: [0.14, 0.4],
     depthRange: [-9, -2], // far side of this layer's own camera
     speed: 0.12, // world units / second, upward drift
     spreadX: backSpreadX,
@@ -150,10 +152,11 @@ export const DEFAULT_STAGE_CONFIG: StageConfig = {
     // H2 -> H2.5: 22 -> 30 particles. Size 0.3/0.6 -> 0.45/0.85 (bigger). Opacity 0.05/0.16 ->
     // 0.08/0.28 (still fainter than the back layer, but no longer barely-there). Spawn region
     // narrowed to frontSpreadX/Y above instead of sharing the back layer's full-width spread.
-    count: 30,
-    countReduced: 15,
+    // R10.2: 30 -> 6. R10.3: 10. R10.4: 4, an occasional mote in front of the fan.
+    count: 4,
+    countReduced: 2,
     sizeRange: [0.45, 0.85],
-    opacityRange: [0.08, 0.28],
+    opacityRange: [0.05, 0.16],
     depthRange: [2, 5], // near side of this layer's own camera
     speed: 0.05,
     spreadX: frontSpreadX,
@@ -180,23 +183,27 @@ export const DEFAULT_STAGE_CONFIG: StageConfig = {
     radius: 9,
     // H2 -> H2.5: 0.22 -> 0.5 -- too faint to read as a light source before. Kept well under 1 so
     // the fan, not the glow, stays the visual center.
-    intensity: 0.2,
+    // R10.4: 0.2 -> 0.12, less glow around the object.
+    intensity: 0.12,
     blending: "additive",
   },
   // H3: one pointer field (usePointerField.ts) drives the fan's CSS 3D tilt, SilkFan's own
   // internal tilt, and both canvases' camera shift together. See HeroSilkStage.tsx's own comments
   // for the sign convention chosen for each of those three effects.
   parallax: {
-    fanMaxTiltYDeg: 10,
-    fanMaxTiltXDeg: 5,
+    // R10.5-H: the fan is now an oversized, cropped object; at that scale 10°/5° read as the
+    // camera swinging. 2.5°/1.5° is a settling breath, not a showcase.
+    fanMaxTiltYDeg: 2.5,
+    fanMaxTiltXDeg: 1.5,
     perspectivePx: 1200,
     backCameraShift: 0.4,
     frontCameraShift: 1.6,
     damping: 6,
     idlePeriodSec: 9,
-    mobileIdleAmplitude: 0.5,
+    // R10.5-H: 0 -- no continuous idle sway on touch (no looping motion in the Hero).
+    mobileIdleAmplitude: 0,
     scrollInfluence: 1.0,
-    mobileFanMaxTiltXDeg: 12,
+    mobileFanMaxTiltXDeg: 3,
     mobilePerspectivePx: 600,
     scrollTiltPeakAt: 0.5,
     // H4: made official for the real homepage -- "the fan turns toward the cursor" read better

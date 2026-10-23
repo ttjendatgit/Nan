@@ -1,0 +1,310 @@
+/* R20.1 Hero (HeroSignatureR201, lab only), namespace .s201-*.
+   The scene is set from the fan: --R is its radius in px; .s201-stage holds its space (2R wide,
+   1.06R tall, the rivet at the bottom centre); the handle hangs 0.16R below the rivet and is
+   0.3R wide, so --hub (0.36R) is the gap it opens in the headline. FanStage maps the stage box
+   onto the 3D camera, so the rendered fan and the layout share one geometry.
+   Layers: CSS room (fallback ground) → WebGL canvas → foot fade → copy. */
+
+.s201 {
+  --nav: var(--nav-height, 85px);
+  --gx: max(1rem, 6vw);
+  --R: min(calc((100vw - 2 * var(--gx)) / 2.02), calc((100svh - var(--nav)) * 0.3));
+  --hub: calc(0.36 * var(--R));
+  --champagne: #d4c29f;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 100svh;
+  background: #0b0e1b;
+  color: var(--color-on-indigo);
+}
+/* the wall and the pool the key light throws on it (high on the left, so the pool sits up and to
+   the left of the fan); the WebGL canvas adds only the fan and its cast shadow */
+.s201-room {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(34% 40% at 44% 30%, rgb(66 80 156 / 0.3), transparent 70%),
+    radial-gradient(62% 58% at 47% 36%, rgb(40 50 104 / 0.42), transparent 75%),
+    #0f1330;
+}
+.s201-gl {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+.s201-gl[data-on] {
+  opacity: 1;
+}
+/* the room falls off towards its corners; the foot meets BrandStatement's indigo */
+.s201::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, transparent 86%, #0f1320 100%),
+    radial-gradient(120% 95% at 48% 36%, transparent 50%, rgb(4 5 14 / 0.55) 100%);
+}
+
+/* ── phones and tablets: one column on the fan's axis ──────────────────────────────────────── */
+.s201-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100svh;
+  padding: calc(var(--nav) + clamp(1rem, 3svh, 1.75rem)) var(--gx) calc(clamp(1.5rem, 4svh, 2.5rem) + env(safe-area-inset-bottom));
+  text-align: center;
+}
+.s201-frame > :not(.s201-gl),
+.s201-row > * {
+  position: relative;
+  z-index: 3;
+}
+.s201-row {
+  display: contents;
+}
+.s201-h1 {
+  order: 1;
+  font-weight: 500;
+  font-size: clamp(2rem, 8.4vw, 3.4rem);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: var(--color-on-indigo);
+}
+.s201-h1-a,
+.s201-h1-b {
+  display: block;
+  white-space: nowrap;
+}
+.s201-lede {
+  order: 2;
+  margin-top: 0.7rem;
+  max-width: 22rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--color-on-indigo-muted);
+  text-wrap: balance;
+}
+.s201-stage {
+  order: 3;
+  flex-shrink: 0;
+  width: calc(2 * var(--R));
+  height: calc(1.06 * var(--R));
+  margin-top: clamp(1.5rem, 4.5svh, 2.5rem);
+}
+.s201-pivot {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+}
+.s201-stage-svg {
+  --fw: calc(var(--R) / 0.38);
+  position: absolute;
+  left: 0;
+  top: calc(1.06 * var(--R) - 0.395 * var(--fw));
+}
+.s201-write {
+  order: 4;
+  width: min(100%, 22rem);
+  margin-top: calc(0.17 * var(--R) + 1.1rem);
+}
+.s201-actions {
+  order: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 1.5rem;
+  margin-top: 1.25rem;
+}
+@media (max-height: 740px) and (max-width: 1023px) {
+  .s201-lede {
+    display: none;
+  }
+}
+
+/* ── the writing line: a typographic field on the axis, no box ─────────────────────────────── */
+.s201-write-label {
+  display: block;
+  font-size: 0.8125rem;
+  color: rgb(212 194 159 / 0.9);
+}
+.s201-write-line {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: 4.25rem 1fr 4.25rem;
+  align-items: center;
+  margin-top: 0.2rem;
+  border-bottom: 1px solid rgb(182 161 123 / 0.5);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.s201-write-line:focus-within {
+  border-bottom-color: var(--champagne);
+  box-shadow: 0 1px 0 0 var(--champagne);
+}
+.s201-input {
+  grid-column: 2;
+  min-width: 0;
+  min-height: 2.75rem;
+  background: transparent;
+  outline: none;
+  text-align: center;
+  /* the word always fits: capitals ≈ 0.92em each with tracking, never under 16px (no iOS zoom) */
+  font-size: max(1rem, min(var(--fs-max, 1.7rem), calc((100cqi - 8.5rem) / (max(var(--chars, 0), 9) * 0.92))));
+  line-height: 1.2;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-on-indigo);
+  caret-color: var(--champagne);
+}
+.s201-input::placeholder {
+  font-size: 0.85em;
+  letter-spacing: 0.06em;
+  color: #9d968a;
+}
+.s201-print {
+  grid-column: 3;
+  justify-self: end;
+  min-height: 2.75rem;
+  padding: 0 0.15rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ece2cb;
+  text-decoration: underline;
+  text-decoration-color: rgb(212 194 159 / 0.55);
+  text-underline-offset: 5px;
+  cursor: pointer;
+  transition: color 0.18s ease, text-decoration-color 0.18s ease;
+}
+.s201-print:hover {
+  color: #fff9ec;
+  text-decoration-color: var(--champagne);
+}
+.s201-print:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+.s201-write-hint {
+  min-height: 1.6em;
+  margin-top: 0.45rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-on-indigo-muted);
+}
+.s201-reset {
+  margin-block: -0.6rem;
+  padding-block: 0.6rem;
+  font-weight: 600;
+  color: var(--color-on-indigo);
+  text-decoration: underline;
+  text-decoration-color: rgb(212 194 159 / 0.6);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.s201-print:focus-visible,
+.s201-reset:focus-visible,
+.s201-link:focus-visible {
+  outline: 2px solid var(--champagne);
+  outline-offset: 3px;
+}
+.s201-link {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-on-indigo);
+  text-decoration: underline;
+  text-decoration-color: rgb(182 161 123 / 0.6);
+  text-underline-offset: 6px;
+}
+.s201-link:hover {
+  text-decoration-color: var(--color-on-indigo);
+}
+
+/* ── tablets ────────────────────────────────────────────────────────────────────────────────── */
+@media (min-width: 640px) and (max-width: 1023px), (min-width: 640px) and (max-aspect-ratio: 4/3) {
+  .s201 {
+    --R: min(calc((100vw - 2 * var(--gx)) / 2.02), calc((100svh - var(--nav)) * 0.31));
+  }
+  .s201-lede {
+    font-size: 1rem;
+  }
+}
+
+/* ── desktop (landscape ≥ 1024): the headline on the horizon, parted by the handle ─────────── */
+@media (min-width: 1024px) and (min-aspect-ratio: 4/3) {
+  .s201 {
+    /* as large as the frame allows: ≤ 33vw, and the height left once the copy rows are placed */
+    --R: min(33vw, calc((100svh - var(--nav) - 8svh - 4.1vw - 8.75rem) / 1.13));
+    height: max(100svh, 44rem);
+    min-height: 0;
+  }
+  .s201-frame {
+    justify-content: flex-start;
+    height: 100%;
+    min-height: 0;
+    padding: calc(var(--nav) + 4svh) var(--gx) 0;
+  }
+  .s201-frame > :not(.s201-gl) {
+    order: 0;
+  }
+  .s201-stage {
+    margin-top: 0;
+  }
+  .s201-h1 {
+    display: grid;
+    grid-template-columns: 1fr var(--hub) 1fr;
+    width: 100%;
+    margin-top: calc(0.07 * var(--R));
+    font-size: clamp(2.4rem, 3.7vw, 4.75rem);
+    line-height: 1.05;
+  }
+  .s201-h1-a {
+    grid-column: 1;
+    text-align: right;
+  }
+  .s201-h1-b {
+    grid-column: 3;
+    text-align: left;
+  }
+  .s201-row {
+    display: grid;
+    grid-template-columns: 1fr minmax(18rem, 22rem) 1fr;
+    column-gap: 2.5rem;
+    align-items: start;
+    width: 100%;
+    margin-top: 1.6rem;
+  }
+  .s201-lede {
+    grid-column: 1;
+    justify-self: end;
+    max-width: 17rem;
+    margin: 1.45rem 0 0;
+    text-align: right;
+  }
+  .s201-write {
+    grid-column: 2;
+    width: auto;
+    margin: 0;
+  }
+  .s201-actions {
+    grid-column: 3;
+    justify-content: flex-start;
+    justify-self: start;
+    margin-top: 1.05rem;
+  }
+  .s201-input {
+    --fs-max: clamp(1.5rem, 1.6vw, 2rem);
+  }
+}

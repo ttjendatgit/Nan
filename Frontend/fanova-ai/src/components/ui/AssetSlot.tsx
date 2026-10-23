@@ -15,16 +15,16 @@ interface AssetSlotProps {
   className?: string;
 }
 
-const placeholderTone: Record<Tone, string> = {
-  indigo: "border-on-indigo-muted/40 bg-indigo-raised text-on-indigo-muted",
-  paper: "border-ink-muted/30 bg-paper-deep text-ink-muted",
+const emptyTone: Record<Tone, string> = {
+  indigo: "bg-indigo-raised text-on-indigo-muted",
+  paper: "bg-paper-deep text-ink-muted",
 };
 
 /**
  * The box a homepage asset lives in. With a `src` it renders the image (cover for photographs,
- * contain for cut-outs); without one it renders a labelled R6.2 placeholder in exactly the same
- * box, so crop, layering and animation are built against the final geometry. The placeholder is
- * visibly a placeholder (dashed edge, asset code) and must never ship.
+ * contain for cut-outs). R10.2: without one it renders a quiet brand surface in exactly the same
+ * box (tone fill and a small Nan wordmark), never a labelled or dashed placeholder, so a missing
+ * image can never surface debug text. `data-placeholder` stays on the box for QA scripts.
  */
 export default function AssetSlot({ asset, tone = "indigo", fill, vertical, sizes = "50vw", className }: AssetSlotProps) {
   const box = cn(fill ? "absolute inset-0" : "relative w-full", "overflow-hidden", className);
@@ -46,24 +46,16 @@ export default function AssetSlot({ asset, tone = "indigo", fill, vertical, size
 
   return (
     <div
-      role={asset.alt ? "img" : undefined}
-      aria-label={asset.alt || undefined}
-      aria-hidden={asset.alt ? undefined : true}
-      className={cn(box, "flex items-center justify-center border border-dashed", placeholderTone[tone])}
+      aria-hidden="true"
+      className={cn(box, "flex items-center justify-center", emptyTone[tone])}
       style={style}
       data-placeholder={asset.id}
     >
-      <span
-        aria-hidden="true"
-        className={cn(
-          "pointer-events-none select-none px-2 text-center text-[11px] leading-snug",
-          vertical && "[writing-mode:vertical-rl] rotate-180",
-        )}
-      >
-        <span className="block font-semibold tracking-wide">[{asset.id} PLACEHOLDER]</span>
-        <span className="block">{asset.subject}</span>
-        <span className="block opacity-80">{asset.ratio.replace(" / ", ":")}</span>
-      </span>
+      {!vertical && (
+        <span aria-hidden="true" className="pointer-events-none select-none font-serif text-lg italic">
+          Nan
+        </span>
+      )}
     </div>
   );
 }

@@ -101,7 +101,7 @@ export default function QuoteRequestModal({ open, onClose, ...formProps }: Quote
           {/* Backdrop */}
           <div
             aria-hidden="true"
-            className="absolute inset-0 bg-black/72 backdrop-blur-sm"
+            className="absolute inset-0 bg-indigo-deep/85"
             onClick={onClose}
           />
           {/* Panel */}
@@ -111,7 +111,7 @@ export default function QuoteRequestModal({ open, onClose, ...formProps }: Quote
             aria-modal="true"
             aria-labelledby={titleId}
             tabIndex={-1}
-            className="relative z-10 w-full max-w-lg overflow-hidden rounded-lg border border-[#192B88]/25 bg-[#0F1320] shadow-[0_24px_80px_rgba(0,0,0,0.85)] outline-none"
+            className="relative z-10 w-full max-w-lg overflow-hidden rounded-lg border border-line-on-indigo bg-[var(--nan-dark)] shadow-[0_24px_64px_-24px_rgb(4_6_14/0.9)] outline-none"
             initial={prefersReducedMotion ? false : { opacity: 0, y: 14, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={prefersReducedMotion ? undefined : { opacity: 0, y: 8, scale: 0.99 }}
